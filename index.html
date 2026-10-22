@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Атлас Далёких Земель — Бесшовные карты</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/v4.css">
+</head>
+<body>
+<header>
+  <strong>✦ Атлас Далёких Земель <small>v4.0</small></strong>
+  <select id="worldSelect" title="Активный мир"></select>
+  <button id="openFolder" title="Выбрать папку проекта для чтения и записи">📁 Открыть папку проекта</button>
+  <button id="undoAction" disabled title="Отменить последнее изменение (Ctrl+Z)">↶ Отменить</button>
+  <button id="save" title="Записать изменения в data/atlas.json и изображения в maps/">💾 Сохранить на диск</button>
+  <button id="newWorld">+ Мир</button>
+  <button id="add">+ Маркер</button>
+  <button id="export">Экспорт JSON</button>
+  <button id="import">Импорт JSON</button>
+  <button id="viewMode" aria-pressed="false">◉ Режим просмотра</button>
+  <span id="saveState" role="status">Демонстрация</span>
+  <input id="importFile" type="file" accept=".json,application/json" hidden>
+</header>
+<main>
+  <aside id="sidebar">
+    <label for="atlasSearch">Поиск по всему атласу</label>
+    <input id="atlasSearch" type="search" placeholder="Место, карта, описание или тег…" autocomplete="off">
+    <div id="searchResults" class="result-list" aria-live="polite" hidden></div>
+    <nav id="tabs" aria-label="Разделы редактора">
+      <button class="tab" data-panel="catalog" aria-pressed="false">Обзор</button>
+      <button class="tab active" data-panel="world" aria-pressed="true">Мир</button>
+      <button class="tab" data-panel="regions" aria-pressed="false">Карты-слои</button>
+      <button class="tab" data-panel="markers" aria-pressed="false">Маркеры</button>
+    </nav>
+    <section id="catalogSection" class="section" hidden>
+      <h2>Локации мира</h2>
+      <label for="catalogType">Тип локации</label><select id="catalogType"><option value="">Все типы</option></select>
+      <p id="catalogCount" class="notice"></p>
+      <div id="markerCatalog" class="result-list"></div>
+    </section>
+    <section id="worldSection" class="section">
+      <h2>Настройки мира</h2>
+      <label for="worldName">Название</label><input id="worldName">
+      <label for="imageFile">Базовая карта мира</label><input id="imageFile" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+      <div class="buttons"><button id="saveWorld">Применить название</button><button id="deleteWorld" class="danger">Удалить мир</button></div>
+      <p class="notice">Базовая карта — обзорный уровень. Подробные региональные карты добавляются отдельно во вкладке «Карты-слои».</p>
+      <h3>Устройство проекта</h3>
+      <p class="notice">Карты хранятся в maps/, данные — в data/atlas.json. Все изображения и координаты миров независимы. Сначала открой папку проекта, затем сохраняй изменения.</p>
+      <h3>Масштаб расстояний</h3>
+      <label for="distanceScale">Километров в одном пикселе базовой карты</label>
+      <input id="distanceScale" type="number" min="0.000000001" step="any" placeholder="Масштаб ещё не задан">
+      <div class="buttons"><button id="applyDistanceScale">Применить масштаб</button><button id="calibrateDistance">Задать по двум точкам</button></div>
+      <p class="notice">Для калибровки укажи две точки с известным расстоянием. Масштаб сохраняется отдельно для каждого мира.</p>
+    </section>
+    <section id="regionsSection" class="section" hidden>
+      <h2>Карты-слои</h2>
+      <p class="notice">Дочерние карты автоматически проявляются при приближении. Можешь создавать любое число уровней: мир → регион → город.</p>
+      <div class="buttons"><button id="newRegion">+ Добавить подробную карту</button></div>
+      <div id="regionList" class="region-list"></div>
+      <div id="regionEditor" hidden>
+        <hr>
+        <h3 id="regionEditorHeading">Параметры карты</h3>
+        <label for="regionName">Название</label><input id="regionName">
+        <label for="regionParent">На какой карте расположен участок</label><select id="regionParent"></select>
+        <label for="regionImage">Изображение региона</label><input id="regionImage" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <p id="regionFileInfo" class="notice"></p>
+        <div class="buttons"><button id="drawRegion">▱ Выделить область (2 клика)</button><button id="zoomToRegion">◎ Перейти к участку</button></div>
+        <div class="buttons"><button id="alignRegion">⌖ Совместить по двум точкам</button></div>
+        <p class="notice">На карте область выделена пунктиром. Зажми ЛКМ в любом месте изображения, чтобы двигать его без изменения масштаба. Угловые точки меняют размер; оранжевая точка над картой вращает изображение; удерживай пробел и тяни ЛКМ, чтобы перемещать камеру. Если родительская карта не видна, нажми «Перейти к участку».</p>
+        <label for="regionZoom">Появление при приближении (зум)</label>
+        <div class="inline-controls"><input id="regionZoom" type="range" min="-6" max="8" step="0.25"><output id="regionZoomText"></output></div>
+        <label for="regionRotation">Поворот дочерней карты</label>
+        <div class="inline-controls"><input id="regionRotation" type="range" min="0" max="359" step="1"><output id="regionRotationText">0°</output></div>
+        <label for="regionFade">Плавность перехода (уровней зума)</label>
+        <div class="inline-controls"><input id="regionFade" type="range" min="0" max="2" step="0.25"><output id="regionFadeText"></output></div>
+        <label for="regionOpacity">Прозрачность в режиме подгонки</label>
+        <div class="inline-controls"><input id="regionOpacity" type="range" min="0" max="1" step="0.05"><output id="regionOpacityText"></output></div>
+        <div class="buttons"><button id="blinkRegion">◐ Сравнить с родителем</button><button id="saveRegion">Применить настройки</button></div>
+        <label class="check-line"><input type="checkbox" id="regionEnabled"> Карта активна</label>
+        <div class="buttons"><button id="deleteRegion" class="danger">Удалить карту-слой</button><button id="cancelRegion">Закрыть редактор</button></div>
+      </div>
+    </section>
+    <section id="markersSection" class="section" hidden>
+      <h2>Маркеры</h2>
+      <p class="notice">Нажми «+ Маркер» сверху и укажи точку на карте. Маркеры привязаны к миру и сохраняют позицию на всех уровнях его детализации.</p>
+      <div id="markerPanel" hidden>
+        <h3>Редактор маркера</h3>
+        <label for="markerName">Название</label><input id="markerName">
+        <label for="markerType">Тип</label><select id="markerType"></select>
+        <label>Цвет маркера (RGB / HEX)</label>
+        <div class="color-row"><input id="markerColor" type="color" value="#d6b77a"><input id="markerHex" value="#d6b77a" maxlength="7"></div>
+        <label for="markerImportance">Минимальный масштаб</label>
+        <select id="markerImportance"><option value="-6">Всегда — столица</option><option value="-3">Крупный город</option><option value="-1">Город</option><option value="1">Деревня</option><option value="3">Мелкий объект</option></select>
+        <label for="markerDescription">Краткое описание</label><textarea id="markerDescription"></textarea>
+        <button id="editMarkerArticle" class="article-launch">Открыть полную статью</button>
+        <div class="buttons"><button id="saveMarker">Применить изменения</button><button id="deleteMarker" class="danger">Удалить</button><button id="cancelMarker">Закрыть</button></div>
+      </div>
+      <hr><h3>Типы маркеров</h3><div id="typesList"></div>
+      <div class="buttons"><button id="newType">+ Создать тип</button></div>
+      <hr><h3>Фильтры типов</h3><div id="typeFilters"></div>
+      <div class="buttons"><button id="showAllTypes">Показать все</button><button id="hideAllTypes">Скрыть все</button></div>
+    </section>
+    <hr><p id="status" class="notice" role="status"></p>
+  </aside>
+  <div id="mapArea">
+    <button id="toggleSidebar" title="Свернуть или развернуть панель" aria-label="Свернуть панель">☰</button>
+    <div id="map"></div>
+    <div id="measureTools" class="map-toolbox">
+      <button id="measureDistance" aria-pressed="false">↔ Линейка</button>
+      <div id="measurePanel" hidden>
+        <output id="measureResult">Отметь точки маршрута на карте.</output>
+        <div class="buttons"><button id="measureBack">Убрать точку</button><button id="measureFinish">Завершить</button><button id="measureClear">Очистить</button></div>
+      </div>
+    </div>
+    <div id="mapHint" class="map-hint" hidden></div>
+    <div class="map-credits">Колесо мыши — масштаб · Перетащи — перемещение</div>
+  </div>
+</main>
+<dialog id="articleDialog" class="atlas-dialog article-dialog" aria-labelledby="articleTitle">
+  <div class="dialog-heading"><div><small id="articleWorld"></small><h2 id="articleTitle"></h2></div><button id="closeArticle" aria-label="Закрыть статью">✕</button></div>
+  <p id="articleSummary" class="article-summary"></p>
+  <div class="article-actions"><button id="articleRead">Читать</button><button id="articleEdit" class="editor-only">Редактировать</button><button id="saveArticleDisk" class="editor-only">💾 Сохранить на диск</button><span id="articleState" role="status"></span></div>
+  <div id="articleEditTools" hidden>
+    <label for="articleTags">Теги через запятую</label><input id="articleTags" placeholder="город, торговля, столица">
+    <div id="articleToolbar" class="article-toolbar" role="toolbar" aria-label="Форматирование статьи">
+      <button data-command="bold" title="Жирный"><b>Ж</b></button><button data-command="italic" title="Курсив"><i>К</i></button>
+      <button data-block="h2">Заголовок</button><button data-block="p">Текст</button><button data-command="insertUnorderedList">• Список</button><button data-command="insertOrderedList">1. Список</button><button data-block="blockquote">Цитата</button>
+      <button id="articleLink">Ссылка</button><button data-command="unlink">Убрать ссылку</button><button id="articleImage">Изображение</button>
+      <select id="articleLocationLink" aria-label="Ссылка на локацию"><option value="">Ссылка на локацию…</option></select>
+    </div>
+    <input id="articleImageFile" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+  </div>
+  <div id="articleBody" class="article-body" tabindex="0" aria-label="Текст статьи"></div>
+  <p class="notice">Изменения статьи остаются в атласе при закрытии окна. Для записи в папку проекта нажми «Сохранить на диск».</p>
+</dialog>
+<dialog id="alignmentDialog" class="atlas-dialog alignment-dialog" aria-labelledby="alignmentTitle">
+  <div class="dialog-heading"><h2 id="alignmentTitle">Совмещение по двум точкам</h2><button id="closeAlignment" aria-label="Закрыть совмещение">✕</button></div>
+  <p id="alignmentHint" role="status"></p>
+  <div class="alignment-grid"><section><h3>Подробная карта</h3><div id="alignmentSource" class="alignment-map"></div></section><section><h3>Родительская карта</h3><div id="alignmentTarget" class="alignment-map"></div></section></div>
+  <p class="notice">Выбирай одинаковые ориентиры: сначала на подробной карте, затем на родительской. Повтори для второго ориентира. Карты можно двигать и приближать. Чем дальше ориентиры друг от друга, тем точнее результат.</p>
+  <div class="buttons"><button id="resetAlignment">Выбрать заново</button><button id="applyAlignment" disabled>Применить совмещение</button></div>
+</dialog>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="js/app.js"></script>
+<script src="js/atlas-math.js"></script>
+<script src="js/atlas-v4.js"></script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+{
+  "version": 4,
+  "types": [
+    {
+      "id": "city",
+      "name": "Город",
+      "symbol": "🏘"
+    },
+    {
+      "id": "fortress",
+      "name": "Крепость",
+      "symbol": "🏰"
+    },
+    {
+      "id": "portal",
+      "name": "Портал",
+      "symbol": "🌀"
+    },
+    {
+      "id": "dungeon",
+      "name": "Подземелье",
+      "symbol": "💀"
+    },
+    {
+      "id": "temple",
+      "name": "Храм",
+      "symbol": "⛩"
+    },
+    {
+      "id": "port",
+      "name": "Порт",
+      "symbol": "⚓"
+    },
+    {
+      "id": "special",
+      "name": "Особая локация",
+      "symbol": "★"
+    }
+  ],
+  "worlds": [
+    {
+      "id": "demo-world",
+      "name": "Демонстрационный мир",
+      "image": "demo-world.svg",
+      "width": 1600,
+      "height": 1000,
+      "locations": [
+        {
+          "id": "demo-capital",
+          "name": "Люменпорт",
+          "x": 705,
+          "y": 572,
+          "type": "city",
+          "color": "#e7bf78",
+          "minZoom": -6,
+          "description": "Столица у реки."
+        },
+        {
+          "id": "demo-village",
+          "name": "Долинные хутора",
+          "x": 810,
+          "y": 473,
+          "type": "city",
+          "color": "#78d9ac",
+          "minZoom": 1,
+          "description": "Поселения, видимые при приближении."
+        },
+        {
+          "id": "demo-fort",
+          "name": "Северный бастион",
+          "x": 510,
+          "y": 676,
+          "type": "fortress",
+          "color": "#cf8071",
+          "minZoom": -1,
+          "description": "Крепость на торговом тракте."
+        }
+      ],
+      "layers": [
+        {
+          "id": "demo-valley",
+          "parentId": null,
+          "name": "Долина Семи Дорог",
+          "image": "demo-region.svg",
+          "width": 1400,
+          "height": 1000,
+          "bounds": {
+            "x1": 390,
+            "y1": 300,
+            "x2": 980,
+            "y2": 750
+          },
+          "showAtZoom": 0.5,
+          "fadeRange": 1,
+          "enabled": true,
+          "rotation": 0
+        }
+      ]
+    },
+    {
+      "id": "f38f42a9-9d57-4ac2-92d3-ae45ff398276",
+      "name": "Элдран",
+      "image": "f38f42a9-9d57-4ac2-92d3-ae45ff398276-1792640758015.png",
+      "width": 3840,
+      "height": 2160,
+      "locations": [
+        {
+          "id": "0d4c99e0-ee92-4a03-8579-4a56226c6202",
+          "x": 799.7166513944672,
+          "y": 2021.5846147861023,
+          "name": "Новая локация",
+          "type": "city",
+          "color": "#d6b77a",
+          "minZoom": -6,
+          "description": ""
+        },
+        {
+          "id": "8d67bd24-baa7-473d-9329-63bca8e14f18",
+          "x": 816.1846552129713,
+          "y": 1808.12817291269,
+          "name": "Эстара",
+          "type": "city",
+          "color": "#d6b77a",
+          "minZoom": -6,
+          "description": "Эстара - западная столица Эльмарийской Империи. Она славится своей торговлей и открытостью ко внешнему миру.",
+          "article": "<p>в&nbsp;<a data-world=\"f38f42a9-9d57-4ac2-92d3-ae45ff398276\" data-location=\"8d67bd24-baa7-473d-9329-63bca8e14f18\" href=\"#location\">Эстара</a><br></p>",
+          "tags": [
+            "столица",
+            "эльмарийская империя",
+            "крупный город",
+            "синдикат"
+          ]
+        }
+      ],
+      "layers": [
+        {
+          "id": "5158aa75-55fe-42d8-840f-2db78f497fa7",
+          "name": "Линвейл",
+          "image": "5158aa75-55fe-42d8-840f-2db78f497fa7-1792640773488.webp",
+          "width": 4653,
+          "height": 2040,
+          "parentId": null,
+          "bounds": {
+            "x1": 697.1041767923576,
+            "y1": 1437.8623578041747,
+            "x2": 1860.7516940573596,
+            "y2": 1948.0366400351231
+          },
+          "showAtZoom": 1,
+          "fadeRange": 0.75,
+          "enabled": true,
+          "rotation": 0.03562194431339094
+        },
+        {
+          "id": "491837eb-c1c8-4ee7-a5c2-658712789294",
+          "name": "Грейфорд",
+          "image": "491837eb-c1c8-4ee7-a5c2-658712789294-1792640993500.webp",
+          "width": 9600,
+          "height": 5400,
+          "parentId": "5158aa75-55fe-42d8-840f-2db78f497fa7",
+          "bounds": {
+            "x1": 898.8498785402893,
+            "y1": 1309.0102299207422,
+            "x2": 943.401642694878,
+            "y2": 1334.0434828883872
+          },
+          "showAtZoom": 4.0310122895601825,
+          "fadeRange": 0.75,
+          "enabled": true,
+          "rotation": 333.875676895683
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+# Local safety copies; keep these on disk, outside Git history.
+/backups/
+/data/backups/
+
+# Development caches and operating-system files.
+__pycache__/
+*.py[cod]
+node_modules/
+.venv/
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.tmp
+*.log

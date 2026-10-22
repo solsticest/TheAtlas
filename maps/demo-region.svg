@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1000" viewBox="0 0 1400 1000">
+<defs><pattern id="p" width="25" height="25" patternUnits="userSpaceOnUse"><path d="M25 0H0V25" fill="none" stroke="#8f845c" stroke-opacity=".10"/></pattern></defs>
+<rect width="1400" height="1000" fill="#c8b38a"/><path d="M0 100Q260 210 500 80T1400 60V310Q880 250 730 338T0 390Z" fill="#adbb8d" opacity=".7"/>
+<path d="M250 0C280 160 535 263 579 386S653 625 765 726S857 865 830 1000" stroke="#537d7e" fill="none" stroke-width="62"/>
+<path d="M250 0C280 160 535 263 579 386S653 625 765 726S857 865 830 1000" stroke="#8fbfc0" fill="none" stroke-width="33"/>
+<path d="M0 677C184 658 262 510 463 495S704 540 846 521S1123 350 1400 412M254 1000C366 746 509 679 752 685S1120 786 1400 738M98 127Q220 228 357 265T685 411T1088 554" fill="none" stroke="#786443" stroke-width="18" stroke-linecap="round"/>
+<path d="M0 677C184 658 262 510 463 495S704 540 846 521S1123 350 1400 412M254 1000C366 746 509 679 752 685S1120 786 1400 738M98 127Q220 228 357 265T685 411T1088 554" fill="none" stroke="#dec99b" stroke-width="11" stroke-dasharray="25 6"/>
+<g fill="#88986a" opacity=".75"><circle cx="100" cy="290" r="58"/><circle cx="160" cy="350" r="50"/><circle cx="1130" cy="155" r="76"/><circle cx="1220" cy="220" r="67"/><circle cx="1150" cy="850" r="88"/><circle cx="1270" cy="870" r="71"/></g>
+<rect width="1400" height="1000" fill="url(#p)"/>
+<g fill="#574329" stroke="#352d25" stroke-width="4"><rect x="713" y="405" width="28" height="28"/><rect x="755" y="395" width="22" height="35"/><rect x="788" y="417" width="30" height="24"/><rect x="757" y="449" width="22" height="25"/><rect x="1082" y="605" width="22" height="22"/><rect x="1119" y="600" width="20" height="20"/><rect x="1142" y="630" width="16" height="16"/><rect x="318" y="192" width="34" height="35"/></g>
+<g fill="#372c21" font-family="Georgia,serif" text-anchor="middle"><text x="700" y="65" font-size="45" letter-spacing="7">ДОЛИНА СЕМИ ДОРОГ</text><text x="801" y="366" font-size="34">Люменпорт</text><text x="1092" y="684" font-size="26">Долинные хутора</text><text x="311" y="164" font-size="23">Северный бастион</text><text x="950" y="940" font-size="22" font-style="italic">Старая королевская дорога</text></g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1600" height="1000" viewBox="0 0 1600 1000">
+<defs><pattern id="grain" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M0 0H40V40" fill="none" stroke="#b8a06f" stroke-opacity=".13"/></pattern><linearGradient id="sea" x2="0.8" y2="1"><stop stop-color="#324f56"/><stop offset="1" stop-color="#20363f"/></linearGradient></defs>
+<rect width="1600" height="1000" fill="url(#sea)"/>
+<path d="M116 186L181 110 294 138 365 111 488 160 612 110 795 139 934 99 1110 174 1225 135 1373 234 1316 380 1434 494 1349 595 1380 737 1255 839 1043 884 931 812 836 889 714 834 580 869 493 774 341 776 231 654 144 559 195 436 115 360Z" fill="#b9a47a" stroke="#e0cf9e" stroke-width="8"/>
+<path d="M184 236 Q400 190 542 249T932 216T1256 310 M280 620 Q481 558 617 611T966 649T1274 597" fill="none" stroke="#9b8b6b" stroke-opacity=".65" stroke-width="8"/>
+<path d="M590 164C552 280 718 324 675 440S782 565 742 670S810 742 895 842" fill="none" stroke="#537b80" stroke-width="24"/>
+<path d="M590 164C552 280 718 324 675 440S782 565 742 670S810 742 895 842" fill="none" stroke="#9cc6c2" stroke-width="10"/>
+<path d="M310 308l33-61 33 61m-16 18 36-62 35 62m17 24 25-45 28 45m608 112 38-71 42 71m-20 30 36-62 34 62M1124 327l28-56 35 56" fill="none" stroke="#726b5d" stroke-width="13" stroke-linejoin="round"/>
+<rect x="0" y="0" width="1600" height="1000" fill="url(#grain)"/>
+<g fill="#392e24" font-family="Georgia,serif" text-anchor="middle"><text x="815" y="75" fill="#e6dcb9" font-size="55" letter-spacing="8">МИР ЭЙЛАР</text><text x="395" y="516" font-size="38" letter-spacing="3">ЗЕМЛИ</text><text x="395" y="559" font-size="38" letter-spacing="3">ЗАПАДА</text><text x="1085" y="699" font-size="40">ВОСТОЧНЫЕ ПРЕДЕЛЫ</text><text x="785" y="370" font-size="23" fill="#634e30">Долина Семи Дорог</text><text x="255" y="915" fill="#9ab1b2" font-size="28" font-style="italic">Западное море</text><text x="1445" y="813" fill="#9ab1b2" font-size="28" font-style="italic">Океан</text></g>
+<g stroke="#604027" fill="#e8cd91" stroke-width="6"><circle cx="705" cy="428" r="15"/><circle cx="510" cy="324" r="10"/></g>
+<g font-family="Georgia,serif" font-size="21" fill="#3a2a1f"><text x="730" y="424">Люменпорт</text><text x="528" y="305">Бастион</text></g>
+<g stroke="#ead7ac" stroke-width="4" opacity=".7"><path d="M65 955H1535M65 45H1535M60 50V950M1540 50V950" fill="none"/></g>
+</svg>

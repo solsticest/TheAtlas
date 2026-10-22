@@ -1,0 +1,34 @@
+*{box-sizing:border-box}body{margin:0;font:14px system-ui;background:#191d24;color:#f2eee7}header{min-height:58px;display:flex;align-items:center;gap:8px;padding:9px 14px;background:#252b34;flex-wrap:wrap}header strong{margin-right:8px}button,select,input,textarea{font:inherit;border:1px solid #65717f;border-radius:6px;padding:8px;background:#303947;color:white}button{cursor:pointer}button:hover{background:#475464}button:disabled{opacity:.5;cursor:not-allowed}#worldSelect{max-width:200px}main{display:flex;height:calc(100vh - 100px);min-height:440px}aside{width:340px;flex-shrink:0;padding:16px;overflow:auto;background:#222832}#map{flex:1;background:#161a20}label{display:block;margin:13px 0 5px;color:#cbd1da}aside input,aside textarea,aside select{width:100%}textarea{min-height:100px}.buttons{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.notice{font-size:12px;color:#bfc8d4;line-height:1.6;white-space:pre-wrap}.selected{background:#795e32}h2{margin:0 0 10px;font-size:19px}.pin{background:#352c20;border:2px solid #f1d18e;color:#f1d18e;border-radius:50%;width:30px;height:30px;display:grid;place-items:center;font-size:16px;box-shadow:0 2px 9px #000a}@media(max-width:750px){main{flex-direction:column-reverse;height:calc(100vh - 160px)}aside{width:100%;height:45%}#map{min-height:55%}}
+
+main{height:calc(100vh - 72px);min-height:350px}#sidebar{transition:width .2s,padding .2s;overflow:auto}main.collapsed #sidebar{width:0;padding:0;border:0;overflow:hidden}#mapArea{position:relative;flex:1;min-width:0}#map{width:100%;height:100%}#toggleSidebar{position:absolute;top:12px;right:12px;left:auto;z-index:2000;min-width:44px;min-height:44px;font-size:24px;line-height:1;background:#303947;box-shadow:0 2px 8px #0009}.color-row{display:flex;gap:8px}.color-row input[type=color]{width:70px;height:39px;padding:3px}.color-row input:last-child{flex:1}.type-item,.filter-item{display:flex;gap:8px;align-items:center;padding:5px 0}.type-item button{padding:4px 8px}.type-item .type-name{flex:1}.filter-item input{width:auto}.swatch{width:18px;height:18px;border-radius:50%;border:1px solid #fff8;flex-shrink:0}hr{border:0;border-top:1px solid #49515e;margin:20px 0}h3{margin:10px 0}.pin{--pin-color:#d6b77a;border-color:var(--pin-color);color:var(--pin-color);background:#26262c} @media(max-width:750px){main{height:calc(100vh - 130px);flex-direction:row}#sidebar{width:min(80vw,340px)}#map{min-height:0}main.collapsed #sidebar{width:0}}
+/* Atlas v3: visual editor for nested images */
+:root{color-scheme:dark}header{position:relative;z-index:5}header strong small{color:#a5b5c9;font-size:.75em;font-weight:400}main{height:calc(100dvh - 70px);min-height:300px}#sidebar{width:370px;max-width:85vw;min-width:0}#mapArea{flex:1;min-width:0}.section{padding-bottom:10px}.section[hidden],#markerPanel[hidden],#regionEditor[hidden]{display:none}#tabs{display:flex;gap:5px;margin-bottom:18px}.tab{padding:9px 12px;flex:1;font-size:13px}.tab.active{background:#866c44;border-color:#b59a6a;color:#fff}#toggleSidebar{top:12px;right:12px;left:auto;z-index:2000;background:#313844;border-color:#a3aab8;box-shadow:0 4px 15px #000b}#map{background:#111820}.inline-controls{display:flex;gap:10px;align-items:center}.inline-controls input{min-width:0;flex:1;accent-color:#c9a16e}.inline-controls output{flex:0 0 45px;text-align:right;color:#e6c189;font-variant-numeric:tabular-nums}.check-line{display:flex;align-items:center;gap:8px;margin:14px 0}.check-line input{width:auto}.danger{border-color:#aa6969;color:#ffb6b6}.region-list{display:flex;flex-direction:column;gap:5px;margin:13px 0}.region-item{width:100%;text-align:left;background:#2c3440;border:1px solid #4c5967;display:flex;align-items:center;gap:8px}.region-item span{flex:1}.region-item small{font-size:11px;color:#d2b489}.region-item.active{background:#655033;border-color:#d8b477}.region-indent{margin-left:15px}.region-empty{font-size:12px;color:#b7c4d1}.map-hint{position:absolute;top:67px;left:50%;transform:translateX(-50%);z-index:1800;background:#2c384cf5;color:white;box-shadow:0 2px 14px #000b;padding:12px 16px;border:1px solid #9d7950;border-radius:9px;max-width:75%;text-align:center;pointer-events:none}.map-credits{position:absolute;bottom:9px;left:50%;transform:translateX(-50%);padding:4px 10px;border-radius:5px;background:#171d27bb;color:#dae0e7;font-size:11px;pointer-events:none;z-index:900;white-space:nowrap}.placement-handle{background:#e9bf7b;border:2px solid #1c242d;border-radius:50%;box-shadow:0 1px 7px #000a}.placement-center{background:#60c7a9}.placement-outline{stroke-dasharray:7 6}.leaflet-container{background:#151d28}.leaflet-control-zoom a{background:#29313e;color:#fff}.pin{line-height:1}.notice{overflow-wrap:anywhere}@media(max-width:750px){header{gap:5px;padding:7px}header button,header select{padding:6px;font-size:12px}main{height:calc(100dvh - 120px)}#sidebar{width:min(86vw,370px)}.map-credits{display:none}}
+
+/* Drag the selected detailed map directly in placement mode. */
+#map.atlas-moving-region, #map.atlas-moving-region * { cursor: grabbing !important; }
+
+.placement-rotate{background:#f39d4b;border-color:#452e1b;cursor:grab}.atlas-region-image{transform-origin:center center}
+
+/* v3.8: isolate map positioning/zoom from user-controlled image rotation. */
+.atlas-image-positioner {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+.atlas-image-positioner > .atlas-rotated-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  pointer-events: none;
+  transform-origin: center center;
+}
+
+/* Atlas panes: base < regional details < markers. */
+.leaflet-atlasBasePane-pane{z-index:210}
+.leaflet-atlasRegionPane-pane{z-index:260}
