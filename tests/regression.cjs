@@ -145,8 +145,9 @@ function approx(a,b){assert.ok(Math.abs(a-b)<1e-7,`${a} != ${b}`);}
     assert.ok(!run(`sanitizeArticle('<img data-asset="../secret.png">')`).includes('<img'));
   });
   await test('article editing survives close and old summary stays separate',()=>{
+    const previousDescription=run('world().locations[0].description');
     run(`openArticle(worldId,world().locations[0].id,true);$('articleBody').innerHTML='<h2>История города</h2><p><strong>Текст</strong></p>';$('articleTags').value='город, столица';syncArticle();closeArticle();`);
-    assert.ok(run('world().locations[0].article').includes('<strong>Текст</strong>'));assert.deepEqual(plain('world().locations[0].tags'),['город','столица']);assert.equal(run('world().locations[0].description'),'');assert.equal(document.getElementById('articleDialog').open,false);
+    assert.ok(run('world().locations[0].article').includes('<strong>Текст</strong>'));assert.deepEqual(plain('world().locations[0].tags'),['город','столица']);assert.equal(run('world().locations[0].description'),previousDescription);assert.equal(document.getElementById('articleDialog').open,false);
   });
   await test('ruler measures a multi-segment route in world coordinates',()=>{
     run(`world().kmPerPixel=2;startMeasure('route');atlasMapClick(L.latLng(0,0));atlasMapClick(L.latLng(4,3));atlasMapClick(L.latLng(4,6));`);

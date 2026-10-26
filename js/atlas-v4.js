@@ -4,6 +4,7 @@ let viewingAtlas=false,savingProject=false,diskBaseline=null,articleContext=null
 let articleSelection=null,articleObjectUrls=[],articleGeneration=0,refreshTimer=null;
 let measureMode=null,measurePoints=[],measureLayer=L.layerGroup().addTo(map),alignment=null;
 let imageJobs=0,projectGeneration=0;
+let folderOpenGeneration=0;
 const editorHeaderIds=['undoAction','save','newWorld','add','export','import'];
 const editorTabNames=['world','regions','markers'];
 const textOnly=html=>{const el=document.createElement('div');el.innerHTML=sanitizeArticle(html);return el.textContent||'';};
@@ -258,13 +259,22 @@ async function openAtlasProject(){
   if(savingProject){status('Дождись завершения сохранения.');return;}
   if(!window.showDirectoryPicker){alert('Для открытия папки нужен браузер с File System Access API, например Opera GX, Chrome или Edge.');return;}
   syncArticle();if(dirty&&!confirm('Несохранённые изменения будут потеряны. Открыть другую папку?'))return;
+  const generation=++folderOpenGeneration;
   try{
-    const chosen=await window.showDirectoryPicker({mode:'readwrite'}),raw=await readDiskJSON(chosen),parsed=raw===null?demoData():JSON.parse(raw);
-    normalize(parsed);beforeAtlasHistory();projectGeneration++;data=parsed;folder=chosen;diskBaseline=raw;worldId=data.worlds[0].id;
-    selectedRegionId=null;selectedMarker=null;hiddenTypes.clear();pendingFiles.clear();clearAssetUrls();dirty=false;
-    $('markerPanel').hidden=true;setTab(viewingAtlas?'catalog':'world');render();resetUndo();
-    status('Папка «'+folder.name+'» подключена. При сохранении предыдущий JSON попадёт в data/backups/.');
+    const chosen=await window.showDirectoryPicker({mode:'readwrite'});
+    await connectAtlasProject(chosen,{isCurrent:()=>generation===folderOpenGeneration&&!savingProject});
   }catch(e){if(e.name!=='AbortError')alert('Не удалось открыть проект: '+e.message);}
+}
+async function connectAtlasProject(chosen,{requireJSON=false,isCurrent=()=>true}={}){
+  const raw=await readDiskJSON(chosen);
+  if(requireJSON&&raw===null)throw Error('В папке нет data/atlas.json. Выбери корневую папку существующего атласа.');
+  const parsed=raw===null?demoData():JSON.parse(raw);normalize(parsed);
+  if(!isCurrent())return false;
+  beforeAtlasHistory();projectGeneration++;data=parsed;folder=chosen;diskBaseline=raw;worldId=data.worlds[0].id;
+  selectedRegionId=null;selectedMarker=null;hiddenTypes.clear();pendingFiles.clear();clearAssetUrls();dirty=false;
+  $('markerPanel').hidden=true;setTab(viewingAtlas?'catalog':'world');render();resetUndo();
+  status('Папка «'+folder.name+'» подключена. При сохранении предыдущий JSON попадёт в data/backups/.');
+  return true;
 }
 async function saveAtlasProject(){
   if(savingProject||!atlasCanEdit())return;

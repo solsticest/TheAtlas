@@ -10,9 +10,12 @@
 </head>
 <body>
 <header>
-  <strong>✦ Атлас Далёких Земель <small>v4.0</small></strong>
+  <strong>✦ Атлас Далёких Земель <small>v4.1</small></strong>
   <select id="worldSelect" title="Активный мир"></select>
   <button id="openFolder" title="Выбрать папку проекта для чтения и записи">📁 Открыть папку проекта</button>
+  <button id="setMainFolder" title="Запомнить папку и открывать её при следующем запуске">📌 Задать основную папку</button>
+  <button id="reconnectMainFolder" hidden>Подключить основную папку</button>
+  <button id="forgetMainFolder" title="Забыть выбор основной папки; файлы останутся на месте" hidden>Забыть основную папку</button>
   <button id="undoAction" disabled title="Отменить последнее изменение (Ctrl+Z)">↶ Отменить</button>
   <button id="save" title="Записать изменения в data/atlas.json и изображения в maps/">💾 Сохранить на диск</button>
   <button id="newWorld">+ Мир</button>
@@ -146,5 +149,6 @@
 <script src="js/app.js"></script>
 <script src="js/atlas-math.js"></script>
 <script src="js/atlas-v4.js"></script>
+<script src="js/main-folder.js"></script>
 </body>
 </html>
