@@ -140,7 +140,7 @@ async function request<T>(url:string,method='GET',body?:unknown,csrf?:string):Pr
   if(body!==undefined)headers['content-type']='application/json';
   if(csrf)headers['x-csrf-token']=csrf;
   const response=await fetch(url,{method,credentials:'same-origin',headers,
-    body:body===undefined?undefined:JSON.stringify(body)});
+    ...(body===undefined?{}:{body:JSON.stringify(body)})});
   const data=await response.json() as T&AtlasError;
   if(!response.ok)throw Error(data.error?.message??('Ошибка HTTP '+response.status));
   return data;
