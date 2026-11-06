@@ -92,7 +92,11 @@ html, body, #root { margin: 0; height: 100%; }
 @media (max-width: 820px) {
   .atlas-commandbar { padding-right: 8px; }
   .atlas-object-editor {
-    position: absolute; inset: 48px 0 0 auto; z-index: 1200;
+    position: absolute; inset: 62px 0 0 auto; z-index: 1200;
     width: min(92vw,420px); max-width: 100%; box-shadow: -12px 0 34px #000b;
   }
+}
+
+@media (max-width: 700px) {
+  .atlas-object-editor { inset: 48px 0 0 auto; }
 }
