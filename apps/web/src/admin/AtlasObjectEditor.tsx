@@ -246,7 +246,8 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
 
   const title=String(draft.name??draft.title??titles[props.target.kind]);
   useEffect(()=>{
-    props.onStatus({dirty,canUndo:undo.length>0,canRedo:redo.length>0,saving,title});
+    props.onStatus({dirty,canUndo:undo.length>0||Boolean(props.target.create),
+      canRedo:redo.length>0,saving,title});
   },[dirty,undo.length,redo.length,saving,title]);
   useEffect(()=>{props.onPreview(props.target,draft);},[draft,props.target]);
 
@@ -260,7 +261,11 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
     });
   }
   function undoDraft(){
-    const previous=undo.at(-1);if(!previous)return;
+    const previous=undo.at(-1);
+    if(!previous){
+      if(props.target.create)props.onCancel();
+      return;
+    }
     setUndo(stack=>stack.slice(0,-1));setRedo(stack=>[draft,...stack].slice(0,100));
     setDraft(previous);setDirty(true);lastEdit.current=null;
   }
