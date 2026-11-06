@@ -22,6 +22,7 @@ function assetName(name:string|null,kind:string){
 }
 export function registerAtlasAdmin(app:Express,db:PrismaClient){
   const guard=requireAdmin(db);
+  const markModified=()=>db.atlasDocument.updateMany({data:{isModified:true}});
   async function requireMap(name:string|null){
     if(!assetName(name,'maps'))return false;
     if(name===null)return true;
@@ -53,6 +54,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       width:data.width,height:data.height,kmPerPixel:data.kmPerPixel??null,
       raw:JSON.stringify({...data,id:newId,locations:[],layers:[]}),
     }});
+    await markModified();
     res.status(201).json({id:world.id});
   }));
   app.patch('/api/admin/worlds/:id',guard,route(async(req,res)=>{
@@ -71,6 +73,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       name:data.name,kmPerPixel:data.kmPerPixel===undefined?existing.kmPerPixel:data.kmPerPixel,
       image:data.image===undefined?existing.image:data.image,raw:changed(existing.raw,patch),
     }});
+    await markModified();
     res.json({ok:true});
   }));
   app.delete('/api/admin/worlds/:id',guard,route(async(req,res)=>{
@@ -83,6 +86,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     }
     const backup=await createBackup(db);
     await db.world.delete({where:{id:existing.id}});
+    await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
   app.post('/api/admin/types',guard,route(async(req,res)=>{
@@ -94,6 +98,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       id:newId,name:parsed.data.name,symbol:parsed.data.symbol,
       sortOrder:order,raw:JSON.stringify({...parsed.data,id:newId}),
     }});
+    await markModified();
     res.status(201).json({id:t.id});
   }));
   app.patch('/api/admin/types/:id',guard,route(async(req,res)=>{
@@ -104,6 +109,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     await db.markerType.update({where:{id:row.id},data:{
       ...parsed.data,raw:changed(row.raw,parsed.data)
     }});
+    await markModified();
     res.json({ok:true});
   }));
   app.delete('/api/admin/types/:id',guard,route(async(req,res)=>{
@@ -112,6 +118,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(row._count.locations){fail(res,409,'HAS_CHILDREN','Тип используется локациями');return;}
     const backup=await createBackup(db);
     await db.markerType.delete({where:{id:row.id}});
+    await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
   app.post('/api/admin/layers',guard,route(async(req,res)=>{
@@ -129,6 +136,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     const l=await db.mapLayer.create({data:{
       ...input,id:newId,sortOrder:order,bounds:JSON.stringify(input.bounds),raw:JSON.stringify({...input,id:newId}),
     }});
+    await markModified();
     res.status(201).json({id:l.id});
   }));
   app.patch('/api/admin/layers/:id',guard,route(async(req,res)=>{
@@ -143,6 +151,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     await db.mapLayer.update({where:{id:row.id},data:{
       ...patch,bounds:JSON.stringify(patch.bounds),raw:changed(row.raw,patch),
     }});
+    await markModified();
     res.json({ok:true});
   }));
   app.delete('/api/admin/layers/:id',guard,route(async(req,res)=>{
@@ -151,6 +160,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(row._count.children){fail(res,409,'HAS_CHILDREN','Удаление невозможно, у карты есть дочерние карты');return;}
     const backup=await createBackup(db);
     await db.mapLayer.delete({where:{id:row.id}});
+    await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
   app.post('/api/admin/locations',guard,route(async(req,res)=>{
@@ -171,6 +181,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       tags:JSON.stringify(input.tags),sortOrder:order,
       raw:JSON.stringify({...input,id:newId,article}),
     }});
+    await markModified();
     res.status(201).json({id:l.id});
   }));
   app.patch('/api/admin/locations/:id',guard,route(async(req,res)=>{
@@ -187,6 +198,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       color:input.color,minZoom:input.minZoom,description:input.description,
       article:input.article,tags:JSON.stringify(input.tags),raw:changed(row.raw,input),
     }});
+    await markModified();
     res.json({ok:true});
   }));
   app.delete('/api/admin/locations/:id',guard,route(async(req,res)=>{
@@ -195,6 +207,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(row._count.events){fail(res,409,'HAS_CHILDREN','Локация связана с историческими событиями');return;}
     const backup=await createBackup(db);
     await db.location.delete({where:{id:row.id}});
+    await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
 }
