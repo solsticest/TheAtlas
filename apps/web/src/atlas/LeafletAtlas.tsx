@@ -133,6 +133,7 @@ export function LeafletAtlas({
   const eventMarkersRef=useRef<Map<string,L.Marker>>(new Map());
   const boxesRef=useRef<Map<string,LayerBounds>>(new Map());
   const layerObjectsRef=useRef<Map<string,{layer:LayerRecord;box:LayerBounds;overlay:L.ImageOverlay&{setRotation:(d:number)=>void}}>>(new Map());
+  const hiddenLayerIdRef=useRef<string|null>(null);
   const selectRef=useRef(onSelectLocation);
   const eventClickRef=useRef(onSelectEvent);
   const editRef=useRef(onEditLocation);
@@ -204,6 +205,10 @@ export function LeafletAtlas({
     function update(){
       const zoom=map.getZoom();let orderChanged=false;
       for(const {layer,box,overlay} of layerObjects){
+        if(layer.id===hiddenLayerIdRef.current){
+          if(map.hasLayer(overlay))map.removeLayer(overlay);
+          continue;
+        }
         const show=layer.enabled&&zoom>=layer.showAtZoom-.8&&intersects(map,box);
         if(show){
           if(!map.hasLayer(overlay)){overlay.addTo(map);orderChanged=true;}
@@ -367,39 +372,41 @@ export function LeafletAtlas({
         ?initialList.find(layer=>layer.id===initialSynthetic.parentId):undefined;
       const parentWidth=parent?.width??world.width,parentHeight=parent?.height??world.height;
       if(box&&parentBox&&parentBox.x2!==parentBox.x1&&parentBox.y2!==parentBox.y1){
+        const originalObject=preview.target.id
+          ?layerObjectsRef.current.get(preview.target.id)
+          :undefined;
+        if(originalObject){
+          hiddenLayerIdRef.current=preview.target.id!;
+          if(map.hasLayer(originalObject.overlay))map.removeLayer(originalObject.overlay);
+        }
+
         const previewOpacity=Math.max(.05,Math.min(1,Number(draft.previewOpacity??.72)));
         const overlay=new RotatableImageOverlay(assetUrl('maps',initialSynthetic.image!),leafletBounds(box),
           {pane:'atlasDraftPane',interactive:false,opacity:previewOpacity});
         overlay.setRotation(initialSynthetic.rotation);overlay.addTo(draftLayer);
-        let shiftDown=false,ctrlDown=false;
+        let shiftDown=false,ctrlVisual=false,ctrlMoveActive=false;
         const aspectRatio=Number(draft.width)>0&&Number(draft.height)>0
           ?Number(draft.width)/Number(draft.height)
           :(working.x2-working.x1)/(working.y2-working.y1);
         const container=elementRef.current;
+
+        // IMPORTANT: pressing Ctrl alone must never disable ordinary Leaflet panning.
+        // Ctrl only changes the cursor; dragging is intercepted after an actual
+        // Ctrl+LMB starts inside the editable draft region.
         const keyDown=(event:KeyboardEvent)=>{
           if(event.key==='Shift')shiftDown=true;
-          if(event.key==='Control'&&!ctrlDown){
-            ctrlDown=true;
-            map.dragging.disable();
-            container?.classList.add('atlas-layer-ctrlmove');
+          if(event.key==='Control'){
+            ctrlVisual=true;
+            container?.classList.add('atlas-layer-ctrlmove-ready');
           }
         };
         const keyUp=(event:KeyboardEvent)=>{
           if(event.key==='Shift')shiftDown=false;
           if(event.key==='Control'){
-            ctrlDown=false;
-            map.dragging.enable();
-            container?.classList.remove('atlas-layer-ctrlmove');
+            ctrlVisual=false;
+            container?.classList.remove('atlas-layer-ctrlmove-ready');
           }
         };
-        const resetKeys=()=>{
-          shiftDown=false;ctrlDown=false;
-          map.dragging.enable();
-          container?.classList.remove('atlas-layer-ctrlmove');
-        };
-        window.addEventListener('keydown',keyDown);
-        window.addEventListener('keyup',keyUp);
-        window.addEventListener('blur',resetKeys);
 
         const handles:LayerHandle[]=['nw','ne','sw','se','center'];
         const symbols:Record<LayerHandle,string>={nw:'↖',ne:'↗',sw:'↙',se:'↘',center:'✥'};
@@ -454,47 +461,91 @@ export function LeafletAtlas({
           markers.set(handle,marker);
         }
 
-        const beginCtrlMove=(event:L.LeafletMouseEvent)=>{
-          const mouse=event.originalEvent as MouseEvent;
-          if(!(ctrlDown||mouse.ctrlKey))return;
+        let windowMove:((event:MouseEvent)=>void)|null=null;
+        let windowUp:((event:MouseEvent)=>void)|null=null;
+
+        const finishCtrlMove=(commit:boolean)=>{
+          if(windowMove)window.removeEventListener('mousemove',windowMove,true);
+          if(windowUp)window.removeEventListener('mouseup',windowUp,true);
+          windowMove=null;windowUp=null;
+          if(!ctrlMoveActive)return;
+          ctrlMoveActive=false;
+          map.dragging.enable();
+          container?.classList.remove('atlas-layer-ctrlmove-active');
+          if(commit)layerGeometryRef.current({...working});
+        };
+
+        const beginCtrlMove=(mouse:MouseEvent)=>{
+          if(mouse.button!==0||!mouse.ctrlKey||!container)return;
           const target=mouse.target;
           if(target instanceof Element&&target.closest('.atlas-editor-handle'))return;
+          const latlng=map.mouseEventToLatLng(mouse);
           const currentWorld=worldBoxFor(working);
           if(!currentWorld||
-            event.latlng.lng<currentWorld.x1||event.latlng.lng>currentWorld.x2||
-            event.latlng.lat<currentWorld.y1||event.latlng.lat>currentWorld.y2)return;
-          L.DomEvent.stop(mouse);
+            latlng.lng<currentWorld.x1||latlng.lng>currentWorld.x2||
+            latlng.lat<currentWorld.y1||latlng.lat>currentWorld.y2)return;
+
+          // Capture before Leaflet's drag handler owns the gesture.
+          mouse.preventDefault();
+          mouse.stopPropagation();
           map.dragging.disable();
-          const start=parentPoint(event.latlng);
+          ctrlMoveActive=true;
+          container.classList.add('atlas-layer-ctrlmove-active');
+
+          const start=parentPoint(latlng);
           const startBounds={...working};
-          const move=(next:L.LeafletMouseEvent)=>{
-            const at=parentPoint(next.latlng);
+          windowMove=(next:MouseEvent)=>{
+            if(!ctrlMoveActive)return;
+            const at=parentPoint(map.mouseEventToLatLng(next));
             working=moveBoundsBy(startBounds,at.x-start.x,at.y-start.y);
             display();
           };
-          const end=()=>{
-            map.off('mousemove',move);
-            map.off('mouseup',end);
-            if(!ctrlDown)map.dragging.enable();
-            layerGeometryRef.current({...working});
-          };
-          map.on('mousemove',move);
-          map.on('mouseup',end);
+          windowUp=()=>finishCtrlMove(true);
+          window.addEventListener('mousemove',windowMove,true);
+          window.addEventListener('mouseup',windowUp,true);
         };
-        map.on('mousedown',beginCtrlMove);
+
+        const resetInteraction=()=>{
+          shiftDown=false;ctrlVisual=false;
+          container?.classList.remove('atlas-layer-ctrlmove-ready');
+          finishCtrlMove(true);
+          // Defensive guarantee: leaving edit/losing focus can never strand Leaflet.
+          map.dragging.enable();
+        };
+
+        window.addEventListener('keydown',keyDown);
+        window.addEventListener('keyup',keyUp);
+        window.addEventListener('blur',resetInteraction);
+        container?.addEventListener('mousedown',beginCtrlMove,true);
 
         cleanupLayerInteraction=()=>{
           window.removeEventListener('keydown',keyDown);
           window.removeEventListener('keyup',keyUp);
-          window.removeEventListener('blur',resetKeys);
-          map.off('mousedown',beginCtrlMove);
-          container?.classList.remove('atlas-layer-ctrlmove');
+          window.removeEventListener('blur',resetInteraction);
+          container?.removeEventListener('mousedown',beginCtrlMove,true);
+          finishCtrlMove(false);
+          container?.classList.remove('atlas-layer-ctrlmove-ready','atlas-layer-ctrlmove-active');
           map.dragging.enable();
+
+          if(originalObject){
+            hiddenLayerIdRef.current=null;
+            const zoom=map.getZoom();
+            const show=originalObject.layer.enabled&&
+              zoom>=originalObject.layer.showAtZoom-.8&&intersects(map,originalObject.box);
+            if(show){
+              if(!map.hasLayer(originalObject.overlay))originalObject.overlay.addTo(map);
+              originalObject.overlay.setRotation(originalObject.layer.rotation);
+              originalObject.overlay.setOpacity(opacityAtZoom(originalObject.layer,zoom));
+            }
+          }
         };
       }
     }
     return()=>{
       cleanupLayerInteraction?.();
+      if(preview.target.kind==='layer'&&hiddenLayerIdRef.current===preview.target.id){
+        hiddenLayerIdRef.current=null;
+      }
       draftLayer.remove();
       if(preview.target.kind==='location'&&preview.target.id)
         markersRef.current.get(preview.target.id)?.setOpacity(1);
