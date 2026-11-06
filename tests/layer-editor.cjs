@@ -1,6 +1,8 @@
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 test('Layer editor drag/resize is parent-relative and preserves valid bounds', async () => {
   const { moveHandle, handlePoint, moveBoundsBy, resizeHandleWithAspect } =
