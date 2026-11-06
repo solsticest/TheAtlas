@@ -53,7 +53,7 @@ async function backup(paths,report,dir,sqlitePath){
   const folder=await fsp.mkdtemp(path.join(backupRoot,'atlas-v4-'));
   // Copy whole directories, not merely referenced files, so stray local media is also safe.
   try {
-    for(const [source,label] of [[path.join(paths.project,'data'),'data'],[paths.maps,'maps'],[paths.media,'media']]){
+    for(const [source,label] of [[path.dirname(paths.input),'data'],[paths.maps,'maps'],[paths.media,'media']]){
       if(fs.existsSync(source)) await fsp.cp(source,path.join(folder,label),{recursive:true,force:false,errorOnExist:true});
     }
     if(sqlitePath && fs.existsSync(sqlitePath)) await fsp.copyFile(sqlitePath,path.join(folder,'database-before-import.db'));
