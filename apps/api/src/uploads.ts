@@ -69,6 +69,7 @@ export function registerUploads(app:Express,db:PrismaClient){
           if(stored)await fs.rm(target,{force:true});
           throw e;
         }
+        await db.atlasDocument.updateMany({data:{isModified:true}});
         res.status(201).json({path:key,filename:name,width:info.width,height:info.height,sha256});
       }catch(e){next(e);}
     });
