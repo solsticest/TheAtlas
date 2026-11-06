@@ -92,6 +92,7 @@ export function LeafletAtlas({
   const elementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
+  const markerLayerRef = useRef<L.LayerGroup | null>(null);
   const boxesRef = useRef<Map<string, LayerBounds>>(new Map());
   const selectRef = useRef(onSelectLocation);
   const filterRef = useRef(visibleTypes);
@@ -139,6 +140,7 @@ export function LeafletAtlas({
     }
 
     const markerLayer = L.layerGroup().addTo(map);
+    markerLayerRef.current = markerLayer;
     const markerObjects: { loc: LocationRecord; marker: L.Marker }[] = [];
     const markerTypes = new Map(types.map(t => [t.id, t]));
     for (const loc of locations) {
@@ -183,6 +185,7 @@ export function LeafletAtlas({
       map.remove();
       mapRef.current = null;
       markersRef.current = new Map();
+      markerLayerRef.current = null;
       boxesRef.current = new Map();
     };
   }, [world, layers, locations, types]);
@@ -190,15 +193,15 @@ export function LeafletAtlas({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const markerLayer = mapRef.current;
+    const markerLayer = markerLayerRef.current;
     // Marker visibility changes without rebuilding the Leaflet map.
     if (!markerLayer) return;
     for (const [id, marker] of markersRef.current) {
       const loc = locations.find(l => l.id === id);
       if (!loc) continue;
       const show = visibleTypes.has(loc.type) && map.getZoom() >= loc.minZoom;
-      if (show && !map.hasLayer(marker)) marker.addTo(map);
-      if (!show && map.hasLayer(marker)) map.removeLayer(marker);
+      if (show && !markerLayer.hasLayer(marker)) markerLayer.addLayer(marker);
+      if (!show && markerLayer.hasLayer(marker)) markerLayer.removeLayer(marker);
     }
   }, [visibleTypes, locations]);
 
