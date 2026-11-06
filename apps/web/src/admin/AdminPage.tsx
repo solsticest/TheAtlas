@@ -8,6 +8,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { useLayersQuery, useLocationsQuery, useMarkerTypesQuery, useWorldsQuery } from '../atlas/api';
 import { MapPointPicker } from '../atlas/MapPointPicker';
 import { TwoPointAlignDialog } from '../atlas/TwoPointAlignDialog';
+import { LayerGeometryDialog } from '../atlas/LayerGeometryDialog';
 
 type Kind = 'world'|'type'|'layer'|'location'|'timeline'|'era'|'event';
 type Row = Record<string,unknown> & {id:string};
@@ -173,6 +174,7 @@ export function AdminPage(){
   const [revision,setRevision]=useState(0);
   const [pick,setPick]=useState(false);
   const [alignOpen,setAlignOpen]=useState(false);
+  const [geometryOpen,setGeometryOpen]=useState(false);
   const [assetKind,setAssetKind]=useState<'maps'|'media'>('media');
   const [timelines,setTimelines]=useState<Row[]>([]);
   const [eras,setEras]=useState<Row[]>([]);
@@ -461,9 +463,14 @@ export function AdminPage(){
         {canChoose&&<Button onClick={()=>setPick(true)} sx={{mt:2}} variant="outlined">
           Выбрать координаты на карте
         </Button>}
-        {kind==='layer' && <Button onClick={()=>setAlignOpen(true)} sx={{mt:2,ml:1}} variant="outlined">
-          Совместить изображение по двум точкам
-        </Button>}
+        {kind==='layer' && <>
+          <Button onClick={()=>setAlignOpen(true)} sx={{mt:2,ml:1}} variant="outlined">
+            Совместить изображение по двум точкам
+          </Button>
+          <Button onClick={()=>setGeometryOpen(true)} sx={{mt:2,ml:1}} variant="outlined">
+            Переместить / изменить размер на карте
+          </Button>
+        </>}
         <Stack direction="row" flexWrap="wrap" gap={2} sx={{mt:3}}>
           <Button variant="outlined" disabled={!undoStack.length} onClick={undoDraft}>↶ Отменить правку</Button>
           <Button variant="outlined" disabled={!redoStack.length} onClick={redoDraft}>↷ Вернуть правку</Button>
@@ -493,6 +500,13 @@ export function AdminPage(){
         </Stack>
       </Paper>
     </Box>
+    <LayerGeometryDialog open={geometryOpen} child={sourceSpec} parent={parentSpec}
+      bounds={{
+        x1:Number(draft.x1),y1:Number(draft.y1),
+        x2:Number(draft.x2),y2:Number(draft.y2),
+      }} rotation={Number(draft.rotation??0)}
+      onApply={bounds=>applyDraftPatch(bounds,'drag-resize')}
+      onClose={()=>setGeometryOpen(false)}/>
     <TwoPointAlignDialog open={alignOpen} child={sourceSpec} parent={parentSpec}
       onApply={(bounds,rotation)=>{
         applyDraftPatch({...bounds,rotation},'alignment');
