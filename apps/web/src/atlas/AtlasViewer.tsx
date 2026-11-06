@@ -30,7 +30,13 @@ import {
 } from '../admin/AtlasObjectEditor';
 
 type ErrorBody={error?:{message?:string}};
+type HistoryState={
+  canUndo:boolean;canRedo:boolean;
+  undo:{id:number;label:string}|null;
+  redo:{id:number;label:string}|null;
+};
 const emptyStatus:EditorStatus={dirty:false,canUndo:false,canRedo:false,saving:false,title:''};
+const emptyHistory:HistoryState={canUndo:false,canRedo:false,undo:null,redo:null};
 
 async function apiRequest<T>(
   url:string,method:string,body:unknown,session:EditorSession,
@@ -90,6 +96,8 @@ export function AtlasViewer(){
   const [placementTool,setPlacementTool]=useState<'location'|'event'|null>(null);
   const [moveLocationId,setMoveLocationId]=useState<string|null>(null);
   const [contextTarget,setContextTarget]=useState<AtlasContextTarget|null>(null);
+  const [historyState,setHistoryState]=useState<HistoryState>(emptyHistory);
+  const [historyBusy,setHistoryBusy]=useState(false);
   const editorRef=useRef<AtlasObjectEditorHandle|null>(null);
   const searchInputRef=useRef<HTMLInputElement|null>(null);
 
@@ -110,10 +118,21 @@ export function AtlasViewer(){
   const events=eventsQuery.currentData??[];
   const canEdit=Boolean(session?.authenticated&&session.csrfToken);
 
+  async function loadHistory(active:EditorSession|null=session){
+    if(!active?.authenticated)return setHistoryState(emptyHistory);
+    try{
+      const state=await apiRequest<HistoryState>('/api/admin/history/state','GET',undefined,active);
+      setHistoryState(state);
+    }catch{
+      setHistoryState(emptyHistory);
+    }
+  }
+
   useEffect(()=>{
     void fetch('/api/auth/me',{credentials:'same-origin'}).then(async response=>{
       const data=await response.json() as EditorSession;
       setSession(data);
+      if(data.authenticated)void loadHistory(data);
     }).catch(()=>setSession({authenticated:false}));
   },[]);
 
@@ -183,6 +202,7 @@ export function AtlasViewer(){
       const data=await response.json() as EditorSession&ErrorBody;
       if(!response.ok)throw Error(data.error?.message??'Не удалось войти');
       setSession(data);setPassword('');setLoginOpen(false);
+      void loadHistory(data);
       const action=pendingLoginAction;setPendingLoginAction(null);
       if(action==='location'){
         setPlacementTool('location');setNotice('Кликни по карте, где должен появиться новый маркер.');
@@ -198,7 +218,8 @@ export function AtlasViewer(){
     if(!session||!mayReplaceEditor())return;
     try{
       await apiRequest('/api/auth/logout','POST',{},session);
-      closeEditor(true);setPlacementTool(null);setSession({authenticated:false});setNotice('Вы вышли.');
+      closeEditor(true);setPlacementTool(null);setSession({authenticated:false});
+      setHistoryState(emptyHistory);setNotice('Вы вышли.');
     }catch(reason){setNotice(reason instanceof Error?reason.message:String(reason));}
   }
 
@@ -211,6 +232,7 @@ export function AtlasViewer(){
   }
   async function editorSaved(_kind:EditorKind,id:string,created:boolean){
     await refetchVisibleData();
+    await loadHistory();
     closeEditor(true);
     setNotice(created?'Объект создан.':'Изменения сохранены.');
     if(_kind==='location')nextFocus('location',id);
@@ -218,7 +240,7 @@ export function AtlasViewer(){
     if(_kind==='event')nextFocus('event',id);
   }
   async function editorDeleted(){
-    await refetchVisibleData();closeEditor(true);setNotice('Объект удалён.');
+    await refetchVisibleData();await loadHistory();closeEditor(true);setNotice('Объект удалён.');
   }
 
   async function removeObject(kind:'location'|'event'|'layer',id:string){
@@ -227,7 +249,7 @@ export function AtlasViewer(){
     const roots={location:'locations',event:'events',layer:'layers'};
     try{
       await apiRequest('/api/admin/'+roots[kind]+'/'+encodeURIComponent(id),'DELETE',undefined,session);
-      await refetchVisibleData();setNotice('Объект удалён.');
+      await refetchVisibleData();await loadHistory();setNotice('Объект удалён.');
     }catch(reason){setNotice(reason instanceof Error?reason.message:String(reason));}
   }
   function duplicateObject(target:AtlasContextTarget){
@@ -251,6 +273,22 @@ export function AtlasViewer(){
       }});
     }
   }
+  async function globalHistory(direction:'undo'|'redo'){
+    if(!session?.csrfToken||historyBusy||editorTarget)return;
+    setHistoryBusy(true);
+    try{
+      const result=await apiRequest<{ok:boolean;state:HistoryState}>(
+        '/api/admin/history/'+direction,'POST',{},session);
+      setHistoryState(result.state);
+      setArticleId(null);setEventId(null);setContextTarget(null);
+      await refetchVisibleData();
+      setNotice(direction==='undo'?'Последнее сохранённое действие отменено.':'Действие повторено.');
+    }catch(reason){
+      setNotice(reason instanceof Error?reason.message:String(reason));
+      await loadHistory();
+    }finally{setHistoryBusy(false);}
+  }
+
   async function copyCoordinates(point:AtlasMapPoint){
     try{
       await navigator.clipboard.writeText(point.x.toFixed(3)+', '+point.y.toFixed(3));
@@ -348,14 +386,24 @@ export function AtlasViewer(){
         if(editorTarget){event.preventDefault();editorRef.current?.cancel();}
         return;
       }
-      if(!editorTarget||(event.ctrlKey||event.metaKey)===false)return;
+      if((event.ctrlKey||event.metaKey)===false)return;
       const value=event.key.toLowerCase();
-      if(value==='s'){event.preventDefault();editorRef.current?.save();}
-      if(value==='z'&&!event.shiftKey){event.preventDefault();editorRef.current?.undo();}
-      if(value==='y'||(value==='z'&&event.shiftKey)){event.preventDefault();editorRef.current?.redo();}
+      if(value==='s'&&editorTarget){event.preventDefault();editorRef.current?.save();return;}
+      if(value==='z'&&!event.shiftKey){
+        event.preventDefault();
+        if(editorTarget)editorRef.current?.undo();
+        else if(historyState.canUndo)void globalHistory('undo');
+        return;
+      }
+      if(value==='y'||(value==='z'&&event.shiftKey)){
+        event.preventDefault();
+        if(editorTarget)editorRef.current?.redo();
+        else if(historyState.canRedo)void globalHistory('redo');
+      }
     };
     window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
-  },[editorTarget,placementTool,contextTarget]);
+  },[editorTarget,placementTool,contextTarget,historyState.canUndo,historyState.canRedo,
+    historyBusy,session?.csrfToken]);
 
   const pending=worldsQuery.isLoading||typesQuery.isLoading||
     Boolean(selectedWorldId&&(layersQuery.isLoading||locationsQuery.isLoading));
@@ -383,6 +431,15 @@ export function AtlasViewer(){
         if(!canEdit){setPendingLoginAction('type');setLoginOpen(true);return;}
         openEditor({kind:'type',create:true});
       }}>+ Тип маркера</Button>
+      {canEdit&&!editorTarget&&<>
+        <Divider orientation="vertical" flexItem sx={{mx:.5}}/>
+        <Button size="small" disabled={!historyState.canUndo||historyBusy}
+          title={historyState.undo?.label??'Нет сохранённых действий для отмены'}
+          onClick={()=>void globalHistory('undo')}>↶</Button>
+        <Button size="small" disabled={!historyState.canRedo||historyBusy}
+          title={historyState.redo?.label??'Нет действий для повтора'}
+          onClick={()=>void globalHistory('redo')}>↷</Button>
+      </>}
       {canEdit&&editorTarget&&<>
         <Divider orientation="vertical" flexItem sx={{mx:.5}}/>
         <Typography variant="caption" color={editorStatus.dirty?'warning.main':'text.secondary'}
