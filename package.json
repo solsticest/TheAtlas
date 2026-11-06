@@ -2,13 +2,18 @@
   "name": "the-atlas",
   "private": true,
   "version": "0.1.0",
-  "workspaces": ["apps/*", "packages/*"],
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "concurrently -n web,api \"npm run dev -w @atlas/web\" \"npm run dev -w @atlas/api\"",
     "build": "npm run build -w @atlas/shared && npm run build -w @atlas/api && npm run build -w @atlas/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "node tests/regression.cjs && node tests/main-folder.cjs",
-    "test:legacy": "node tests/regression.cjs && node tests/main-folder.cjs"
+    "test": "node tests/regression.cjs && node tests/main-folder.cjs && node --test tests/migration-audit.cjs",
+    "test:legacy": "node tests/regression.cjs && node tests/main-folder.cjs",
+    "audit:legacy": "node scripts/audit-legacy.cjs --dry-run",
+    "test:migration": "node --test tests/migration-audit.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
