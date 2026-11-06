@@ -357,7 +357,7 @@ export function LeafletAtlas({
         };
         const display=(active?:LayerHandle)=>{
           const current=worldBoxFor(working);if(!current)return;
-          overlay.setBounds(leafletBounds(current));overlay.setRotation(initialSynthetic.rotation);
+          overlay.setBounds(L.latLngBounds(leafletBounds(current)));overlay.setRotation(initialSynthetic.rotation);
           for(const [handle,marker] of markers){
             if(handle===active)continue;
             const point=worldPoint(working,handle);marker.setLatLng([point.y,point.x]);
