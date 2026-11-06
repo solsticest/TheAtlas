@@ -12,6 +12,7 @@ import type {
 import { LayerGeometryDialog } from '../atlas/LayerGeometryDialog';
 import { TwoPointAlignDialog } from '../atlas/TwoPointAlignDialog';
 import { assetUrl } from '../atlas/geometry';
+import { RichTextEditor } from './RichTextEditor';
 
 export type EditorKind='world'|'type'|'layer'|'location'|'timeline'|'era'|'event';
 export type EditorSection='all'|'marker'|'article';
@@ -313,6 +314,26 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
   useImperativeHandle(ref,()=>({undo:undoDraft,redo:redoDraft,save:()=>{void save();},cancel,patch}),
     [undo,redo,draft,dirty,saving,props.target,props.session.csrfToken]);
 
+  async function uploadArticleImage(file:File):Promise<string>{
+    if(!props.session.csrfToken)throw Error('Нужен вход администратора');
+    setSaving(true);setError('');
+    try{
+      const response=await fetch('/api/admin/assets/media',{
+        method:'POST',credentials:'same-origin',
+        headers:{'content-type':'application/octet-stream','x-csrf-token':props.session.csrfToken},
+        body:file,
+      });
+      const data=await response.json() as {filename?:string;error?:{message?:string}};
+      if(!response.ok||!data.filename)throw Error(data.error?.message??'Ошибка загрузки изображения');
+      setNotice('Изображение загружено и вставлено в статью.');
+      return data.filename;
+    }catch(reason){
+      const message=reason instanceof Error?reason.message:String(reason);
+      setError(message);
+      throw reason;
+    }finally{setSaving(false);}
+  }
+
   async function upload(file:File,kind:'maps'|'media'|'icons'){
     if(!props.session.csrfToken)return;
     setSaving(true);setError('');
@@ -360,7 +381,10 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
   };
   const iconMode=draft.iconSvg?'svg':'emoji';
 
-  return <Box className="atlas-object-editor">
+  const articleWorkspace=props.target.kind==='location'&&props.target.section==='article';
+  return <Box className={articleWorkspace
+    ?'atlas-object-editor atlas-object-editor-article'
+    :'atlas-object-editor'}>
     <Stack sx={{p:2}} gap={1.5}>
       <Stack direction="row" alignItems="center" gap={1}>
         <Box sx={{minWidth:0}}>
@@ -420,32 +444,36 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
             </Button>
           </Stack>}
       </Stack>:<Stack gap={1.5}>
-        {fields.map(field=>field.type==='flag'?<FormControlLabel key={field.key} control={
-          <Checkbox checked={Boolean(draft[field.key])}
-            onChange={event=>patch({[field.key]:event.target.checked},field.key)}/>
-        } label={field.label}/>:
-        field.type==='select'?<FormControl size="small" key={field.key}>
-          <InputLabel>{field.label}</InputLabel>
-          <Select label={field.label} value={String(draft[field.key]??'')}
-            onChange={event=>{
-              const value=event.target.value||null;
-              if(props.target.kind==='location'&&field.key==='type'){
-                const type=props.types.find(item=>item.id===value);
-                patch({type:value,color:type?.color??'#d6b77a'},'type');
-              }else patch({[field.key]:value},field.key);
-            }}>
-            {field.nullable&&<MenuItem value="">Без связи</MenuItem>}
-            {options(field.key).map(option=><MenuItem key={option.id} value={option.id}>{option.label}</MenuItem>)}
-          </Select>
-        </FormControl>:
-        <TextField key={field.key} size="small" fullWidth label={field.label}
-          multiline={field.type==='textarea'} minRows={field.type==='textarea'?3:undefined}
-          type={field.type==='number'||field.type==='integer'?'number':field.type==='color'?'color':'text'}
-          value={textValue(draft[field.key],field)}
-          onChange={event=>patch({[field.key]:event.target.value},field.key)}
-          slotProps={field.type==='number'||field.type==='integer'?{
-            htmlInput:{step:field.type==='integer'?1:'any'}
-          }:undefined}/>)}
+        {fields.map(field=>field.key==='article'
+          ?<RichTextEditor key={field.key} value={String(draft.article??'')}
+            onChange={html=>patch({article:html},'article')}
+            onUploadImage={uploadArticleImage} disabled={saving}/>
+          :field.type==='flag'?<FormControlLabel key={field.key} control={
+            <Checkbox checked={Boolean(draft[field.key])}
+              onChange={event=>patch({[field.key]:event.target.checked},field.key)}/>
+          } label={field.label}/>
+          :field.type==='select'?<FormControl size="small" key={field.key}>
+            <InputLabel>{field.label}</InputLabel>
+            <Select label={field.label} value={String(draft[field.key]??'')}
+              onChange={event=>{
+                const value=event.target.value||null;
+                if(props.target.kind==='location'&&field.key==='type'){
+                  const type=props.types.find(item=>item.id===value);
+                  patch({type:value,color:type?.color??'#d6b77a'},'type');
+                }else patch({[field.key]:value},field.key);
+              }}>
+              {field.nullable&&<MenuItem value="">Без связи</MenuItem>}
+              {options(field.key).map(option=><MenuItem key={option.id} value={option.id}>{option.label}</MenuItem>)}
+            </Select>
+          </FormControl>
+          :<TextField key={field.key} size="small" fullWidth label={field.label}
+            multiline={field.type==='textarea'} minRows={field.type==='textarea'?3:undefined}
+            type={field.type==='number'||field.type==='integer'?'number':field.type==='color'?'color':'text'}
+            value={textValue(draft[field.key],field)}
+            onChange={event=>patch({[field.key]:event.target.value},field.key)}
+            slotProps={field.type==='number'||field.type==='integer'?{
+              htmlInput:{step:field.type==='integer'?1:'any'}
+            }:undefined}/>)}
       </Stack>}
 
       {(props.target.kind==='layer'||props.target.kind==='world')&&<>
