@@ -156,16 +156,28 @@ export function LeafletAtlas({
 
     function update() {
       const zoom = map.getZoom();
+      let orderChanged = false;
       for (const item of layerObjects) {
         const { layer, box, overlay } = item;
         const shouldShow = layer.enabled &&
           zoom >= layer.showAtZoom - 0.8 && intersects(map, box);
         if (shouldShow) {
-          if (!map.hasLayer(overlay)) overlay.addTo(map);
+          if (!map.hasLayer(overlay)) {
+            overlay.addTo(map);
+            orderChanged = true;
+          }
           overlay.setRotation(layer.rotation);
           overlay.setOpacity(opacityAtZoom(layer, zoom));
         } else if (map.hasLayer(overlay)) {
           map.removeLayer(overlay);
+          orderChanged = true;
+        }
+      }
+      // Only reorder after mounts/unmounts, never every fractional zoom frame:
+      // moving image nodes during a zoom animation makes them jump sideways.
+      if (orderChanged) {
+        for (const { overlay } of layerObjects) {
+          if (map.hasLayer(overlay)) overlay.bringToFront();
         }
       }
       for (const { loc, marker } of markerObjects) {
