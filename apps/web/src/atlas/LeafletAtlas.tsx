@@ -384,7 +384,7 @@ export function LeafletAtlas({
         const overlay=new RotatableImageOverlay(assetUrl('maps',initialSynthetic.image!),leafletBounds(box),
           {pane:'atlasDraftPane',interactive:false,opacity:previewOpacity});
         overlay.setRotation(initialSynthetic.rotation);overlay.addTo(draftLayer);
-        let shiftDown=false,ctrlVisual=false,ctrlMoveActive=false;
+        let shiftDown=false,ctrlMoveActive=false;
         const aspectRatio=Number(draft.width)>0&&Number(draft.height)>0
           ?Number(draft.width)/Number(draft.height)
           :(working.x2-working.x1)/(working.y2-working.y1);
@@ -396,14 +396,12 @@ export function LeafletAtlas({
         const keyDown=(event:KeyboardEvent)=>{
           if(event.key==='Shift')shiftDown=true;
           if(event.key==='Control'){
-            ctrlVisual=true;
             container?.classList.add('atlas-layer-ctrlmove-ready');
           }
         };
         const keyUp=(event:KeyboardEvent)=>{
           if(event.key==='Shift')shiftDown=false;
           if(event.key==='Control'){
-            ctrlVisual=false;
             container?.classList.remove('atlas-layer-ctrlmove-ready');
           }
         };
@@ -506,7 +504,7 @@ export function LeafletAtlas({
         };
 
         const resetInteraction=()=>{
-          shiftDown=false;ctrlVisual=false;
+          shiftDown=false;
           container?.classList.remove('atlas-layer-ctrlmove-ready');
           finishCtrlMove(true);
           // Defensive guarantee: leaving edit/losing focus can never strand Leaflet.
