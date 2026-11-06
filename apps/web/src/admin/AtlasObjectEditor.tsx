@@ -11,6 +11,7 @@ import type {
 } from '@atlas/shared';
 import { LayerGeometryDialog } from '../atlas/LayerGeometryDialog';
 import { TwoPointAlignDialog } from '../atlas/TwoPointAlignDialog';
+import { assetUrl } from '../atlas/geometry';
 
 export type EditorKind='world'|'type'|'layer'|'location'|'timeline'|'era'|'event';
 export type EditorSection='all'|'marker'|'article';
@@ -374,6 +375,17 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
       <Divider/>
 
       {props.target.kind==='type'?<Stack gap={1.5}>
+        <Stack direction="row" gap={1.5} alignItems="center">
+          <Box sx={{width:42,height:42,borderRadius:'50%',border:'3px solid',
+            borderColor:String(draft.color??'#d6b77a'),display:'flex',
+            alignItems:'center',justifyContent:'center',overflow:'hidden',fontSize:22}}>
+            {draft.iconSvg&&draft.iconSvg!=='pending.svg'
+              ?<Box component="img" src={assetUrl('icons',String(draft.iconSvg))}
+                sx={{width:'100%',height:'100%',objectFit:'contain'}}/>
+              :String(draft.symbol||'◆')}
+          </Box>
+          <Typography fontSize={12} color="text.secondary">Предпросмотр типа маркера</Typography>
+        </Stack>
         <TextField size="small" label="Название типа" value={String(draft.name??'')}
           onChange={event=>patch({name:event.target.value},'name')}/>
         <Stack direction="row" gap={1} alignItems="center">
