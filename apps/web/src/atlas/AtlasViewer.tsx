@@ -91,6 +91,7 @@ export function AtlasViewer(){
   const [moveLocationId,setMoveLocationId]=useState<string|null>(null);
   const [contextTarget,setContextTarget]=useState<AtlasContextTarget|null>(null);
   const editorRef=useRef<AtlasObjectEditorHandle|null>(null);
+  const searchInputRef=useRef<HTMLInputElement|null>(null);
 
   const world=worlds.find(item=>item.id===worldId)??worlds[0];
   const selectedWorldId=world?.id??'';
@@ -366,6 +367,10 @@ export function AtlasViewer(){
     <Box component="header" className="atlas-topbar atlas-commandbar">
       <Typography component="h1" fontSize={17} fontWeight={700} color="primary.main">The Atlas</Typography>
       <Divider orientation="vertical" flexItem sx={{mx:1}}/>
+      <Button size="small" variant="outlined" onClick={()=>{
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      }}>Поиск</Button>
       <Button size="small" variant={placementTool==='location'?'contained':'outlined'}
         onClick={()=>beginPlacement('location')}>+ Маркер</Button>
       <Button size="small" variant="outlined" onClick={()=>{
@@ -411,7 +416,8 @@ export function AtlasViewer(){
             </Select>
           </FormControl>
 
-          <TextField size="small" fullWidth value={search} onChange={event=>setSearch(event.target.value)}
+          <TextField inputRef={searchInputRef} size="small" fullWidth value={search}
+            onChange={event=>setSearch(event.target.value)}
             label="Поиск по всем мирам" placeholder="Карта, локация, статья, тег"/>
           {search.trim().length>=2&&<Box className="atlas-results">
             <Typography fontSize={12} color="text.secondary" sx={{mb:1}}>
