@@ -109,6 +109,7 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert(locs.data.some(loc=>loc.id===location.data.id&&loc.name==='Тестовый город'));
     // Every change to an existing record must have a verified pre-write snapshot.
     const {createBackup,verifyBackup}=await import('../apps/api/src/backup.ts');
+    const snapshotsBefore=fs.readdirSync(env.ATLAS_BACKUP_DIR).filter(name=>name.startsWith('atlas-snapshot-'));
     const updated=await request('/api/admin/locations/'+location.data.id,'PATCH',{
       name:'Переименованный город',x:400.123456789,y:200.987654321,type:'city',
       color:'#d6b77a',minZoom:-1,description:'Изменённое описание',
@@ -117,9 +118,11 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal(updated.status,200);
     const stored=await db.location.findUnique({where:{id:location.data.id}});
     assert.equal(stored.name,'Переименованный город');
-    const beforeWriteSnapshots=fs.readdirSync(env.ATLAS_BACKUP_DIR).filter(name=>name.startsWith('atlas-snapshot-'));
-    assert.equal(beforeWriteSnapshots.length,1,'save must create a snapshot before overwriting');
-    const beforeWriteManifest=await verifyBackup(path.join(env.ATLAS_BACKUP_DIR,beforeWriteSnapshots[0]));
+    const afterWriteSnapshots=fs.readdirSync(env.ATLAS_BACKUP_DIR).filter(name=>name.startsWith('atlas-snapshot-'));
+    assert.equal(afterWriteSnapshots.length,snapshotsBefore.length+1,'save must create a snapshot before overwriting');
+    const createdSnapshot=afterWriteSnapshots.find(name=>!snapshotsBefore.includes(name));
+    assert.ok(createdSnapshot,'new snapshot must be separately identifiable');
+    const beforeWriteManifest=await verifyBackup(path.join(env.ATLAS_BACKUP_DIR,createdSnapshot));
     assert.equal(beforeWriteManifest.assets.length,5);
     const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlEdWMAAAAASUVORK5CYII=','base64');
     const imageResponse=await fetch(base+'/api/admin/assets/media',{method:'POST',headers:{
