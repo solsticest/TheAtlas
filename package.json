@@ -27,7 +27,9 @@
     "test:admin": "node --import tsx --test tests/admin-security.cjs",
     "lint": "eslint \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
     "format": "prettier --write \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx}\"",
-    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx}\""
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx}\"",
+    "start": "node apps/api/dist/server.js",
+    "test:production": "node --import tsx --test tests/production.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
