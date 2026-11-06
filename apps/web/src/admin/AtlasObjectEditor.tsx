@@ -496,6 +496,9 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
             Только для сверки: это значение не сохраняется в карту.
           </Typography>
         </Box>}
+        {props.target.kind==='layer'&&<Typography variant="caption" color="text.secondary">
+          Shift + угловая ручка — пропорциональный resize · Ctrl + ЛКМ по изображению — двигать карту за любую точку.
+        </Typography>}
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button component="label" size="small" variant="outlined">Загрузить карту
             <input hidden type="file" accept="image/png,image/webp,image/jpeg" onChange={event=>{
