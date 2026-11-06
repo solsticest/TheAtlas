@@ -161,8 +161,7 @@ function defaults(props:Props):Record<string,unknown>{
 }
 function fieldsFor(target:EditorTarget){
   if(target.kind!=='location')return allFields[target.kind];
-  if(target.section==='article')return allFields.location.filter(field=>
-    ['description','article','tags'].includes(field.key));
+  if(target.section==='article')return allFields.location.filter(field=>field.key==='article');
   return allFields.location.filter(field=>field.key!=='article');
 }
 function textValue(value:unknown,field:Field){
