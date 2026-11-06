@@ -71,9 +71,9 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(data.image!==undefined)patch.image=data.image;
     if(data.width!==undefined)patch.width=data.width;
     if(data.height!==undefined)patch.height=data.height;
-    if((data.image!==undefined&&data.image!==existing.image)||
-      (data.width!==undefined&&data.width!==existing.width)||
-      (data.height!==undefined&&data.height!==existing.height))await createBackup(db);
+    // Legacy v4 backed up BEFORE every save, not only before changing the image.
+    // Reject the save if a complete snapshot cannot be created.
+    await createBackup(db);
     await db.world.update({where:{id:existing.id},data:{
       name:data.name,kmPerPixel:data.kmPerPixel===undefined?existing.kmPerPixel:data.kmPerPixel,
       image:data.image===undefined?existing.image:data.image,
@@ -113,6 +113,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!parsed.success){fail(res,400,'BAD_INPUT','Некорректный тип маркера');return;}
     const row=await db.markerType.findUnique({where:{id:id(req.params.id)}});
     if(!row){fail(res,404,'NOT_FOUND','Тип не найден');return;}
+    await createBackup(db);
     await db.markerType.update({where:{id:row.id},data:{
       ...parsed.data,raw:changed(row.raw,parsed.data)
     }});
@@ -158,9 +159,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(patch.image!==undefined && !await requireMap(patch.image)){
       fail(res,400,'BAD_ASSET','Изображение карты не найдено');return;
     }
-    if((patch.image!==undefined&&patch.image!==row.image)||
-      (patch.width!==undefined&&patch.width!==row.width)||
-      (patch.height!==undefined&&patch.height!==row.height))await createBackup(db);
+    await createBackup(db);
     await db.mapLayer.update({where:{id:row.id},data:{
       name:patch.name,parentId:patch.parentId,
       bounds:JSON.stringify(patch.bounds),rotation:patch.rotation,
@@ -212,6 +211,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       fail(res,400,'TYPE_NOT_FOUND','Тип маркера не найден');return;
     }
     const input={...parsed.data,article:cleanArticle(parsed.data.article)};
+    await createBackup(db);
     await db.location.update({where:{id:row.id},data:{
       typeId:input.type,name:input.name,x:input.x,y:input.y,
       color:input.color,minZoom:input.minZoom,description:input.description,
