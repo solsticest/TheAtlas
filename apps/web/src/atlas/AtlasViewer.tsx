@@ -481,7 +481,8 @@ export function AtlasViewer(){
           onEditLocation={editLocation}
           onContext={setContextTarget}
           onPlace={place}
-          onMoveLocation={(_location,x,y)=>editorRef.current?.patch({x,y},'drag-marker')}/>}
+          onMoveLocation={(_location,x,y)=>editorRef.current?.patch({x,y},'drag-marker')}
+          onLayerGeometryDraft={bounds=>editorRef.current?.patch(bounds,'map-layer-geometry')}/>}
       </Box>
 
       {canEdit&&editorTarget&&world&&<AtlasObjectEditor ref={editorRef}
