@@ -41,5 +41,7 @@ jobs:
         run: npm run lint
       - name: Build new stack
         run: npm run build
+      - name: Test workspace-root paths with source and built API
+        run: npm run test:workspace-paths
       - name: Smoke test production / and /admin routes
         run: npm run test:production
