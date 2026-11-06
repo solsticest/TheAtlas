@@ -154,7 +154,7 @@ export const markerTypeInputSchema = z.object({
   name: label,
   symbol: z.string().trim().max(12).default(''),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default('#d6b77a'),
-  iconSvg: z.string().trim().max(255).regex(/^[a-zA-Z0-9][\\w.-]*\\.svg$/i).nullable().default(null),
+  iconSvg: z.string().trim().max(255).regex(/^[a-zA-Z0-9][\w.-]*\.svg$/i).nullable().default(null),
 }).strict().refine(value => Boolean(value.symbol) !== Boolean(value.iconSvg), {
   message: 'Выберите ровно один значок: эмодзи или SVG',
 });
