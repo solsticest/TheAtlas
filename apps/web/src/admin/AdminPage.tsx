@@ -28,7 +28,12 @@ const fields:Record<Kind,Field[]>={
     {key:'image',label:'Имя файла карты',nullable:true},
     {key:'kmPerPixel',label:'Километров на пиксель',type:'number',nullable:true},
   ],
-  type:[{key:'name',label:'Название'},{key:'symbol',label:'Символ (эмодзи)'}],
+  type:[
+    {key:'name',label:'Название'},
+    {key:'symbol',label:'Символ / эмодзи'},
+    {key:'color',label:'Цвет (#RRGGBB)'},
+    {key:'iconSvg',label:'SVG-файл значка',nullable:true},
+  ],
   layer:[
     {key:'name',label:'Название слоя'},
     {key:'parentId',label:'Родительская карта',type:'select',nullable:true},
@@ -86,7 +91,7 @@ const fields:Record<Kind,Field[]>={
 };
 const defaults:Record<Kind,Record<string,unknown>>={
   world:{name:'',width:1600,height:1000,image:null,kmPerPixel:null},
-  type:{name:'',symbol:'◆'},
+  type:{name:'',symbol:'◆',color:'#d6b77a',iconSvg:null},
   layer:{name:'',parentId:null,image:null,width:1000,height:1000,
     x1:100,y1:100,x2:500,y2:500,rotation:0,showAtZoom:0,fadeRange:0.75,enabled:true},
   location:{name:'',type:'city',x:0,y:0,color:'#d6b77a',minZoom:-6,description:'',article:'',tags:[]},
@@ -175,7 +180,7 @@ export function AdminPage(){
   const [pick,setPick]=useState(false);
   const [alignOpen,setAlignOpen]=useState(false);
   const [geometryOpen,setGeometryOpen]=useState(false);
-  const [assetKind,setAssetKind]=useState<'maps'|'media'>('media');
+  const [assetKind,setAssetKind]=useState<'maps'|'media'|'icons'>('media');
   const [timelines,setTimelines]=useState<Row[]>([]);
   const [eras,setEras]=useState<Row[]>([]);
   const [events,setEvents]=useState<Row[]>([]);
@@ -319,11 +324,16 @@ export function AdminPage(){
       });
       const data=await response.json() as {filename?:string;width?:number;height?:number;error?:{message:string}};
       if(!response.ok||!data.filename)throw Error(data.error?.message??'Ошибка загрузки');
-      setNotice('Изображение сохранено: '+data.filename);
-      setField('image',data.filename);
-      if(kind==='world'||kind==='layer'){
-        if(data.width)setField('width',data.width);
-        if(data.height)setField('height',data.height);
+      setNotice('Файл сохранён: '+data.filename);
+      if(assetKind==='icons'){
+        setField('iconSvg',data.filename);
+        setField('symbol','');
+      }else{
+        setField('image',data.filename);
+        if(kind==='world'||kind==='layer'){
+          if(data.width)setField('width',data.width);
+          if(data.height)setField('height',data.height);
+        }
       }
     }catch(e){setError(e instanceof Error?e.message:String(e));}
   }
@@ -487,13 +497,16 @@ export function AdminPage(){
         <Stack direction="row" gap={2} alignItems="center" flexWrap="wrap">
           <FormControl size="small" sx={{minWidth:130}}>
             <InputLabel>Тип файла</InputLabel>
-            <Select label="Тип файла" value={assetKind} onChange={e=>setAssetKind(e.target.value as 'maps'|'media')}>
+            <Select label="Тип файла" value={assetKind}
+              onChange={e=>setAssetKind(e.target.value as 'maps'|'media'|'icons')}>
               <MenuItem value="maps">Карты</MenuItem>
               <MenuItem value="media">Статьи</MenuItem>
+              <MenuItem value="icons">SVG-значки</MenuItem>
             </Select>
           </FormControl>
           <Button variant="outlined" component="label">Загрузить файл
-            <input hidden type="file" accept="image/png,image/webp,image/jpeg" onChange={e=>{
+            <input hidden type="file"
+              accept={assetKind==='icons'?'image/svg+xml,.svg':'image/png,image/webp,image/jpeg'} onChange={e=>{
               const file=e.target.files?.[0];if(file)void upload(file);e.target.value='';
             }}/>
           </Button>
