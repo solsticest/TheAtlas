@@ -37,3 +37,16 @@ test('Layer editor drag/resize is parent-relative and preserves valid bounds', a
   assert.equal(ratioHalf.y2,220);
   assert.throws(()=>resizeHandleWithAspect(b,'se',{x:0,y:0},0),/соотношение/);
 });
+
+
+test('Ctrl layer drag never mutates Leaflet global pan state',()=>{
+  const root=path.resolve(__dirname,'..');
+  for(const relative of [
+    'apps/web/src/atlas/LeafletAtlas.tsx',
+    'apps/web/src/atlas/LayerGeometryDialog.tsx',
+  ]){
+    const source=fs.readFileSync(path.join(root,relative),'utf8');
+    assert.equal(source.includes('map.dragging.disable()'),false,
+      relative+' must intercept Ctrl+LMB without disabling Leaflet panning');
+  }
+});
