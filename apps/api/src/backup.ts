@@ -1,11 +1,10 @@
-import { randomUUID, createHash } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { promises as fs, createReadStream } from 'node:fs';
 import path from 'node:path';
 import type { PrismaClient } from '@prisma/client';
+import { atlasAssetsDir, atlasBackupDir } from './paths.js';
 
-const root=path.resolve(process.cwd());
-const defaultAssets=()=>path.resolve(process.env.ATLAS_ASSETS_DIR ?? path.join(root,'storage','assets'));
-export const defaultBackups=()=>path.resolve(process.env.ATLAS_BACKUP_DIR ?? path.join(root,'storage','backups'));
+export const defaultBackups=atlasBackupDir;
 async function sha256(file:string):Promise<string>{
   const hasher=createHash('sha256');
   for await(const chunk of createReadStream(file))hasher.update(chunk);
@@ -40,7 +39,7 @@ export async function createBackup(db:PrismaClient,backupDir=defaultBackups()){
     // The destination is a newly generated file, never an existing DB.
     const sqlitePath=dbPath.replace(/\\/g,'/').replace(/'/g,"''");
     await db.$executeRawUnsafe("VACUUM INTO '"+sqlitePath+"'");
-    const assets=defaultAssets();
+    const assets=atlasAssetsDir();
     const output=path.join(folder,'assets');
     try{await fs.cp(assets,output,{recursive:true,errorOnExist:true,force:false});}
     catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
