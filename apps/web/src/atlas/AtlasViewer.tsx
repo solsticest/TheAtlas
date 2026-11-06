@@ -231,16 +231,21 @@ export function AtlasViewer(){
     await Promise.allSettled(tasks);
   }
   async function editorSaved(_kind:EditorKind,id:string,created:boolean){
+    // Tear down draft overlays/listeners BEFORE RTK Query swaps the persisted
+    // layer/location arrays. Otherwise preview cleanup can race Leaflet remounting.
+    closeEditor(true);
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
     await refetchVisibleData();
     await loadHistory();
-    closeEditor(true);
     setNotice(created?'Объект создан.':'Изменения сохранены.');
     if(_kind==='location')nextFocus('location',id);
     if(_kind==='layer')nextFocus('layer',id);
     if(_kind==='event')nextFocus('event',id);
   }
   async function editorDeleted(){
-    await refetchVisibleData();await loadHistory();closeEditor(true);setNotice('Объект удалён.');
+    closeEditor(true);
+    await new Promise<void>(resolve=>requestAnimationFrame(()=>resolve()));
+    await refetchVisibleData();await loadHistory();setNotice('Объект удалён.');
   }
 
   async function removeObject(kind:'location'|'event'|'layer',id:string){
@@ -406,7 +411,9 @@ export function AtlasViewer(){
         else if(historyState.canRedo)void globalHistory('redo');
       }
     };
-    window.addEventListener('keydown',key);return()=>window.removeEventListener('keydown',key);
+    // Capture phase makes editor shortcuts win over Leaflet/browser handlers.
+    window.addEventListener('keydown',key,true);
+    return()=>window.removeEventListener('keydown',key,true);
   },[editorTarget,placementTool,contextTarget,historyState.canUndo,historyState.canRedo,
     historyBusy,session?.csrfToken]);
 
