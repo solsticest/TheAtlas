@@ -427,7 +427,13 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
         field.type==='select'?<FormControl size="small" key={field.key}>
           <InputLabel>{field.label}</InputLabel>
           <Select label={field.label} value={String(draft[field.key]??'')}
-            onChange={event=>patch({[field.key]:event.target.value||null},field.key)}>
+            onChange={event=>{
+              const value=event.target.value||null;
+              if(props.target.kind==='location'&&field.key==='type'){
+                const type=props.types.find(item=>item.id===value);
+                patch({type:value,color:type?.color??'#d6b77a'},'type');
+              }else patch({[field.key]:value},field.key);
+            }}>
             {field.nullable&&<MenuItem value="">Без связи</MenuItem>}
             {options(field.key).map(option=><MenuItem key={option.id} value={option.id}>{option.label}</MenuItem>)}
           </Select>
