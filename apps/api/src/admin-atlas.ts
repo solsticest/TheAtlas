@@ -35,7 +35,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     while(current){
       if(chain.has(current))return false;
       chain.add(current);
-      const parent=await db.mapLayer.findUnique({where:{id:current}});
+      const parent:{worldId:string;parentId:string|null}|null=await db.mapLayer.findUnique({where:{id:current},select:{worldId:true,parentId:true}});
       if(!parent||parent.worldId!==worldId)return false;
       current=parent.parentId;
     }
