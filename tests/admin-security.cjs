@@ -134,7 +134,7 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal(assets.length,1);
     assert.equal((await fetch(base+'/api/assets/'+assets[0].path)).status,200);
 
-    const svg=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg>');
+    const svg=Buffer.from('<?xml version="1.0"?><!-- exported icon --><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><style>.x{fill:#fff}</style><path class="x" d="M3 3h18v18H3z"/></svg>');
     const svgResponse=await fetch(base+'/api/admin/assets/icons',{method:'POST',headers:{
       cookie,'x-csrf-token':csrf,'content-type':'application/octet-stream'
     },body:svg});
