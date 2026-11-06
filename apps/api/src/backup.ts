@@ -44,6 +44,16 @@ export async function createBackup(db:PrismaClient,backupDir=defaultBackups()){
     try{await fs.cp(assets,output,{recursive:true,errorOnExist:true,force:false});}
     catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
     const files=await fileManifest(output);
+    const copiedByPath=new Map(files.map(item=>[item.path,item]));
+    const registered=await db.mediaAsset.findMany({
+      select:{path:true,bytes:true,sha256:true},
+    });
+    for(const asset of registered){
+      const copy=copiedByPath.get(asset.path);
+      if(!copy||copy.bytes!==asset.bytes||copy.sha256!==asset.sha256){
+        throw Error('Cannot create complete Atlas backup: missing or corrupt '+asset.path);
+      }
+    }
     const manifest={
       format:'the-atlas-v1',createdAt:new Date().toISOString(),
       database:{bytes:(await fs.stat(dbPath)).size,sha256:await sha256(dbPath)},
