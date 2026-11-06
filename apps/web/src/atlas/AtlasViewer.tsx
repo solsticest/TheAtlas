@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import type { RootState } from './store';
+import { selectWorld, resolveDefaultWorld, navigateToWorld, selectTimeline, selectEra, toggleMarkerType, focusMap } from './viewSlice';
 import {
   Alert, Box, CircularProgress, Divider, FormControl, InputLabel, List,
   ListItemButton, ListItemText, MenuItem, Select, Stack, TextField, Typography,
@@ -11,20 +14,15 @@ import { ArticleDialog } from './ArticleDialog';
 import { TimelinePanel } from './TimelinePanel';
 import { EventDialog } from './EventDialog';
 
-type Focus = { kind: 'world' | 'layer' | 'location' | 'event'; id: string; sequence: number };
-
 export function AtlasViewer() {
   const worldsQuery = useWorldsQuery();
   const typesQuery = useMarkerTypesQuery();
   const worlds = worldsQuery.currentData ?? [];
   const types = typesQuery.currentData ?? [];
-  const [worldId, setWorldId] = useState(() => new URLSearchParams(window.location.search).get('world') ?? '');
-  const [timelineId, setTimelineId] = useState(() => new URLSearchParams(window.location.search).get('timeline') ?? '');
-  const [eraId, setEraId] = useState(() => new URLSearchParams(window.location.search).get('era') ?? '');
+  const dispatch = useDispatch();
+  const { worldId, timelineId, eraId, hiddenTypes, focus } = useSelector((state: RootState) => state.atlasView);
   const [eventId, setEventId] = useState<string | null>(null);
-  const [hiddenTypes, setHiddenTypes] = useState<string[]>([]);
   const [search, setSearch] = useState('');
-  const [focus, setFocus] = useState<Focus | null>(null);
   const [articleId, setArticleId] = useState<string | null>(null);
 
   const world = worlds.find(item => item.id === worldId) ?? worlds[0];
@@ -56,28 +54,25 @@ export function AtlasViewer() {
     [types, hiddenTypes]);
 
   useEffect(() => {
-    if (!worldId && worlds.length) setWorldId(worlds[0]?.id ?? '');
-  }, [worldId, worlds]);
+    if (!worldId && worlds.length) dispatch(resolveDefaultWorld(worlds[0]?.id ?? ''));
+  }, [worldId, worlds, dispatch]);
 
-  const nextFocus = (kind: Focus['kind'], id: string) => {
-    setFocus(prev => ({ kind, id, sequence: (prev?.sequence ?? 0) + 1 }));
+  const nextFocus = (kind: 'world' | 'layer' | 'location' | 'event', id: string) => {
+    dispatch(focusMap({ kind, id }));
   };
 
   const openWorld = (id: string) => {
-    setWorldId(id);
+    dispatch(selectWorld(id));
     setArticleId(null);
     setEventId(null);
-    setTimelineId('');
-    setEraId('');
-    nextFocus('world', id);
   };
 
   const selectLocation = (loc: LocationRecord) => {
     setArticleId(loc.id);
   };
 
-  const navigate = (worldIdTarget: string, kind: Focus['kind'], id: string) => {
-    if (worldIdTarget !== selectedWorldId) setWorldId(worldIdTarget);
+  const navigate = (worldIdTarget: string, kind: 'world' | 'layer' | 'location' | 'event', id: string) => {
+    if (worldIdTarget !== selectedWorldId) dispatch(navigateToWorld(worldIdTarget));
     setArticleId(null);
     setEventId(null);
     nextFocus(kind, id);
@@ -159,8 +154,8 @@ export function AtlasViewer() {
 
             <TimelinePanel timelines={timelines} eras={eras} events={events}
               timelineId={timeline?.id ?? ''} eraId={era?.id ?? ''}
-              onTimeline={id => { setTimelineId(id); setEraId(''); setEventId(null); }}
-              onEra={id => { setEraId(id); setEventId(null); }}
+              onTimeline={id => { dispatch(selectTimeline(id)); setEventId(null); }}
+              onEra={id => { dispatch(selectEra(id)); setEventId(null); }}
               onEvent={focusEvent} loading={timelinesQuery.isFetching || erasQuery.isFetching || eventsQuery.isFetching} />
 
             <Typography variant="subtitle2">Типы маркеров</Typography>
@@ -168,8 +163,7 @@ export function AtlasViewer() {
               {types.map(type => (
                 <FormControlLabel key={type.id} sx={{ my: -0.5 }}
                   control={<Checkbox size="small" checked={!hiddenTypes.includes(type.id)}
-                    onChange={(_, checked) => setHiddenTypes(prev => checked
-                      ? prev.filter(id => id !== type.id) : [...prev, type.id])} />}
+                    onChange={(_, checked) => dispatch(toggleMarkerType({ id: type.id, visible: checked }))} />}
                   label={<Typography fontSize={13}>{type.symbol} {type.name}</Typography>} />
               ))}
             </Stack>
@@ -178,7 +172,7 @@ export function AtlasViewer() {
             <List dense disablePadding>
               {[...locations].sort((a, b) => a.name.localeCompare(b.name, 'ru')).map(loc => (
                 <ListItemButton key={loc.id} onClick={() => {
-                  if (hiddenTypes.includes(loc.type)) setHiddenTypes(prev => prev.filter(t => t !== loc.type));
+                  if (hiddenTypes.includes(loc.type)) dispatch(toggleMarkerType({ id: loc.type, visible: true }));
                   nextFocus('location', loc.id);
                 }}>
                   <ListItemText primary={loc.name} secondary={loc.description || 'Локация'} />
