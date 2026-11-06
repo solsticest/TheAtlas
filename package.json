@@ -16,7 +16,10 @@
     "test:migration": "node --test tests/migration-audit.cjs",
     "db:setup": "node scripts/db-setup.cjs",
     "db:generate": "node scripts/db-setup.cjs --generate-only",
-    "db:validate": "node scripts/db-setup.cjs --validate-only"
+    "db:validate": "node scripts/db-setup.cjs --validate-only",
+    "import:atlas": "node scripts/import-legacy-atlas.cjs",
+    "export:atlas": "node scripts/export-legacy-atlas.cjs",
+    "test:database": "node --test tests/db-import.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
