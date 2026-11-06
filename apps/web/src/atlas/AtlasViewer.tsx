@@ -342,11 +342,13 @@ export function AtlasViewer(){
     if(kind==='location'){
       const location=locations.find(item=>item.id===id);if(!location)return;
       setContextTarget({kind:'location',location,point:{
-        x:location.x,y:location.y,clientX:event.clientX,clientY:event.clientY,
+        x:Number.NaN,y:Number.NaN,clientX:event.clientX,clientY:event.clientY,
       }});
     }else{
       const layer=layers.find(item=>item.id===id);if(!layer)return;
-      setContextTarget({kind:'layer',layer,point:{x:0,y:0,clientX:event.clientX,clientY:event.clientY}});
+      setContextTarget({kind:'layer',layer,point:{
+        x:Number.NaN,y:Number.NaN,clientX:event.clientX,clientY:event.clientY,
+      }});
     }
   }
 
@@ -615,7 +617,8 @@ export function AtlasViewer(){
         <MenuItem key="copy" onClick={()=>contextAction('copy')}>Скопировать координаты</MenuItem>,
       ]}
       {contextTarget?.kind==='location'&&[
-        canEdit&&<MenuItem key="create-marker" onClick={()=>contextAction('create-location')}>Создать маркер здесь</MenuItem>,
+        canEdit&&Number.isFinite(contextTarget.point.x)&&
+          <MenuItem key="create-marker" onClick={()=>contextAction('create-location')}>Создать маркер здесь</MenuItem>,
         <MenuItem key="details" onClick={()=>contextAction('details')}>Подробнее</MenuItem>,
         canEdit&&<MenuItem key="edit-marker" onClick={()=>contextAction('edit-marker')}>Редактировать маркер</MenuItem>,
         canEdit&&<MenuItem key="edit-article" onClick={()=>contextAction('edit-article')}>Редактировать статью</MenuItem>,
@@ -624,14 +627,16 @@ export function AtlasViewer(){
         canEdit&&<MenuItem key="delete" onClick={()=>contextAction('delete')}>Удалить…</MenuItem>,
       ]}
       {contextTarget?.kind==='event'&&[
-        canEdit&&<MenuItem key="create-marker" onClick={()=>contextAction('create-location')}>Создать маркер здесь</MenuItem>,
+        canEdit&&Number.isFinite(contextTarget.point.x)&&
+          <MenuItem key="create-marker" onClick={()=>contextAction('create-location')}>Создать маркер здесь</MenuItem>,
         <MenuItem key="details" onClick={()=>contextAction('details')}>Открыть событие</MenuItem>,
         canEdit&&<MenuItem key="edit" onClick={()=>contextAction('edit')}>Редактировать</MenuItem>,
         canEdit&&<MenuItem key="duplicate" onClick={()=>contextAction('duplicate')}>Дублировать</MenuItem>,
         canEdit&&<MenuItem key="delete" onClick={()=>contextAction('delete')}>Удалить…</MenuItem>,
       ]}
       {contextTarget?.kind==='layer'&&[
-        canEdit&&<MenuItem key="create-marker" onClick={()=>contextAction('create-location')}>Создать маркер здесь</MenuItem>,
+        canEdit&&Number.isFinite(contextTarget.point.x)&&
+          <MenuItem key="create-marker" onClick={()=>contextAction('create-location')}>Создать маркер здесь</MenuItem>,
         canEdit&&<MenuItem key="edit" onClick={()=>contextAction('edit')}>Редактировать карту</MenuItem>,
         canEdit&&<MenuItem key="child" onClick={()=>contextAction('child')}>Добавить вложенную карту</MenuItem>,
         canEdit&&<MenuItem key="duplicate" onClick={()=>contextAction('duplicate')}>Дублировать</MenuItem>,
