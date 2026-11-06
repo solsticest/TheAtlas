@@ -340,29 +340,33 @@ export function AtlasViewer(){
     <Box component="header" className="atlas-topbar atlas-commandbar">
       <Typography component="h1" fontSize={17} fontWeight={700} color="primary.main">The Atlas</Typography>
       <Divider orientation="vertical" flexItem sx={{mx:1}}/>
-      {canEdit?<>
-        <Button size="small" variant={placementTool==='location'?'contained':'outlined'}
-          onClick={()=>beginPlacement('location')}>+ Маркер</Button>
-        <Button size="small" variant="outlined"
-          onClick={()=>openEditor({kind:'layer',create:true})}>+ Регион</Button>
-        <Button size="small" variant={placementTool==='event'?'contained':'outlined'}
-          disabled={!era} onClick={()=>beginPlacement('event')}>+ Событие</Button>
-        <Button size="small" variant="outlined"
-          onClick={()=>openEditor({kind:'type',create:true})}>+ Тип маркера</Button>
-        {editorTarget&&<>
-          <Divider orientation="vertical" flexItem sx={{mx:.5}}/>
-          <Button size="small" disabled={!editorStatus.canUndo} onClick={()=>editorRef.current?.undo()}>↶</Button>
-          <Button size="small" disabled={!editorStatus.canRedo} onClick={()=>editorRef.current?.redo()}>↷</Button>
-          <Button size="small" variant="contained" disabled={!editorStatus.dirty||editorStatus.saving}
-            onClick={()=>editorRef.current?.save()}>Сохранить</Button>
-          <Button size="small" onClick={()=>editorRef.current?.cancel()}>Отмена</Button>
-        </>}
-      </>:<Button size="small" variant="outlined" onClick={()=>setLoginOpen(true)}>Войти для редактирования</Button>}
+      <Button size="small" variant={placementTool==='location'?'contained':'outlined'}
+        onClick={()=>beginPlacement('location')}>+ Маркер</Button>
+      <Button size="small" variant="outlined" onClick={()=>{
+        if(!canEdit){setLoginOpen(true);return;}
+        openEditor({kind:'layer',create:true});
+      }}>+ Регион</Button>
+      <Button size="small" variant={placementTool==='event'?'contained':'outlined'}
+        disabled={canEdit&&!era} onClick={()=>beginPlacement('event')}>+ Событие</Button>
+      <Button size="small" variant="outlined" onClick={()=>{
+        if(!canEdit){setLoginOpen(true);return;}
+        openEditor({kind:'type',create:true});
+      }}>+ Тип маркера</Button>
+      {canEdit&&editorTarget&&<>
+        <Divider orientation="vertical" flexItem sx={{mx:.5}}/>
+        <Button size="small" disabled={!editorStatus.canUndo} onClick={()=>editorRef.current?.undo()}>↶</Button>
+        <Button size="small" disabled={!editorStatus.canRedo} onClick={()=>editorRef.current?.redo()}>↷</Button>
+        <Button size="small" variant="contained" disabled={!editorStatus.dirty||editorStatus.saving}
+          onClick={()=>editorRef.current?.save()}>Сохранить</Button>
+        <Button size="small" onClick={()=>editorRef.current?.cancel()}>Отмена</Button>
+      </>}
       <Box sx={{flex:1}}/>
       {placementTool&&<Typography variant="caption" color="warning.main">
         {placementTool==='location'?'Укажи место нового маркера':'Укажи место события'} · Esc отменяет
       </Typography>}
-      {canEdit&&<Button size="small" color="secondary" onClick={()=>void logout()}>Выйти</Button>}
+      {canEdit
+        ?<Button size="small" color="secondary" onClick={()=>void logout()}>Выйти</Button>
+        :<Button size="small" color="secondary" onClick={()=>setLoginOpen(true)}>Войти</Button>}
     </Box>
 
     <Box className="atlas-workspace">
