@@ -33,6 +33,9 @@ test('Map picker initializes Leaflet inside the mounted MUI dialog portal, inclu
   });
 
   const React = await import('react');
+  // Direct Node TSX tests compile JSX in classic mode; Vite uses react-jsx.
+  // Supply the classic runtime in jsdom without changing production components.
+  globalThis.React = React;
   const { createRoot } = await import('react-dom/client');
   const { MapPointPicker } = await import('../apps/web/src/atlas/MapPointPicker.tsx');
   const { LayerGeometryDialog } = await import('../apps/web/src/atlas/LayerGeometryDialog.tsx');
