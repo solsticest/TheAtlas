@@ -97,7 +97,9 @@ export function MapPointPicker({ open, world, layers, x, y, onChoose, onClose }:
           if (map.hasLayer(overlay)) overlay.bringToFront();
         }
       }
-      cursor.bringToFront();
+      // Vector markers render in Leaflet's overlay pane (above the image panes).
+      // Calling bringToFront before the initial renderer creates its SVG path
+      // can throw during the first fitBounds/zoomend and leave the dialog blank.
     };
 
     map.on('zoomend', update);
