@@ -41,15 +41,25 @@ function cookieOptions() {
     secure:process.env.NODE_ENV==='production',path:'/',maxAge:sessionLifeMs,
   };
 }
+function loopback(hostname:string){
+  const value=hostname.toLowerCase();
+  return value==='localhost'||value==='127.0.0.1'||value==='::1'||value==='[::1]';
+}
+function requestHostname(host:string){
+  try{return new URL('http://'+host).hostname;}catch{return '';}
+}
 function sameOrigin(req:Request){
   const origin=req.headers.origin;
   if(!origin) return true; // non-browser clients still require CSRF
   try{
     const url=new URL(origin);
     const host=req.headers.host??'';
-    return url.host===host ||
-      (process.env.NODE_ENV!=='production' && ['localhost:5173','127.0.0.1:5173'].includes(url.host) &&
-        ['localhost:3001','127.0.0.1:3001'].includes(host));
+    if(url.host===host)return true;
+    // Vite selects the next free local port (5174, 5175, ...) unless strictPort
+    // is enabled. In development, allow a browser/API port mismatch only while
+    // BOTH endpoints are loopback. Never extend this exception to LAN/external hosts.
+    return process.env.NODE_ENV!=='production' &&
+      loopback(url.hostname) && loopback(requestHostname(host));
   }catch{return false;}
 }
 export function registerAuth(app:Express,db:PrismaClient){
