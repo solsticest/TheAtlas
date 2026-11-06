@@ -1,0 +1,29 @@
+name: New stack and database schema
+
+on:
+  push:
+    branches:
+      - feat/react-atlas-migration
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate Prisma schema
+        run: npm run db:validate
+      - name: Create database and generate client
+        run: npm run db:setup
+      - name: Typecheck new stack
+        run: npm run typecheck
+      - name: Build new stack
+        run: npm run build
