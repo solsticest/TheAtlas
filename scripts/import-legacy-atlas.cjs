@@ -71,7 +71,7 @@ async function backup(paths,report,dir,sqlitePath){
   }catch(err){throw Error('Backup не завершён в '+folder+': '+err.message);}
 }
 async function ensureAssets(report,paths){
-  const destinationRoot=path.join(root,'storage','assets');
+  const destinationRoot=process.env.ATLAS_ASSETS_DIR ? path.resolve(process.env.ATLAS_ASSETS_DIR) : path.join(root,'storage','assets');
   const created=[];
   try {
     for(const asset of report.assets){
@@ -178,7 +178,7 @@ async function execute(options){
       throw Error('База содержит данные без AtlasDocument. Автоматический импорт запрещён.');
     const backupDir=path.resolve(options.backupDir);
     const backupLocation=await backup(paths,report,backupDir,
-      path.join(root,'storage','atlas.db'));
+      path.resolve(root,'apps','api','prisma',(process.env.DATABASE_URL||'file:../../../storage/atlas.db').slice(5)));
     // Source must not change between audit, backup and write.
     if(await hashFile(paths.input)!==report.sourceSha256) throw Error('Исходный JSON изменился после аудита');
     const created=await ensureAssets(report,paths);
