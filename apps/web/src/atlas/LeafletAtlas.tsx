@@ -188,7 +188,10 @@ export function LeafletAtlas({
       const marker=L.marker([loc.y,loc.x],{
         icon:markerIcon(loc,markerTypes.get(loc.type)),interactive:true,draggable:false,pane:'atlasMarkerPane',
       });
-      marker.bindPopup(makePopup(loc,()=>selectRef.current(loc),()=>editRef.current(loc,'marker'),canEdit));
+      marker.bindPopup(makePopup(loc,
+        ()=>{marker.closePopup();selectRef.current(loc);},
+        ()=>{marker.closePopup();editRef.current(loc,'marker');},
+        canEdit));
       marker.on('contextmenu',(event:L.LeafletMouseEvent)=>contextRef.current({
         kind:'location',point:pointOf(event),location:loc,
       }));
