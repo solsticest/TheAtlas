@@ -8,6 +8,7 @@ import { registerTimelines } from './timelines.js';
 import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
+process.env.DATABASE_URL ||= 'file:../../../storage/atlas.db';
 
 const assetsDir = () => path.resolve(process.env.ATLAS_ASSETS_DIR ?? path.join(process.cwd(), 'storage', 'assets'));
 const validFilename = (name: string) =>
