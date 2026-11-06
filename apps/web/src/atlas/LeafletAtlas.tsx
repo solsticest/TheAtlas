@@ -199,13 +199,23 @@ export function LeafletAtlas({
     map.on('zoomend moveend', update);
     map.fitBounds(bounds, { padding: [28, 28], animate: false });
     update();
-    // Leaflet calculates sizes after React has mounted the container.
-    const frame = requestAnimationFrame(() => {
-      if (mapRef.current === map) map.invalidateSize({ pan: false });
-    });
+    // Leaflet calculates sizes after React has mounted the container. The main
+    // editor is a persistent right-hand pane, so opening/closing it resizes the
+    // same map without remounting. Observe that flex resize and invalidate Leaflet.
+    let resizeFrame = 0;
+    const resize = () => {
+      cancelAnimationFrame(resizeFrame);
+      resizeFrame = requestAnimationFrame(() => {
+        if (mapRef.current === map) map.invalidateSize({ pan: false });
+      });
+    };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
+    observer?.observe(container);
+    resize();
 
     return () => {
-      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      cancelAnimationFrame(resizeFrame);
       map.off('zoomend moveend', update);
       map.remove();
       mapRef.current = null;
