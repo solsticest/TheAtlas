@@ -1,7 +1,9 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import {
   worldSchema, layerSchema, locationSchema, markerTypeSchema, searchItemSchema,
+  timelineRecordSchema, eraRecordSchema, eventRecordSchema,
   type WorldRecord, type LayerRecord, type LocationRecord, type MarkerTypeRecord, type SearchItem,
+  type TimelineRecord, type EraRecord, type EventRecord,
 } from '@atlas/shared';
 
 export const atlasApi = createApi({
@@ -24,6 +26,18 @@ export const atlasApi = createApi({
       query: (worldId) => 'worlds/' + encodeURIComponent(worldId) + '/locations',
       transformResponse: (payload: unknown) => locationSchema.array().parse(payload),
     }),
+    timelines: build.query<TimelineRecord[], string>({
+      query: (worldId) => 'worlds/' + encodeURIComponent(worldId) + '/timelines',
+      transformResponse: (payload: unknown) => timelineRecordSchema.array().parse(payload),
+    }),
+    eras: build.query<EraRecord[], string>({
+      query: (timelineId) => 'timelines/' + encodeURIComponent(timelineId) + '/eras',
+      transformResponse: (payload: unknown) => eraRecordSchema.array().parse(payload),
+    }),
+    events: build.query<EventRecord[], string>({
+      query: (eraId) => 'eras/' + encodeURIComponent(eraId) + '/events',
+      transformResponse: (payload: unknown) => eventRecordSchema.array().parse(payload),
+    }),
     search: build.query<SearchItem[], string>({
       query: (q) => 'search?q=' + encodeURIComponent(q),
       transformResponse: (payload: unknown) => searchItemSchema.array().parse(payload),
@@ -33,4 +47,5 @@ export const atlasApi = createApi({
 
 export const {
   useWorldsQuery, useMarkerTypesQuery, useLayersQuery, useLocationsQuery, useSearchQuery,
+  useTimelinesQuery, useErasQuery, useEventsQuery,
 } = atlasApi;
