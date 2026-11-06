@@ -43,7 +43,11 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
   app.get('/api/types', async (_req, res, next) => {
     try {
       const rows = await db.markerType.findMany({ orderBy: { sortOrder: 'asc' } });
-      res.json(rows.map(row => JSON.parse(row.raw) as unknown));
+      res.json(rows.map(row => ({
+        ...JSON.parse(row.raw) as Record<string, unknown>,
+        id: row.id, name: row.name, symbol: row.symbol,
+        color: row.color, iconSvg: row.iconSvg,
+      })));
     } catch (error) { next(error); }
   });
 
@@ -144,7 +148,7 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
 
   app.get('/api/assets/:kind/:filename', async (req, res, next) => {
     const { kind, filename } = req.params;
-    if (!(['maps', 'media'].includes(kind)) || !validFilename(filename)) {
+    if (!(['maps', 'media', 'icons'].includes(kind)) || !validFilename(filename)) {
       res.status(400).json(issue('BAD_ASSET_PATH', 'Недопустимый путь файла')); return;
     }
     const key = kind + '/' + filename;
