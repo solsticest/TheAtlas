@@ -30,7 +30,8 @@
     "format:check": "prettier --check \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx}\"",
     "start": "node apps/api/dist/server.js",
     "test:production": "node --import tsx --test tests/production.cjs",
-    "test:alignment": "node --import tsx --test tests/align-legacy.cjs"
+    "test:alignment": "node --import tsx --test tests/align-legacy.cjs",
+    "test:layer-editor": "node --import tsx --test tests/layer-editor.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
