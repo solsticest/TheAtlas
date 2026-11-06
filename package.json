@@ -20,7 +20,8 @@
     "import:atlas": "node scripts/import-legacy-atlas.cjs",
     "export:atlas": "node scripts/export-legacy-atlas.cjs",
     "test:database": "node --test tests/db-import.cjs",
-    "test:api": "node --import tsx --test tests/api-viewer.cjs"
+    "test:api": "node --import tsx --test tests/api-viewer.cjs",
+    "test:geometry": "node --import tsx --test tests/viewer-geometry.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
