@@ -82,6 +82,7 @@ export function AtlasViewer(){
   const [loginOpen,setLoginOpen]=useState(false);
   const [password,setPassword]=useState('');
   const [loginError,setLoginError]=useState('');
+  const [pendingLoginAction,setPendingLoginAction]=useState<'location'|'event'|'layer'|'type'|null>(null);
   const [notice,setNotice]=useState('');
   const [editorTarget,setEditorTarget]=useState<EditorTarget|null>(null);
   const [editorStatus,setEditorStatus]=useState<EditorStatus>(emptyStatus);
@@ -156,7 +157,7 @@ export function AtlasViewer(){
     setMoveLocationId(location.id);nextFocus('location',location.id);
   }
   function beginPlacement(kind:'location'|'event'){
-    if(!canEdit){setLoginOpen(true);return;}
+    if(!canEdit){setPendingLoginAction(kind);setLoginOpen(true);return;}
     if(kind==='event'&&!era){setNotice('Сначала выбери таймлайн и эпоху.');return;}
     if(!closeEditor())return;
     setPlacementTool(kind);setNotice(kind==='location'
@@ -180,7 +181,16 @@ export function AtlasViewer(){
         headers:{'content-type':'application/json'},body:JSON.stringify({password})});
       const data=await response.json() as EditorSession&ErrorBody;
       if(!response.ok)throw Error(data.error?.message??'Не удалось войти');
-      setSession(data);setPassword('');setLoginOpen(false);setNotice('Редакторские инструменты разблокированы.');
+      setSession(data);setPassword('');setLoginOpen(false);
+      const action=pendingLoginAction;setPendingLoginAction(null);
+      if(action==='location'){
+        setPlacementTool('location');setNotice('Кликни по карте, где должен появиться новый маркер.');
+      }else if(action==='event'){
+        if(era){setPlacementTool('event');setNotice('Кликни по карте, где должно появиться новое событие.');}
+        else setNotice('Вход выполнен. Для события сначала выбери таймлайн и эпоху.');
+      }else if(action==='layer')openEditor({kind:'layer',create:true});
+      else if(action==='type')openEditor({kind:'type',create:true});
+      else setNotice('Редакторские инструменты разблокированы.');
     }catch(reason){setLoginError(reason instanceof Error?reason.message:String(reason));}
   }
   async function logout(){
@@ -345,13 +355,13 @@ export function AtlasViewer(){
       <Button size="small" variant={placementTool==='location'?'contained':'outlined'}
         onClick={()=>beginPlacement('location')}>+ Маркер</Button>
       <Button size="small" variant="outlined" onClick={()=>{
-        if(!canEdit){setLoginOpen(true);return;}
+        if(!canEdit){setPendingLoginAction('layer');setLoginOpen(true);return;}
         openEditor({kind:'layer',create:true});
       }}>+ Регион</Button>
       <Button size="small" variant={placementTool==='event'?'contained':'outlined'}
         disabled={canEdit&&!era} onClick={()=>beginPlacement('event')}>+ Событие</Button>
       <Button size="small" variant="outlined" onClick={()=>{
-        if(!canEdit){setLoginOpen(true);return;}
+        if(!canEdit){setPendingLoginAction('type');setLoginOpen(true);return;}
         openEditor({kind:'type',create:true});
       }}>+ Тип маркера</Button>
       {canEdit&&editorTarget&&<>
@@ -545,7 +555,7 @@ export function AtlasViewer(){
       ]}
     </Menu>
 
-    <Dialog open={loginOpen} onClose={()=>setLoginOpen(false)} maxWidth="xs" fullWidth>
+    <Dialog open={loginOpen} onClose={()=>{setLoginOpen(false);setPendingLoginAction(null);}} maxWidth="xs" fullWidth>
       <DialogTitle>Редактор Atlas</DialogTitle>
       <DialogContent>
         <Typography fontSize={13} color="text.secondary" sx={{mb:2}}>
@@ -557,7 +567,7 @@ export function AtlasViewer(){
         {loginError&&<Alert severity="error" sx={{mt:2}}>{loginError}</Alert>}
       </DialogContent>
       <DialogActions>
-        <Button onClick={()=>setLoginOpen(false)}>Отмена</Button>
+        <Button onClick={()=>{setLoginOpen(false);setPendingLoginAction(null);}}>Отмена</Button>
         <Button variant="contained" onClick={()=>void login()}>Войти</Button>
       </DialogActions>
     </Dialog>
