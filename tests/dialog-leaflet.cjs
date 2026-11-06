@@ -48,8 +48,17 @@ test('Map picker initializes Leaflet inside the mounted MUI dialog portal, inclu
   const pointProps = {
     world, layers: [], x: null, y: null, onChoose() {}, onClose() {},
   };
+  async function inAct(work) {
+    try {
+      await React.act(work);
+    } catch (error) {
+      const reasons = error instanceof AggregateError ? error.errors : [error];
+      throw new Error('React portal test errors:\n' + reasons.map(reason =>
+        reason && reason.stack ? reason.stack : String(reason)).join('\n---\n'));
+    }
+  }
   async function mount(component) {
-    await React.act(async () => { root.render(component); });
+    await inAct(async () => { root.render(component); });
   }
   try {
     await mount(React.createElement(MapPointPicker, { ...pointProps, open: false }));
@@ -76,7 +85,7 @@ test('Map picker initializes Leaflet inside the mounted MUI dialog portal, inclu
     assert.ok(geometry?.classList.contains('leaflet-container'),
       'layer geometry editor must also wait for its dialog portal');
   } finally {
-    await React.act(async () => { root.unmount(); });
+    await inAct(async () => { root.unmount(); });
     dom.window.close();
   }
 });
