@@ -468,7 +468,6 @@ export function LeafletAtlas({
           windowMove=null;windowUp=null;
           if(!ctrlMoveActive)return;
           ctrlMoveActive=false;
-          map.dragging.enable();
           container?.classList.remove('atlas-layer-ctrlmove-active');
           if(commit)layerGeometryRef.current({...working});
         };
@@ -485,8 +484,7 @@ export function LeafletAtlas({
 
           // Capture before Leaflet's drag handler owns the gesture.
           mouse.preventDefault();
-          mouse.stopPropagation();
-          map.dragging.disable();
+          mouse.stopImmediatePropagation();
           ctrlMoveActive=true;
           container.classList.add('atlas-layer-ctrlmove-active');
 
@@ -507,8 +505,6 @@ export function LeafletAtlas({
           shiftDown=false;
           container?.classList.remove('atlas-layer-ctrlmove-ready');
           finishCtrlMove(true);
-          // Defensive guarantee: leaving edit/losing focus can never strand Leaflet.
-          map.dragging.enable();
         };
 
         window.addEventListener('keydown',keyDown);
@@ -523,7 +519,6 @@ export function LeafletAtlas({
           container?.removeEventListener('mousedown',beginCtrlMove,true);
           finishCtrlMove(false);
           container?.classList.remove('atlas-layer-ctrlmove-ready','atlas-layer-ctrlmove-active');
-          map.dragging.enable();
 
           if(originalObject){
             hiddenLayerIdRef.current=null;
