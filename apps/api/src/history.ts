@@ -32,7 +32,7 @@ function description(kind:HistoryKind,action:HistoryAction,json:string|null,id:s
 }
 
 export async function recordHistory(
-  db:PrismaClient,kind:HistoryKind,action:HistoryAction,
+  db:Db,kind:HistoryKind,action:HistoryAction,
   entityId:string,before:unknown|null,after:unknown|null,
 ){
   // A new branch after Undo invalidates Redo, matching desktop editor semantics.
