@@ -4,6 +4,7 @@ import type {
   EventRecord, LayerBounds, LayerRecord, LocationRecord, MarkerTypeRecord, WorldRecord,
 } from '@atlas/shared';
 import { assetUrl, depthOf, opacityAtZoom, worldBox } from './geometry';
+import { moveHandle, type LayerHandle } from './layerEditorMath';
 import type { EditorSection, EditorTarget } from '../admin/AtlasObjectEditor';
 
 type Focus={kind:'world'|'layer'|'location'|'event';id:string;sequence:number};
@@ -33,6 +34,7 @@ type Props={
   onContext:(target:AtlasContextTarget)=>void;
   onPlace:(point:AtlasMapPoint)=>void;
   onMoveLocation:(location:LocationRecord,x:number,y:number)=>void;
+  onLayerGeometryDraft:(bounds:LayerBounds)=>void;
 };
 type OverlayInternal=L.ImageOverlay&{_atlasBitmap?:HTMLElement};
 
@@ -118,6 +120,7 @@ function makePopup(location:LocationRecord,details:()=>void,edit:()=>void,canEdi
 export function LeafletAtlas({
   world,layers,locations,types,visibleTypes,focus,onSelectLocation,events,onSelectEvent,
   canEdit,preview,placementTool,moveLocationId,onEditLocation,onContext,onPlace,onMoveLocation,
+  onLayerGeometryDraft,
 }:Props){
   const elementRef=useRef<HTMLDivElement|null>(null);
   const mapRef=useRef<L.Map|null>(null);
@@ -133,6 +136,7 @@ export function LeafletAtlas({
   const contextRef=useRef(onContext);
   const placeRef=useRef(onPlace);
   const moveRef=useRef(onMoveLocation);
+  const layerGeometryRef=useRef(onLayerGeometryDraft);
   const filterRef=useRef(visibleTypes);
   const toolRef=useRef(placementTool);
 
@@ -142,6 +146,7 @@ export function LeafletAtlas({
   useEffect(()=>{contextRef.current=onContext;},[onContext]);
   useEffect(()=>{placeRef.current=onPlace;},[onPlace]);
   useEffect(()=>{moveRef.current=onMoveLocation;},[onMoveLocation]);
+  useEffect(()=>{layerGeometryRef.current=onLayerGeometryDraft;},[onLayerGeometryDraft]);
   useEffect(()=>{filterRef.current=visibleTypes;},[visibleTypes]);
   useEffect(()=>{toolRef.current=placementTool;},[placementTool]);
 
@@ -306,24 +311,79 @@ export function LeafletAtlas({
         L.marker([y,x],{pane:'atlasDraftPane',interactive:false,icon:eventIcon(true)}).addTo(draftLayer);
     }
     if(kind==='layer'&&draft.image){
-      const bounds={
+      let working:LayerBounds={
         x1:Number(draft.x1),y1:Number(draft.y1),x2:Number(draft.x2),y2:Number(draft.y2),
       };
-      const synthetic:LayerRecord={
-        id:preview.target.id??'__draft_layer__',worldId:world.id,
-        name:String(draft.name??'Новый регион'),parentId:draft.parentId?String(draft.parentId):null,
+      const id=preview.target.id??'__draft_layer__';
+      const makeSynthetic=(bounds:LayerBounds):LayerRecord=>({
+        id,worldId:world.id,name:String(draft.name??'Новый регион'),
+        parentId:draft.parentId?String(draft.parentId):null,
         image:String(draft.image),width:Number(draft.width),height:Number(draft.height),bounds,
         rotation:Number(draft.rotation??0),showAtZoom:Number(draft.showAtZoom??0),
         fadeRange:Number(draft.fadeRange??.75),enabled:Boolean(draft.enabled??true),
+      });
+      const makeList=(bounds:LayerBounds)=>{
+        const synthetic=makeSynthetic(bounds);
+        return preview.target.id
+          ?layers.map(layer=>layer.id===preview.target.id?synthetic:layer)
+          :[...layers,synthetic];
       };
-      const list=preview.target.id
-        ?layers.map(layer=>layer.id===preview.target.id?synthetic:layer)
-        :[...layers,synthetic];
-      const box=worldBox(world,list,synthetic.id);
-      if(box){
-        const overlay=new RotatableImageOverlay(assetUrl('maps',synthetic.image!),leafletBounds(box),
+      const initialSynthetic=makeSynthetic(working);
+      const initialList=makeList(working);
+      const box=worldBox(world,initialList,id);
+      const parentBox=worldBox(world,initialList,initialSynthetic.parentId);
+      const parent=initialSynthetic.parentId
+        ?initialList.find(layer=>layer.id===initialSynthetic.parentId):undefined;
+      const parentWidth=parent?.width??world.width,parentHeight=parent?.height??world.height;
+      if(box&&parentBox&&parentBox.x2!==parentBox.x1&&parentBox.y2!==parentBox.y1){
+        const overlay=new RotatableImageOverlay(assetUrl('maps',initialSynthetic.image!),leafletBounds(box),
           {pane:'atlasDraftPane',interactive:false,opacity:.72});
-        overlay.setRotation(synthetic.rotation);overlay.addTo(draftLayer);
+        overlay.setRotation(initialSynthetic.rotation);overlay.addTo(draftLayer);
+        const handles:LayerHandle[]=['nw','ne','sw','se','center'];
+        const symbols:Record<LayerHandle,string>={nw:'↖',ne:'↗',sw:'↙',se:'↘',center:'✥'};
+        const markers=new Map<LayerHandle,L.Marker>();
+        const worldBoxFor=(bounds:LayerBounds)=>worldBox(world,makeList(bounds),id);
+        const parentPoint=(latlng:L.LatLng)=>({
+          x:(latlng.lng-parentBox.x1)*parentWidth/(parentBox.x2-parentBox.x1),
+          y:(latlng.lat-parentBox.y1)*parentHeight/(parentBox.y2-parentBox.y1),
+        });
+        const worldPoint=(bounds:LayerBounds,handle:LayerHandle)=>{
+          const current=worldBoxFor(bounds)!;
+          if(handle==='center')return {x:(current.x1+current.x2)/2,y:(current.y1+current.y2)/2};
+          return {
+            x:handle==='nw'||handle==='sw'?current.x1:current.x2,
+            y:handle==='nw'||handle==='ne'?current.y2:current.y1,
+          };
+        };
+        const display=(active?:LayerHandle)=>{
+          const current=worldBoxFor(working);if(!current)return;
+          overlay.setBounds(leafletBounds(current));overlay.setRotation(initialSynthetic.rotation);
+          for(const [handle,marker] of markers){
+            if(handle===active)continue;
+            const point=worldPoint(working,handle);marker.setLatLng([point.y,point.x]);
+          }
+        };
+        for(const handle of handles){
+          const point=worldPoint(working,handle);
+          const marker=L.marker([point.y,point.x],{
+            pane:'atlasDraftPane',draggable:true,autoPan:true,
+            icon:L.divIcon({className:'atlas-editor-handle',
+              html:'<span class="atlas-editor-handle-shape">'+symbols[handle]+'</span>',
+              iconSize:[25,25],iconAnchor:[12,12]}),
+          }).addTo(draftLayer);
+          marker.bindTooltip(handle==='center'?'Переместить регион':'Изменить размер',{direction:'top'});
+          marker.on('drag',()=>{
+            try{
+              working=moveHandle(working,handle,parentPoint(marker.getLatLng()));
+              display(handle);
+            }catch{/* keep last valid bounds while pointer crosses the opposite corner */}
+          });
+          marker.on('dragend',()=>{
+            display();
+            layerGeometryRef.current({...working});
+          });
+          markers.set(handle,marker);
+        }
       }
     }
     return()=>{
