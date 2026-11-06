@@ -1,10 +1,19 @@
 import { createHash } from 'node:crypto';
 import { promises as fs, createReadStream } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { PrismaClient } from '@prisma/client';
-import { atlasAssetsDir, atlasBackupDir } from './paths.js';
 
-export const defaultBackups=atlasBackupDir;
+// This file is also imported directly by scripts/backup-atlas.cjs in a clean
+// subprocess (without a compiled server). Keep its path resolution self-contained
+// so Node's native TS loading never has to resolve a sibling .js alias.
+const projectRoot=fileURLToPath(new URL('../../../',import.meta.url));
+const atlasAssetsDir=()=>path.resolve(
+  process.env.ATLAS_ASSETS_DIR||path.join(projectRoot,'storage','assets')
+);
+export const defaultBackups=()=>path.resolve(
+  process.env.ATLAS_BACKUP_DIR||path.join(projectRoot,'storage','backups')
+);
 async function sha256(file:string):Promise<string>{
   const hasher=createHash('sha256');
   for await(const chunk of createReadStream(file))hasher.update(chunk);
