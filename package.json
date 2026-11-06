@@ -32,7 +32,8 @@
     "test:production": "node --import tsx --test tests/production.cjs",
     "test:alignment": "node --import tsx --test tests/align-legacy.cjs",
     "test:layer-editor": "node --import tsx --test tests/layer-editor.cjs",
-    "test:workspace-paths": "node --import tsx --test tests/workspace-paths.cjs"
+    "test:workspace-paths": "node --import tsx --test tests/workspace-paths.cjs",
+    "test:dialog-leaflet": "node --import tsx --test tests/dialog-leaflet.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
