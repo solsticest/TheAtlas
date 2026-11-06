@@ -27,5 +27,9 @@ jobs:
         run: npm run test:database
       - name: Typecheck new stack
         run: npm run typecheck
+      - name: Verify read-only API endpoints against isolated imported data
+        run: npm run test:api
+      - name: Verify nested Leaflet geometry
+        run: npm run test:geometry
       - name: Build new stack
         run: npm run build
