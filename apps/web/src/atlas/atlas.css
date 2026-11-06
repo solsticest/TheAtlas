@@ -48,3 +48,26 @@ html, body, #root { margin: 0; height: 100%; }
 .atlas-editor-handle:hover .atlas-editor-handle-shape {
   background: #cda66d; color: #10151c;
 }
+
+.atlas-inline-editor {
+  width: 410px;
+  flex: 0 0 410px;
+  min-width: 0;
+  overflow-y: auto;
+  background: #202630;
+  border-left: 1px solid #4a453b;
+  box-shadow: -8px 0 24px #0004;
+}
+@media (max-width: 1050px) {
+  .atlas-inline-editor { width: 360px; flex-basis: 360px; }
+}
+@media (max-width: 820px) {
+  .atlas-inline-editor {
+    position: absolute;
+    inset: 48px 0 0 auto;
+    z-index: 1200;
+    width: min(92vw, 420px);
+    max-width: 100%;
+    box-shadow: -12px 0 34px #000b;
+  }
+}
