@@ -437,12 +437,13 @@ export function AtlasViewer(){
 
           <Typography variant="subtitle2">Карты-слои</Typography>
           <Stack gap={0}>
-            {layers.map(layer=><Stack key={layer.id} direction="row" alignItems="stretch">
+            {layers.map(layer=><Stack key={layer.id} className="atlas-sidebar-row" direction="row" alignItems="stretch">
               <ListItemButton onClick={()=>nextFocus('layer',layer.id)}
                 sx={{pl:layer.parentId?3.5:1,minWidth:0}}>
                 <ListItemText primary={layer.name} secondary={layer.parentId?'Вложенная карта':'Регион'}/>
               </ListItemButton>
-              {canEdit&&<Button size="small" sx={{minWidth:34}} onClick={event=>popupListMenu(event,'layer',layer.id)}>⋯</Button>}
+              {canEdit&&<Button className="atlas-row-menu" size="small" sx={{minWidth:34}}
+                onClick={event=>popupListMenu(event,'layer',layer.id)}>⋯</Button>}
             </Stack>)}
             {!layers.length&&<Typography color="text.secondary" fontSize={12}>Нет вложенных карт.</Typography>}
           </Stack>
@@ -481,7 +482,7 @@ export function AtlasViewer(){
           <Typography variant="subtitle2">Локации</Typography>
           <Stack gap={0}>
             {[...locations].sort((a,b)=>a.name.localeCompare(b.name,'ru')).map(location=>
-              <Stack key={location.id} direction="row" alignItems="stretch">
+              <Stack key={location.id} className="atlas-sidebar-row" direction="row" alignItems="stretch">
                 <ListItemButton onClick={()=>{
                   if(hiddenTypes.includes(location.type))
                     dispatch(toggleMarkerType({id:location.type,visible:true}));
@@ -489,7 +490,7 @@ export function AtlasViewer(){
                 }} sx={{minWidth:0}}>
                   <ListItemText primary={location.name} secondary={location.description||'Локация'}/>
                 </ListItemButton>
-                {canEdit&&<Button size="small" sx={{minWidth:34}}
+                {canEdit&&<Button className="atlas-row-menu" size="small" sx={{minWidth:34}}
                   onClick={event=>popupListMenu(event,'location',location.id)}>⋯</Button>}
               </Stack>)}
           </Stack>
