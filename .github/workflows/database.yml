@@ -35,6 +35,8 @@ jobs:
         run: npm run test:alignment
       - name: Verify parent-relative drag resize
         run: npm run test:layer-editor
+      - name: Mount and reopen Leaflet maps in MUI dialogs
+        run: npm run test:dialog-leaflet
       - name: Test admin authentication, authorization, timelines and backups
         run: npm run test:admin
       - name: ESLint
