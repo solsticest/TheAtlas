@@ -133,15 +133,45 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     const assets=await db.mediaAsset.findMany({where:{kind:'media'}});
     assert.equal(assets.length,1);
     assert.equal((await fetch(base+'/api/assets/'+assets[0].path)).status,200);
+
+    const svg=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 3h18v18H3z"/></svg>');
+    const svgResponse=await fetch(base+'/api/admin/assets/icons',{method:'POST',headers:{
+      cookie,'x-csrf-token':csrf,'content-type':'application/octet-stream'
+    },body:svg});
+    assert.equal(svgResponse.status,201,await svgResponse.text());
+    const svgAsset=(await db.mediaAsset.findMany({where:{kind:'icons'}}))[0];
+    assert.ok(svgAsset);
+    assert.match(svgAsset.filename,/\.svg$/);
+    assert.equal((await fetch(base+'/api/assets/icons/'+svgAsset.filename)).status,200);
+    const unsafeSvg=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>');
+    assert.equal((await fetch(base+'/api/admin/assets/icons',{method:'POST',headers:{
+      cookie,'x-csrf-token':csrf,'content-type':'application/octet-stream'
+    },body:unsafeSvg})).status,415);
+
+    const emojiType=await request('/api/admin/types','POST',{
+      name:'Красный город',symbol:'🏰',color:'#cc3344',iconSvg:null
+    });
+    assert.equal(emojiType.status,201);
+    const svgType=await request('/api/admin/types','POST',{
+      name:'SVG город',symbol:'',color:'#33aacc',iconSvg:svgAsset.filename
+    });
+    assert.equal(svgType.status,201);
+    const publicTypes=await request('/api/types');
+    assert(publicTypes.data.some(type=>type.id===emojiType.data.id&&
+      type.color==='#cc3344'&&type.symbol==='🏰'&&type.iconSvg===null));
+    assert(publicTypes.data.some(type=>type.id===svgType.data.id&&
+      type.color==='#33aacc'&&type.iconSvg===svgAsset.filename&&type.symbol===''));
+
     assert.equal((await request('/api/admin/timelines/'+published.data.id,'DELETE')).status,409);
     const snapshot=await createBackup(db,path.join(temp,'snapshots'));
     const manifest=await verifyBackup(snapshot.folder);
-    assert.equal(manifest.assets.length,6);
+    assert.equal(manifest.assets.length,7);
     assert.ok(fs.existsSync(path.join(snapshot.folder,'atlas.db')));
     const copied=path.join(outside,'restore-clone');
     run('scripts/backup-atlas.cjs',['--restore','--from',snapshot.folder,'--into',copied]);
     assert.ok(fs.existsSync(path.join(copied,'atlas.db')));
     assert.ok(fs.existsSync(path.join(copied,'assets','media',assets[0].filename)));
+    assert.ok(fs.existsSync(path.join(copied,'assets','icons',svgAsset.filename)));
     const importedStatus=JSON.parse(run('scripts/import-legacy-atlas.cjs',['--verify']));
     assert.equal(importedStatus.status,'verified-edited');
     const logout=await request('/api/auth/logout','POST',{});
