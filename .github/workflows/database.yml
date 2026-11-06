@@ -23,6 +23,8 @@ jobs:
         run: npm run db:validate
       - name: Create database and generate client
         run: npm run db:setup
+      - name: Import and round-trip integration test (isolated SQLite)
+        run: npm run test:database
       - name: Typecheck new stack
         run: npm run typecheck
       - name: Build new stack
