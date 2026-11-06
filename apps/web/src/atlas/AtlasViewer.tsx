@@ -316,6 +316,7 @@ export function AtlasViewer(){
   useEffect(()=>{
     const key=(event:KeyboardEvent)=>{
       if(event.key==='Escape'){
+        if(document.querySelector('[role="dialog"]'))return;
         if(contextTarget){setContextTarget(null);return;}
         if(placementTool){setPlacementTool(null);setNotice('Инструмент отменён.');return;}
         if(editorTarget){event.preventDefault();editorRef.current?.cancel();}
