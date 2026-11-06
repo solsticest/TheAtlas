@@ -3,6 +3,8 @@ import { realpath } from 'node:fs/promises';
 import express, { type ErrorRequestHandler, type Express } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { searchQuerySchema } from '@atlas/shared';
+import { registerAuth } from './auth.js';
+import { registerTimelines } from './timelines.js';
 import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
@@ -24,6 +26,9 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '1mb' }));
+
+  registerAuth(app,db);
+  registerTimelines(app,db);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'the-atlas-api' });
@@ -159,6 +164,8 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
     console.error('Atlas API:', error);
     if (res.headersSent) return;
     const prismaCode = (error as { code?: string })?.code;
+    if (prismaCode==='P2003') {res.status(409).json(issue('IN_USE','Нельзя удалить объект с зависимыми данными'));return;}
+    if (prismaCode==='P2025') {res.status(404).json(issue('NOT_FOUND','Объект не найден'));return;}
     if (['P1001', 'P1003', 'P2021'].includes(prismaCode ?? '')) {
       res.status(503).json(issue('DATABASE_NOT_READY', 'База не настроена. Выполните db:setup и импорт Atlas.'));
       return;
