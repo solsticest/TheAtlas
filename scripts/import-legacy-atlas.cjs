@@ -104,14 +104,14 @@ async function ensureAssets(report,paths){
 }
 async function populate(tx,data,report){
   const extra=Object.fromEntries(Object.entries(data).filter(([key])=>!['version','worlds','types'].includes(key)));
-  await tx.atlasDocument.create({data:{id:'legacy-v4',version:4,sourceSha256:report.sourceSha256,rootExtras:extra}});
+  await tx.atlasDocument.create({data:{id:'legacy-v4',version:4,sourceSha256:report.sourceSha256,rootExtras:JSON.stringify(extra)}});
   for(const [i,t] of data.types.entries()) await tx.markerType.create({
-    data:{id:t.id,name:t.name,symbol:t.symbol,sortOrder:i,raw:t}
+    data:{id:t.id,name:t.name,symbol:t.symbol,sortOrder:i,raw:JSON.stringify(t)}
   });
   for(const [i,w] of data.worlds.entries()) {
     await tx.world.create({
       data:{id:w.id,name:w.name,image:w.image??null,width:w.width,height:w.height,
-        kmPerPixel:w.kmPerPixel??null,sortOrder:i,raw:w}
+        kmPerPixel:w.kmPerPixel??null,sortOrder:i,raw:JSON.stringify(w)}
     });
     // Parent layers are inserted before descendants to preserve the FK constraint.
     const waiting=new Map(w.layers.map((l,index)=>[l.id,{layer:l,index}]));
@@ -122,9 +122,9 @@ async function populate(tx,data,report){
         if(l.parentId && waiting.has(l.parentId)) continue;
         await tx.mapLayer.create({data:{
           id:l.id,worldId:w.id,parentId:l.parentId??null,name:l.name,image:l.image??null,
-          width:l.width,height:l.height,bounds:l.bounds,rotation:l.rotation??0,
+          width:l.width,height:l.height,bounds:JSON.stringify(l.bounds),rotation:l.rotation??0,
           showAtZoom:l.showAtZoom??1,fadeRange:l.fadeRange??0.75,enabled:l.enabled!==false,
-          sortOrder:entry.index,raw:l
+          sortOrder:entry.index,raw:JSON.stringify(l)
         }});
         waiting.delete(id);advanced=true;
       }
@@ -133,7 +133,7 @@ async function populate(tx,data,report){
     for(const [j,loc] of w.locations.entries()) await tx.location.create({data:{
       id:loc.id,worldId:w.id,typeId:loc.type,name:loc.name,x:loc.x,y:loc.y,
       color:loc.color??'#d6b77a',minZoom:loc.minZoom??-6,
-      description:loc.description??'',article:loc.article??null,tags:loc.tags??[],sortOrder:j,raw:loc
+      description:loc.description??'',article:loc.article??null,tags:JSON.stringify(loc.tags??[]),sortOrder:j,raw:JSON.stringify(loc)
     }});
   }
   for(const a of report.assets){
