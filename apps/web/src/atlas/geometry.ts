@@ -45,6 +45,6 @@ export function opacityAtZoom(layer: LayerRecord, zoom: number): number {
   return Math.min(1, Math.max(0.001, (zoom - layer.showAtZoom) / layer.fadeRange));
 }
 
-export function assetUrl(kind: 'maps' | 'media', filename: string): string {
+export function assetUrl(kind: 'maps' | 'media' | 'icons', filename: string): string {
   return '/api/assets/' + kind + '/' + encodeURIComponent(filename);
 }
