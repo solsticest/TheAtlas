@@ -355,6 +355,10 @@ export function AtlasViewer(){
       }}>+ Тип маркера</Button>
       {canEdit&&editorTarget&&<>
         <Divider orientation="vertical" flexItem sx={{mx:.5}}/>
+        <Typography variant="caption" color={editorStatus.dirty?'warning.main':'text.secondary'}
+          sx={{maxWidth:170,overflow:'hidden',textOverflow:'ellipsis'}}>
+          {editorStatus.dirty?'● ':''}{editorStatus.title}
+        </Typography>
         <Button size="small" disabled={!editorStatus.canUndo} onClick={()=>editorRef.current?.undo()}>↶</Button>
         <Button size="small" disabled={!editorStatus.canRedo} onClick={()=>editorRef.current?.redo()}>↷</Button>
         <Button size="small" variant="contained" disabled={!editorStatus.dirty||editorStatus.saving}
