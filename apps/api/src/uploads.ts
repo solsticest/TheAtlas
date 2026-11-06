@@ -7,7 +7,18 @@ import { requireAdmin } from './auth.js';
 import { atlasAssetsDir } from './paths.js';
 
 const MAX_BYTES=40*1024*1024;
+const MAX_SVG_BYTES=2*1024*1024;
 type ImageResult={extension:string;width:number|null;height:number|null};
+function classifySvg(buffer:Buffer):ImageResult|null {
+  if(!buffer.length||buffer.length>MAX_SVG_BYTES)return null;
+  const text=buffer.toString('utf8').replace(/^\uFEFF/,'').trim();
+  if(!/^(?:<\?xml[^>]*>\s*)?<svg\b/i.test(text))return null;
+  if(/<(?:script|foreignObject|iframe|object|embed)\b/i.test(text))return null;
+  if(/\son[a-z]+\s*=/i.test(text))return null;
+  if(/(?:href|xlink:href)\s*=\s*["'](?!#)/i.test(text))return null;
+  if(/url\s*\(/i.test(text))return null;
+  return {extension:'svg',width:null,height:null};
+}
 export function classifyImage(b:Buffer):ImageResult|null {
   if(b.length>=24&&b.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex'))){
     const width=b.readUInt32BE(16),height=b.readUInt32BE(20);
@@ -39,16 +50,18 @@ export function registerUploads(app:Express,db:PrismaClient){
     express.raw({type:'application/octet-stream',limit:MAX_BYTES}),async(req,res,next)=>{
       try{
         const kind=req.params.kind;
-        if(kind!=='maps'&&kind!=='media'){
-          res.status(400).json({error:{code:'BAD_KIND',message:'Допустимы только maps и media'}});return;
+        if(kind!=='maps'&&kind!=='media'&&kind!=='icons'){
+          res.status(400).json({error:{code:'BAD_KIND',message:'Допустимы maps, media и icons'}});return;
         }
         if(!Buffer.isBuffer(req.body)||!req.body.length){
           res.status(400).json({error:{code:'EMPTY_FILE',message:'Нужен двоичный файл'}});return;
         }
         const buffer=req.body as Buffer;
-        const info=classifyImage(buffer);
+        const info=kind==='icons'?classifySvg(buffer):classifyImage(buffer);
         if(!info){
-          res.status(415).json({error:{code:'BAD_IMAGE',message:'Разрешены PNG, WebP и JPEG с корректной сигнатурой'}});return;
+          res.status(415).json({error:{code:'BAD_IMAGE',message:kind==='icons'
+            ?'Для значков разрешён только безопасный SVG без скриптов и внешних ссылок'
+            :'Разрешены PNG, WebP и JPEG с корректной сигнатурой'}});return;
         }
         const name=randomUUID()+'.'+info.extension;
         const key=kind+'/'+name;
