@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { realpath } from 'node:fs/promises';
 import express, { type ErrorRequestHandler, type Express } from 'express';
 import { PrismaClient } from '@prisma/client';
@@ -165,6 +166,20 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
   });
 
   app.use('/api', (_req, res) => { res.status(404).json(issue('NOT_FOUND', 'Неизвестный API-маршрут')); });
+  if(process.env.NODE_ENV==='production'){
+    const webDist=path.resolve(process.cwd(),'apps','web','dist');
+    const index=path.join(webDist,'index.html');
+    if(existsSync(index)){
+      app.use(express.static(webDist,{index:'index.html',maxAge:'1h',setHeaders:(res)=>{
+        res.setHeader('X-Content-Type-Options','nosniff');
+      }}));
+      // Browser history routes /admin and /world/* must serve the React shell.
+      app.use((req,res,next)=>{
+        if(req.method!=='GET'&&req.method!=='HEAD'){next();return;}
+        res.sendFile(index);
+      });
+    }
+  }
   const errors: ErrorRequestHandler = (error: unknown, _req, res, _next) => {
     console.error('Atlas API:', error);
     if (res.headersSent) return;
