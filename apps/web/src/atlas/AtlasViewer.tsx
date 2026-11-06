@@ -4,19 +4,24 @@ import {
   ListItemButton, ListItemText, MenuItem, Select, Stack, TextField, Typography,
   Checkbox, FormControlLabel, Button,
 } from '@mui/material';
-import type { LocationRecord, SearchItem } from '@atlas/shared';
-import { useLayersQuery, useLocationsQuery, useMarkerTypesQuery, useSearchQuery, useWorldsQuery } from './api';
+import type { LocationRecord, SearchItem, EventRecord } from '@atlas/shared';
+import { useLayersQuery, useLocationsQuery, useMarkerTypesQuery, useSearchQuery, useWorldsQuery, useTimelinesQuery, useErasQuery, useEventsQuery } from './api';
 import { LeafletAtlas } from './LeafletAtlas';
 import { ArticleDialog } from './ArticleDialog';
+import { TimelinePanel } from './TimelinePanel';
+import { EventDialog } from './EventDialog';
 
-type Focus = { kind: 'world' | 'layer' | 'location'; id: string; sequence: number };
+type Focus = { kind: 'world' | 'layer' | 'location' | 'event'; id: string; sequence: number };
 
 export function AtlasViewer() {
   const worldsQuery = useWorldsQuery();
   const typesQuery = useMarkerTypesQuery();
   const worlds = worldsQuery.currentData ?? [];
   const types = typesQuery.currentData ?? [];
-  const [worldId, setWorldId] = useState('');
+  const [worldId, setWorldId] = useState(() => new URLSearchParams(window.location.search).get('world') ?? '');
+  const [timelineId, setTimelineId] = useState(() => new URLSearchParams(window.location.search).get('timeline') ?? '');
+  const [eraId, setEraId] = useState(() => new URLSearchParams(window.location.search).get('era') ?? '');
+  const [eventId, setEventId] = useState<string | null>(null);
   const [hiddenTypes, setHiddenTypes] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [focus, setFocus] = useState<Focus | null>(null);
@@ -29,6 +34,23 @@ export function AtlasViewer() {
   const searchQuery = useSearchQuery(search.trim(), { skip: search.trim().length < 2 });
   const layers = layersQuery.currentData ?? [];
   const locations = locationsQuery.currentData ?? [];
+  const timelinesQuery = useTimelinesQuery(selectedWorldId, { skip: !selectedWorldId });
+  const timelines = timelinesQuery.currentData ?? [];
+  const timeline = timelines.find(t => t.id === timelineId) ??
+    timelines.find(t => t.isDefault) ?? timelines[0];
+  const erasQuery = useErasQuery(timeline?.id ?? '', { skip: !timeline });
+  const eras = erasQuery.currentData ?? [];
+  const era = eras.find(e => e.id === eraId) ?? eras[0];
+  const eventsQuery = useEventsQuery(era?.id ?? '', { skip: !era });
+  const events = eventsQuery.currentData ?? [];
+  useEffect(() => {
+    if (!world) return;
+    const query = new URLSearchParams();
+    query.set('world', world.id);
+    if (timeline) query.set('timeline', timeline.id);
+    if (era) query.set('era', era.id);
+    window.history.replaceState(null, '', window.location.pathname + '?' + query.toString());
+  }, [world?.id, timeline?.id, era?.id]);
 
   const visibleTypes = useMemo(() => new Set(types.map(t => t.id).filter(id => !hiddenTypes.includes(id))),
     [types, hiddenTypes]);
@@ -44,6 +66,9 @@ export function AtlasViewer() {
   const openWorld = (id: string) => {
     setWorldId(id);
     setArticleId(null);
+    setEventId(null);
+    setTimelineId('');
+    setEraId('');
     nextFocus('world', id);
   };
 
@@ -54,6 +79,7 @@ export function AtlasViewer() {
   const navigate = (worldIdTarget: string, kind: Focus['kind'], id: string) => {
     if (worldIdTarget !== selectedWorldId) setWorldId(worldIdTarget);
     setArticleId(null);
+    setEventId(null);
     nextFocus(kind, id);
   };
 
@@ -66,6 +92,11 @@ export function AtlasViewer() {
     (selectedWorldId && (layersQuery.isLoading || locationsQuery.isLoading));
   const error = worldsQuery.isError || typesQuery.isError || layersQuery.isError || locationsQuery.isError;
   const selectedArticle = locations.find(loc => loc.id === articleId) ?? null;
+  const selectedEvent = events.find(event => event.id === eventId) ?? null;
+  const focusEvent = (event: EventRecord) => {
+    setEventId(event.id);
+    nextFocus('event', event.id);
+  };
 
   return (
     <Box className="atlas-shell">
@@ -126,6 +157,12 @@ export function AtlasViewer() {
               {!layers.length && <Typography color="text.secondary" fontSize={12}>Нет вложенных карт.</Typography>}
             </List>
 
+            <TimelinePanel timelines={timelines} eras={eras} events={events}
+              timelineId={timeline?.id ?? ''} eraId={era?.id ?? ''}
+              onTimeline={id => { setTimelineId(id); setEraId(''); setEventId(null); }}
+              onEra={id => { setEraId(id); setEventId(null); }}
+              onEvent={focusEvent} loading={timelinesQuery.isFetching || erasQuery.isFetching || eventsQuery.isFetching} />
+
             <Typography variant="subtitle2">Типы маркеров</Typography>
             <Stack spacing={0}>
               {types.map(type => (
@@ -175,8 +212,8 @@ export function AtlasViewer() {
           )}
           {!error && !pending && world && (
             <LeafletAtlas key={world.id} world={world} layers={layers} locations={locations}
-              types={types} visibleTypes={visibleTypes} focus={focus}
-              onSelectLocation={selectLocation} />
+              types={types} visibleTypes={visibleTypes} focus={focus} events={events}
+              onSelectLocation={selectLocation} onSelectEvent={event => setEventId(event.id)} />
           )}
           {!error && !pending && !world && (
             <Stack className="atlas-status-overlay" spacing={1} alignItems="center">
@@ -187,6 +224,8 @@ export function AtlasViewer() {
         </Box>
       </Box>
 
+      <EventDialog event={selectedEvent} onClose={() => setEventId(null)}
+        onLink={(targetWorldId, targetId) => navigate(targetWorldId, 'location', targetId)} />
       <ArticleDialog location={selectedArticle} onClose={() => setArticleId(null)}
         onLink={(targetWorldId, targetId) => navigate(targetWorldId, 'location', targetId)} />
     </Box>
