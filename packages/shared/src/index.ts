@@ -145,11 +145,18 @@ export const worldCreateSchema = worldEditSchema.extend({
 });
 export const worldUpdateSchema = worldEditSchema.extend({
   image: z.string().max(255).nullable().optional(),
+  width: z.number().int().positive().max(100000).optional(),
+  height: z.number().int().positive().max(100000).optional(),
 });
 export const markerTypeInputSchema = z.object({
   name: label,
   symbol: z.string().trim().min(1).max(12),
 }).strict();
+export const layerUpdateSchema = layerEditSchema.safeExtend({
+  image: z.string().max(255).nullable().optional(),
+  width: z.number().int().positive().max(100000).optional(),
+  height: z.number().int().positive().max(100000).optional(),
+});
 export const layerCreateSchema = layerEditSchema.safeExtend({
   worldId: id,
   image: z.string().max(255).nullable().default(null),
