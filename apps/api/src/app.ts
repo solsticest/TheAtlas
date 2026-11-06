@@ -5,6 +5,8 @@ import { PrismaClient } from '@prisma/client';
 import { searchQuerySchema } from '@atlas/shared';
 import { registerAuth } from './auth.js';
 import { registerTimelines } from './timelines.js';
+import { registerAtlasAdmin } from './admin-atlas.js';
+import { registerUploads } from './uploads.js';
 import { config as loadEnv } from 'dotenv';
 
 loadEnv({ path: path.resolve(process.cwd(), '.env') });
@@ -30,6 +32,8 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
 
   registerAuth(app,db);
   registerTimelines(app,db);
+  registerAtlasAdmin(app,db);
+  registerUploads(app,db);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'the-atlas-api' });
@@ -165,6 +169,10 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
     console.error('Atlas API:', error);
     if (res.headersSent) return;
     const prismaCode = (error as { code?: string })?.code;
+    if ((error as {type?:string})?.type==='entity.too.large'){
+      res.status(413).json(issue('TOO_LARGE','Файл слишком большой'));return;
+    }
+    if (prismaCode==='P2002') {res.status(409).json(issue('CONFLICT','Конфликт уникального идентификатора или порядка'));return;}
     if (prismaCode==='P2003') {res.status(409).json(issue('IN_USE','Нельзя удалить объект с зависимыми данными'));return;}
     if (prismaCode==='P2025') {res.status(404).json(issue('NOT_FOUND','Объект не найден'));return;}
     if (['P1001', 'P1003', 'P2021'].includes(prismaCode ?? '')) {
