@@ -104,7 +104,6 @@ export function LayerGeometryDialog({
       windowMove=null;windowUp=null;
       if(!ctrlMoveActive)return;
       ctrlMoveActive=false;
-      map.dragging.enable();
       container.classList.remove('atlas-layer-ctrlmove-active');
       if(commit)setPreview({...working.current});
     };
@@ -119,8 +118,7 @@ export function LayerGeometryDialog({
         latlng.lat<current.y1||latlng.lat>current.y2)return;
 
       mouse.preventDefault();
-      mouse.stopPropagation();
-      map.dragging.disable();
+      mouse.stopImmediatePropagation();
       ctrlMoveActive=true;
       container.classList.add('atlas-layer-ctrlmove-active');
       const start={x:latlng.lng,y:latlng.lat};
@@ -140,7 +138,6 @@ export function LayerGeometryDialog({
       shiftDown=false;
       container.classList.remove('atlas-layer-ctrlmove-ready');
       finishCtrlMove(true);
-      map.dragging.enable();
     };
     window.addEventListener('keydown',keyDown);
     window.addEventListener('keyup',keyUp);
@@ -206,7 +203,6 @@ export function LayerGeometryDialog({
       container.removeEventListener('mousedown',beginCtrlMove,true);
       finishCtrlMove(false);
       container.classList.remove('atlas-layer-ctrlmove-ready','atlas-layer-ctrlmove-active');
-      map.dragging.enable();
       map.remove();
     };
   }, [
