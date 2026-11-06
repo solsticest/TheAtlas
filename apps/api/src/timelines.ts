@@ -4,6 +4,7 @@ import type { PrismaClient } from '@prisma/client';
 import { timelineInputSchema, eraInputSchema, eventInputSchema } from '@atlas/shared';
 import { requireAdmin } from './auth.js';
 import { cleanArticle } from './html.js';
+import { createBackup } from './backup.js';
 
 const error=(res:Response,status:number,code:string,message:string)=>{
   res.status(status).json({error:{code,message}});
@@ -69,6 +70,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!parsed.success){error(res,400,'BAD_INPUT','Некорректные поля таймлайна');return;}
     const data=parsed.data;
     if(!await db.world.findUnique({where:{id:data.worldId}})){error(res,404,'WORLD_NOT_FOUND','Мир не найден');return;}
+    if(data.isDefault)await createBackup(db);
     const t=await db.$transaction(async(tx)=>{
       if(data.isDefault)await tx.timeline.updateMany({where:{worldId:data.worldId},data:{isDefault:false}});
       return tx.timeline.create({data:{id:randomUUID(),...data}});
@@ -82,6 +84,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const exists=await db.timeline.findUnique({where:{id:routeId(req.params.id)}});
     if(!exists){error(res,404,'NOT_FOUND','Таймлайн не найден');return;}
     if(parsed.data.worldId!==exists.worldId){error(res,409,'WORLD_CHANGE','Нельзя переносить таймлайн в другой мир');return;}
+    await createBackup(db);
     const t=await db.$transaction(async tx=>{
       if(parsed.data.isDefault)await tx.timeline.updateMany({where:{worldId:exists.worldId},data:{isDefault:false}});
       return tx.timeline.update({where:{id:exists.id},data:parsed.data});
@@ -93,6 +96,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const exists=await db.timeline.findUnique({where:{id:routeId(req.params.id)},include:{_count:{select:{eras:true}}}});
     if(!exists){error(res,404,'NOT_FOUND','Таймлайн не найден');return;}
     if(exists._count.eras){error(res,409,'HAS_CHILDREN','Сначала удалите эпохи');return;}
+    await createBackup(db);
     await db.timeline.delete({where:{id:exists.id}});
     await markModified();
     res.json({ok:true});
@@ -114,6 +118,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const existing=await db.era.findUnique({where:{id:routeId(req.params.id)}});
     if(!existing){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     if(existing.timelineId!==parsed.data.timelineId){error(res,409,'MOVE_DENIED','Нельзя переносить эпоху');return;}
+    await createBackup(db);
     const e=await db.era.update({where:{id:existing.id},data:parsed.data});
     await markModified();
     res.json(eraDTO(e));
@@ -122,6 +127,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const e=await db.era.findUnique({where:{id:routeId(req.params.id)},include:{_count:{select:{events:true}}}});
     if(!e){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     if(e._count.events){error(res,409,'HAS_CHILDREN','Сначала удалите события');return;}
+    await createBackup(db);
     await db.era.delete({where:{id:e.id}});
     await markModified();
     res.json({ok:true});
@@ -160,6 +166,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(existing.eraId!==parsed.data.eraId){error(res,409,'MOVE_DENIED','Нельзя переносить событие между эпохами');return;}
     const input=parsed.data,check=await checkWorld(input.eraId,input.locationId,input.image);
     if(check.error){error(res,400,check.error,'Неверная связь события');return;}
+    await createBackup(db);
     const row=await db.event.update({where:{id:existing.id},data:{
       ...input,article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
     }});
@@ -169,6 +176,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
   app.delete('/api/admin/events/:id',admin,route(async(req,res)=>{
     const item=await db.event.findUnique({where:{id:routeId(req.params.id)}});
     if(!item){error(res,404,'NOT_FOUND','Событие не найдено');return;}
+    await createBackup(db);
     await db.event.delete({where:{id:item.id}});
     await markModified();
     res.json({ok:true});
