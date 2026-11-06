@@ -47,10 +47,11 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     const data=parsed.data;
     if(!await requireMap(data.image)){fail(res,400,'BAD_ASSET','Изображение карты не найдено');return;}
     const order=1+await maxSort(db.world.findFirst({orderBy:{sortOrder:'desc'}}));
+    const newId=randomUUID();
     const world=await db.world.create({data:{
-      id:randomUUID(),name:data.name,sortOrder:order,image:data.image,
+      id:newId,name:data.name,sortOrder:order,image:data.image,
       width:data.width,height:data.height,kmPerPixel:data.kmPerPixel??null,
-      raw:JSON.stringify({...data,locations:[],layers:[]}),
+      raw:JSON.stringify({...data,id:newId,locations:[],layers:[]}),
     }});
     res.status(201).json({id:world.id});
   }));
@@ -88,9 +89,10 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     const parsed=markerTypeInputSchema.safeParse(req.body);
     if(!parsed.success){fail(res,400,'BAD_INPUT','Укажите название и символ типа');return;}
     const order=1+await maxSort(db.markerType.findFirst({orderBy:{sortOrder:'desc'}}));
+    const newId=randomUUID();
     const t=await db.markerType.create({data:{
-      id:randomUUID(),name:parsed.data.name,symbol:parsed.data.symbol,
-      sortOrder:order,raw:JSON.stringify(parsed.data),
+      id:newId,name:parsed.data.name,symbol:parsed.data.symbol,
+      sortOrder:order,raw:JSON.stringify({...parsed.data,id:newId}),
     }});
     res.status(201).json({id:t.id});
   }));
@@ -123,8 +125,9 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       fail(res,400,'INVALID_PARENT_OR_IMAGE','Неверная родительская карта или изображение');return;
     }
     const order=1+await maxSort(db.mapLayer.findFirst({where:{worldId:input.worldId},orderBy:{sortOrder:'desc'}}));
+    const newId=randomUUID();
     const l=await db.mapLayer.create({data:{
-      ...input,id:randomUUID(),sortOrder:order,bounds:JSON.stringify(input.bounds),raw:JSON.stringify(input),
+      ...input,id:newId,sortOrder:order,bounds:JSON.stringify(input.bounds),raw:JSON.stringify({...input,id:newId}),
     }});
     res.status(201).json({id:l.id});
   }));
@@ -161,11 +164,12 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!world||!type){fail(res,400,'INVALID_WORLD_OR_TYPE','Мир или тип маркера не найден');return;}
     const order=1+await maxSort(db.location.findFirst({where:{worldId:input.worldId},orderBy:{sortOrder:'desc'}}));
     const article=cleanArticle(input.article);
+    const newId=randomUUID();
     const l=await db.location.create({data:{
-      id:randomUUID(),worldId:input.worldId,typeId:input.type,name:input.name,x:input.x,y:input.y,
+      id:newId,worldId:input.worldId,typeId:input.type,name:input.name,x:input.x,y:input.y,
       color:input.color,minZoom:input.minZoom,description:input.description,article,
       tags:JSON.stringify(input.tags),sortOrder:order,
-      raw:JSON.stringify({...input,article}),
+      raw:JSON.stringify({...input,id:newId,article}),
     }});
     res.status(201).json({id:l.id});
   }));
