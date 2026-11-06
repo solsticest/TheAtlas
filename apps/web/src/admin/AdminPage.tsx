@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Box, Button, Checkbox, CircularProgress, Divider, FormControl,
   FormControlLabel, InputLabel, List, ListItemButton, ListItemText,
@@ -166,6 +166,9 @@ export function AdminPage(){
   const [kind,setKind]=useState<Kind>('timeline');
   const [selected,setSelected]=useState<string|null>(null);
   const [draft,setDraft]=useState<Record<string,unknown>>({...defaults.timeline});
+  const [undoStack,setUndoStack]=useState<Record<string,unknown>[]>([]);
+  const [redoStack,setRedoStack]=useState<Record<string,unknown>[]>([]);
+  const lastEdit=useRef<{key:string;at:number}|null>(null);
   const [dirty,setDirty]=useState(false);
   const [revision,setRevision]=useState(0);
   const [pick,setPick]=useState(false);
@@ -222,15 +225,42 @@ export function AdminPage(){
     window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);
   },[dirty]);
   function discard(){return !dirty||window.confirm('Отменить несохранённые изменения?');}
+  function clearUndo(){
+    setUndoStack([]);setRedoStack([]);lastEdit.current=null;
+  }
+  function applyDraftPatch(patch:Record<string,unknown>,key='geometry'){
+    if(Object.entries(patch).every(([name,value])=>Object.is(draft[name],value)))return;
+    const now=Date.now();
+    const consecutive=lastEdit.current?.key===key&&now-lastEdit.current.at<650;
+    if(!consecutive)setUndoStack(prev=>[...prev,draft].slice(-60));
+    setRedoStack([]);
+    lastEdit.current={key,at:now};
+    setDraft(prev=>({...prev,...patch}));
+    setDirty(true);
+  }
+  function undoDraft(){
+    const previous=undoStack.at(-1);
+    if(!previous)return;
+    setUndoStack(prev=>prev.slice(0,-1));
+    setRedoStack(prev=>[draft,...prev].slice(0,60));
+    setDraft(previous);setDirty(true);lastEdit.current=null;
+  }
+  function redoDraft(){
+    const next=redoStack[0];
+    if(!next)return;
+    setRedoStack(prev=>prev.slice(1));
+    setUndoStack(prev=>[...prev,draft].slice(-60));
+    setDraft(next);setDirty(true);lastEdit.current=null;
+  }
   function selectKind(next:Kind){
     if(!discard())return;
-    setKind(next);setSelected(null);setDraft({...defaults[next]});setDirty(false);setNotice('');setError('');
+    setKind(next);setSelected(null);setDraft({...defaults[next]});setDirty(false);clearUndo();setNotice('');setError('');
   }
   function selectRow(row:Row){
     if(!discard())return;
-    setSelected(row.id);setDraft(toForm(kind,row));setDirty(false);setNotice('');setError('');
+    setSelected(row.id);setDraft(toForm(kind,row));setDirty(false);clearUndo();setNotice('');setError('');
   }
-  function setField(key:string,val:unknown){setDraft(prev=>({...prev,[key]:val}));setDirty(true);}
+  function setField(key:string,val:unknown){applyDraftPatch({[key]:val},key);}
   async function login(){
     setError('');
     try{
@@ -259,7 +289,7 @@ export function AdminPage(){
         editorPath(kind,selected??undefined),isNew?'POST':'PATCH',
         payloadOf(kind,draft,isNew,parents),session.csrfToken);
       setNotice('Сохранено. Изменения записаны в SQLite.');
-      setDirty(false);setSelected(result.id??selected);setRevision(v=>v+1);
+      setDirty(false);clearUndo();setSelected(result.id??selected);setRevision(v=>v+1);
       // RTK Query data is cached; invalidate after editing.
       void Promise.all([worldQuery.refetch(),typeQuery.refetch(),
         ...(currentWorldId?[layerQuery.refetch(),locationQuery.refetch()]:[])]);
@@ -271,7 +301,7 @@ export function AdminPage(){
     setError('');
     try{
       await request(editorPath(kind,selected),'DELETE',undefined,session.csrfToken);
-      setSelected(null);setDraft({...defaults[kind]});setDirty(false);
+      setSelected(null);setDraft({...defaults[kind]});setDirty(false);clearUndo();
       setRevision(v=>v+1);setNotice('Объект удалён. Снимок сохранён сервером.');
       void Promise.all([worldQuery.refetch(),typeQuery.refetch(),
         ...(currentWorldId?[layerQuery.refetch(),locationQuery.refetch()]:[])]);
@@ -357,7 +387,7 @@ export function AdminPage(){
           <InputLabel id="admin-world">Рабочий мир</InputLabel>
           <Select labelId="admin-world" label="Рабочий мир" value={currentWorldId} onChange={e=>{
             if(!discard())return;
-            setWorldId(e.target.value);setTimelineId('');setEraId('');setSelected(null);setDraft({...defaults[kind]});setDirty(false);
+            setWorldId(e.target.value);setTimelineId('');setEraId('');setSelected(null);setDraft({...defaults[kind]});setDirty(false);clearUndo();
           }}>
             {worlds.map(w=><MenuItem key={w.id} value={w.id}>{w.name}</MenuItem>)}
           </Select>
@@ -366,7 +396,7 @@ export function AdminPage(){
           <InputLabel id="admin-timeline">Линия времени</InputLabel>
           <Select labelId="admin-timeline" label="Линия времени" value={currentTimelineId} onChange={e=>{
             if(!discard())return;
-            setTimelineId(e.target.value);setEraId('');setSelected(null);setDraft({...defaults[kind]});setDirty(false);
+            setTimelineId(e.target.value);setEraId('');setSelected(null);setDraft({...defaults[kind]});setDirty(false);clearUndo();
           }}>
             {timelines.map(t=><MenuItem key={t.id} value={t.id}>{String(t.name)}</MenuItem>)}
           </Select>
@@ -375,7 +405,7 @@ export function AdminPage(){
           <InputLabel id="admin-era">Эпоха</InputLabel>
           <Select labelId="admin-era" label="Эпоха" value={currentEraId} onChange={e=>{
             if(!discard())return;
-            setEraId(e.target.value);setSelected(null);setDraft({...defaults[kind]});setDirty(false);
+            setEraId(e.target.value);setSelected(null);setDraft({...defaults[kind]});setDirty(false);clearUndo();
           }}>
             {eras.map(t=><MenuItem key={t.id} value={t.id}>{String(t.name)}</MenuItem>)}
           </Select>
@@ -391,7 +421,7 @@ export function AdminPage(){
       <Paper sx={{p:1,maxHeight:'73vh',overflowY:'auto'}}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{p:1}}>
           <Typography fontWeight={600}>{titles[kind]} ({rows.length})</Typography>
-          <Button size="small" onClick={()=>{if(discard()){setSelected(null);setDraft({...defaults[kind]});setDirty(false);}}}>Создать</Button>
+          <Button size="small" onClick={()=>{if(discard()){setSelected(null);setDraft({...defaults[kind]});setDirty(false);clearUndo();}}}>Создать</Button>
         </Stack>
         <Divider/>
         <List dense>
@@ -435,6 +465,8 @@ export function AdminPage(){
           Совместить изображение по двум точкам
         </Button>}
         <Stack direction="row" flexWrap="wrap" gap={2} sx={{mt:3}}>
+          <Button variant="outlined" disabled={!undoStack.length} onClick={undoDraft}>↶ Отменить правку</Button>
+          <Button variant="outlined" disabled={!redoStack.length} onClick={redoDraft}>↷ Вернуть правку</Button>
           <Button variant="contained" onClick={()=>void save()} disabled={!selected&&!currentWorldId&&kind!=='world'&&kind!=='type'}>
             Сохранить
           </Button>
@@ -463,11 +495,10 @@ export function AdminPage(){
     </Box>
     <TwoPointAlignDialog open={alignOpen} child={sourceSpec} parent={parentSpec}
       onApply={(bounds,rotation)=>{
-        setDraft(previous=>({...previous,...bounds,rotation}));
-        setDirty(true);
+        applyDraftPatch({...bounds,rotation},'alignment');
       }} onClose={()=>setAlignOpen(false)}/>
     <MapPointPicker open={pick} world={currentWorld} layers={layers}
       x={draft.x==null?null:Number(draft.x)} y={draft.y==null?null:Number(draft.y)}
-      onChoose={(x,y)=>{setField('x',x);setField('y',y);}} onClose={()=>setPick(false)}/>
+      onChoose={(x,y)=>applyDraftPatch({x,y},'map-point')} onClose={()=>setPick(false)}/>
   </Box>;
 }
