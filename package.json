@@ -13,13 +13,21 @@
     "test": "node tests/regression.cjs && node tests/main-folder.cjs && node --test tests/migration-audit.cjs",
     "test:legacy": "node tests/regression.cjs && node tests/main-folder.cjs",
     "audit:legacy": "node scripts/audit-legacy.cjs --dry-run",
-    "test:migration": "node --test tests/migration-audit.cjs"
+    "test:migration": "node --test tests/migration-audit.cjs",
+    "db:setup": "node scripts/db-setup.cjs",
+    "db:generate": "node scripts/db-setup.cjs --generate-only",
+    "db:validate": "node scripts/db-setup.cjs --validate-only"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
-    "typescript": "^5.9.0"
+    "typescript": "^5.9.0",
+    "prisma": "6.19.0"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.0",
+    "dotenv": "^16.6.1"
   }
 }
