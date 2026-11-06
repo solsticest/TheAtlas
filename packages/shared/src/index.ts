@@ -137,3 +137,23 @@ export const layerEditSchema = z.object({
   enabled: z.boolean(),
 }).strict().refine(v=>v.bounds.x2>v.bounds.x1 && v.bounds.y2>v.bounds.y1,
  {message:'Invalid bounds'});
+
+export const worldCreateSchema = worldEditSchema.extend({
+  width: z.number().int().positive().max(100000),
+  height: z.number().int().positive().max(100000),
+  image: z.string().max(255).nullable().default(null),
+});
+export const worldUpdateSchema = worldEditSchema.extend({
+  image: z.string().max(255).nullable().optional(),
+});
+export const markerTypeInputSchema = z.object({
+  name: label,
+  symbol: z.string().trim().min(1).max(12),
+}).strict();
+export const layerCreateSchema = layerEditSchema.safeExtend({
+  worldId: id,
+  image: z.string().max(255).nullable().default(null),
+  width: z.number().int().positive().max(100000),
+  height: z.number().int().positive().max(100000),
+});
+export const locationCreateSchema = locationEditSchema.extend({ worldId: id });
