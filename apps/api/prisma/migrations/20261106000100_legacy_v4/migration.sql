@@ -3,7 +3,7 @@ CREATE TABLE "AtlasDocument" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "version" INTEGER NOT NULL,
     "sourceSha256" TEXT NOT NULL,
-    "rootExtras" JSONB NOT NULL,
+    "rootExtras" TEXT NOT NULL,
     "importedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE TABLE "MarkerType" (
@@ -11,7 +11,7 @@ CREATE TABLE "MarkerType" (
     "name" TEXT NOT NULL,
     "symbol" TEXT NOT NULL,
     "sortOrder" INTEGER NOT NULL,
-    "raw" JSONB NOT NULL
+    "raw" TEXT NOT NULL
 );
 CREATE TABLE "World" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -21,7 +21,7 @@ CREATE TABLE "World" (
     "height" REAL NOT NULL,
     "kmPerPixel" REAL,
     "sortOrder" INTEGER NOT NULL,
-    "raw" JSONB NOT NULL
+    "raw" TEXT NOT NULL
 );
 CREATE TABLE "MapLayer" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -31,13 +31,13 @@ CREATE TABLE "MapLayer" (
     "image" TEXT,
     "width" REAL NOT NULL,
     "height" REAL NOT NULL,
-    "bounds" JSONB NOT NULL,
+    "bounds" TEXT NOT NULL,
     "rotation" REAL NOT NULL,
     "showAtZoom" REAL NOT NULL,
     "fadeRange" REAL NOT NULL,
     "enabled" BOOLEAN NOT NULL,
     "sortOrder" INTEGER NOT NULL,
-    "raw" JSONB NOT NULL,
+    "raw" TEXT NOT NULL,
     CONSTRAINT "MapLayer_worldId_fkey" FOREIGN KEY ("worldId") REFERENCES "World" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "MapLayer_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "MapLayer" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
@@ -52,9 +52,9 @@ CREATE TABLE "Location" (
     "minZoom" REAL NOT NULL,
     "description" TEXT NOT NULL,
     "article" TEXT,
-    "tags" JSONB NOT NULL,
+    "tags" TEXT NOT NULL,
     "sortOrder" INTEGER NOT NULL,
-    "raw" JSONB NOT NULL,
+    "raw" TEXT NOT NULL,
     CONSTRAINT "Location_worldId_fkey" FOREIGN KEY ("worldId") REFERENCES "World" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT "Location_typeId_fkey" FOREIGN KEY ("typeId") REFERENCES "MarkerType" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
