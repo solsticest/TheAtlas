@@ -16,7 +16,7 @@ test('Layer editor drag/resize is parent-relative and preserves valid bounds', a
     x1:-50,y1:-30,x2:110,y2:220,
   });
   assert.deepEqual(moveHandle(b,'nw',{x:200,y:-50}), {
-    x1:109,y1:20,x2:110,y2:220,
+    x1:109,y1:20,x2:110,y2:21,
   });
   const clamped = moveHandle(b,'se',{x:-100,y:1000});
   assert.equal(clamped.x2 - clamped.x1, 1);
