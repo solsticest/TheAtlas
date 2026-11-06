@@ -20,6 +20,7 @@ const routeId=(value:string|string[]|undefined):string=>typeof value==='string'?
 
 export function registerTimelines(app:Express,db:PrismaClient){
   const admin=requireAdmin(db);
+  const markModified=()=>db.atlasDocument.updateMany({data:{isModified:true}});
   // Public endpoints never reveal drafts, including draft timelines and their eras.
   app.get('/api/worlds/:worldId/timelines',route(async(req,res)=>{
     const world=await db.world.findUnique({where:{id:routeId(req.params.worldId)}});
@@ -43,6 +44,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!row||row.status!=='published'||row.era.timeline.status!=='published'){
       error(res,404,'NOT_FOUND','Событие не найдено');return;
     }
+    await markModified();
     res.json(eventDTO(row));
   }));
 
@@ -71,6 +73,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
       if(data.isDefault)await tx.timeline.updateMany({where:{worldId:data.worldId},data:{isDefault:false}});
       return tx.timeline.create({data:{id:randomUUID(),...data}});
     });
+    await markModified();
     res.status(201).json(timelineDTO(t));
   }));
   app.patch('/api/admin/timelines/:id',admin,route(async(req,res)=>{
@@ -83,6 +86,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
       if(parsed.data.isDefault)await tx.timeline.updateMany({where:{worldId:exists.worldId},data:{isDefault:false}});
       return tx.timeline.update({where:{id:exists.id},data:parsed.data});
     });
+    await markModified();
     res.json(timelineDTO(t));
   }));
   app.delete('/api/admin/timelines/:id',admin,route(async(req,res)=>{
@@ -90,6 +94,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!exists){error(res,404,'NOT_FOUND','Таймлайн не найден');return;}
     if(exists._count.eras){error(res,409,'HAS_CHILDREN','Сначала удалите эпохи');return;}
     await db.timeline.delete({where:{id:exists.id}});
+    await markModified();
     res.json({ok:true});
   }));
 
@@ -100,6 +105,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
       error(res,404,'NOT_FOUND','Таймлайн не найден');return;
     }
     const e=await db.era.create({data:{id:randomUUID(),...parsed.data}});
+    await markModified();
     res.status(201).json(eraDTO(e));
   }));
   app.patch('/api/admin/eras/:id',admin,route(async(req,res)=>{
@@ -109,6 +115,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!existing){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     if(existing.timelineId!==parsed.data.timelineId){error(res,409,'MOVE_DENIED','Нельзя переносить эпоху');return;}
     const e=await db.era.update({where:{id:existing.id},data:parsed.data});
+    await markModified();
     res.json(eraDTO(e));
   }));
   app.delete('/api/admin/eras/:id',admin,route(async(req,res)=>{
@@ -116,6 +123,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!e){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     if(e._count.events){error(res,409,'HAS_CHILDREN','Сначала удалите события');return;}
     await db.era.delete({where:{id:e.id}});
+    await markModified();
     res.json({ok:true});
   }));
 
@@ -141,6 +149,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const row=await db.event.create({data:{
       ...input,id:randomUUID(),article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
     }});
+    await markModified();
     res.status(201).json(eventDTO(row));
   }));
   app.patch('/api/admin/events/:id',admin,route(async(req,res)=>{
@@ -154,12 +163,14 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const row=await db.event.update({where:{id:existing.id},data:{
       ...input,article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
     }});
+    await markModified();
     res.json(eventDTO(row));
   }));
   app.delete('/api/admin/events/:id',admin,route(async(req,res)=>{
     const item=await db.event.findUnique({where:{id:routeId(req.params.id)}});
     if(!item){error(res,404,'NOT_FOUND','Событие не найдено');return;}
     await db.event.delete({where:{id:item.id}});
+    await markModified();
     res.json({ok:true});
   }));
 }
