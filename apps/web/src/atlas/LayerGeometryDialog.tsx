@@ -86,56 +86,66 @@ export function LayerGeometryDialog({
         marker.setLatLng([point.y, point.x]);
       }
     }
-    let shiftDown=false,ctrlDown=false;
+    let shiftDown=false,ctrlMoveActive=false;
     const keyDown=(event:KeyboardEvent)=>{
       if(event.key==='Shift')shiftDown=true;
-      if(event.key==='Control'&&!ctrlDown){
-        ctrlDown=true;
-        map.dragging.disable();
-        container.classList.add('atlas-layer-ctrlmove');
-      }
+      if(event.key==='Control')container.classList.add('atlas-layer-ctrlmove-ready');
     };
     const keyUp=(event:KeyboardEvent)=>{
       if(event.key==='Shift')shiftDown=false;
-      if(event.key==='Control'){
-        ctrlDown=false;
-        map.dragging.enable();
-        container.classList.remove('atlas-layer-ctrlmove');
-      }
+      if(event.key==='Control')container.classList.remove('atlas-layer-ctrlmove-ready');
     };
-    const resetKeys=()=>{
-      shiftDown=false;ctrlDown=false;
+
+    let windowMove:((event:MouseEvent)=>void)|null=null;
+    let windowUp:((event:MouseEvent)=>void)|null=null;
+    const finishCtrlMove=(commit:boolean)=>{
+      if(windowMove)window.removeEventListener('mousemove',windowMove,true);
+      if(windowUp)window.removeEventListener('mouseup',windowUp,true);
+      windowMove=null;windowUp=null;
+      if(!ctrlMoveActive)return;
+      ctrlMoveActive=false;
       map.dragging.enable();
-      container.classList.remove('atlas-layer-ctrlmove');
+      container.classList.remove('atlas-layer-ctrlmove-active');
+      if(commit)setPreview({...working.current});
+    };
+
+    const beginCtrlMove=(mouse:MouseEvent)=>{
+      if(mouse.button!==0||!mouse.ctrlKey)return;
+      const target=mouse.target;
+      if(target instanceof Element&&target.closest('.atlas-editor-handle'))return;
+      const latlng=map.mouseEventToLatLng(mouse);
+      const current=working.current;
+      if(latlng.lng<current.x1||latlng.lng>current.x2||
+        latlng.lat<current.y1||latlng.lat>current.y2)return;
+
+      mouse.preventDefault();
+      mouse.stopPropagation();
+      map.dragging.disable();
+      ctrlMoveActive=true;
+      container.classList.add('atlas-layer-ctrlmove-active');
+      const start={x:latlng.lng,y:latlng.lat};
+      const startBounds={...current};
+      windowMove=(next:MouseEvent)=>{
+        if(!ctrlMoveActive)return;
+        const at=map.mouseEventToLatLng(next);
+        working.current=moveBoundsBy(startBounds,at.lng-start.x,at.lat-start.y);
+        display();
+      };
+      windowUp=()=>finishCtrlMove(true);
+      window.addEventListener('mousemove',windowMove,true);
+      window.addEventListener('mouseup',windowUp,true);
+    };
+
+    const resetInteraction=()=>{
+      shiftDown=false;
+      container.classList.remove('atlas-layer-ctrlmove-ready');
+      finishCtrlMove(true);
+      map.dragging.enable();
     };
     window.addEventListener('keydown',keyDown);
     window.addEventListener('keyup',keyUp);
-    window.addEventListener('blur',resetKeys);
-
-    const beginCtrlMove=(event:L.LeafletMouseEvent)=>{
-      const mouse=event.originalEvent as MouseEvent;
-      if(!(ctrlDown||mouse.ctrlKey))return;
-      const current=working.current;
-      if(event.latlng.lng<current.x1||event.latlng.lng>current.x2||
-        event.latlng.lat<current.y1||event.latlng.lat>current.y2)return;
-      L.DomEvent.stop(mouse);
-      map.dragging.disable();
-      const start={x:event.latlng.lng,y:event.latlng.lat};
-      const startBounds={...current};
-      const move=(next:L.LeafletMouseEvent)=>{
-        working.current=moveBoundsBy(startBounds,next.latlng.lng-start.x,next.latlng.lat-start.y);
-        display();
-      };
-      const end=()=>{
-        map.off('mousemove',move);
-        map.off('mouseup',end);
-        if(!ctrlDown)map.dragging.enable();
-        setPreview({...working.current});
-      };
-      map.on('mousemove',move);
-      map.on('mouseup',end);
-    };
-    map.on('mousedown',beginCtrlMove);
+    window.addEventListener('blur',resetInteraction);
+    container.addEventListener('mousedown',beginCtrlMove,true);
 
     for (const handle of handles) {
       const point = handlePoint(working.current, handle);
@@ -192,9 +202,11 @@ export function LayerGeometryDialog({
       cancelAnimationFrame(frame);
       window.removeEventListener('keydown',keyDown);
       window.removeEventListener('keyup',keyUp);
-      window.removeEventListener('blur',resetKeys);
-      map.off('mousedown',beginCtrlMove);
-      container.classList.remove('atlas-layer-ctrlmove');
+      window.removeEventListener('blur',resetInteraction);
+      container.removeEventListener('mousedown',beginCtrlMove,true);
+      finishCtrlMove(false);
+      container.classList.remove('atlas-layer-ctrlmove-ready','atlas-layer-ctrlmove-active');
+      map.dragging.enable();
       map.remove();
     };
   }, [
