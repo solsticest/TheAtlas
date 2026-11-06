@@ -9,11 +9,11 @@ import { registerTimelines } from './timelines.js';
 import { registerAtlasAdmin } from './admin-atlas.js';
 import { registerUploads } from './uploads.js';
 import { config as loadEnv } from 'dotenv';
+import { atlasEnvFile, atlasAssetsDir, atlasWebDist } from './paths.js';
 
-loadEnv({ path: path.resolve(process.cwd(), '.env') });
+loadEnv({ path: atlasEnvFile });
 process.env.DATABASE_URL ||= 'file:../../../storage/atlas.db';
 
-const assetsDir = () => path.resolve(process.env.ATLAS_ASSETS_DIR ?? path.join(process.cwd(), 'storage', 'assets'));
 const validFilename = (name: string) =>
   /^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(name) && name !== '.' && !name.includes('..');
 const safeId = (id: string) => id.length > 0 && id.length <= 255;
@@ -151,7 +151,7 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
     try {
       const asset = await db.mediaAsset.findUnique({ where: { path: key } });
       if (!asset) { res.status(404).json(issue('NOT_FOUND', 'Файл отсутствует в атласе')); return; }
-      const dir = await realpath(assetsDir());
+      const dir = await realpath(atlasAssetsDir());
       const file = await realpath(path.join(dir, asset.storedPath));
       if (!file.startsWith(dir + path.sep)) { res.status(403).json(issue('BAD_ASSET_PATH', 'Выход за пределы хранилища')); return; }
       res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -167,7 +167,7 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
 
   app.use('/api', (_req, res) => { res.status(404).json(issue('NOT_FOUND', 'Неизвестный API-маршрут')); });
   if(process.env.NODE_ENV==='production'){
-    const webDist=path.resolve(process.cwd(),'apps','web','dist');
+    const webDist=atlasWebDist;
     const index=path.join(webDist,'index.html');
     if(existsSync(index)){
       app.use(express.static(webDist,{index:'index.html',maxAge:'1h',setHeaders:(res)=>{
