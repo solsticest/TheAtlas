@@ -29,3 +29,7 @@ jobs:
         run: node tests/regression.cjs
       - name: Run main-folder suite
         run: node tests/main-folder.cjs
+      - name: Verify read-only migration preflight on original assets
+        run: node scripts/audit-legacy.cjs --dry-run
+      - name: Test migration preflight guards
+        run: node --test tests/migration-audit.cjs
