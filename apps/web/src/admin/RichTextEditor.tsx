@@ -58,12 +58,18 @@ export function RichTextEditor({value,onChange,onUploadImage,disabled=false}:Pro
     const node=editor.current;if(!node||disabled)return;
     node.focus();
     const selection=window.getSelection();
+    const savedRange=selection&&selection.rangeCount?selection.getRangeAt(0).cloneRange():null;
     const selected=selection?.toString()??'';
     const url=window.prompt('Ссылка (https://...)',selected.startsWith('http')?selected:'https://');
     if(!url)return;
     if(!/^https?:\/\//i.test(url)){
       window.alert('Разрешены ссылки http:// и https://');
       return;
+    }
+    node.focus();
+    if(savedRange&&selection){
+      selection.removeAllRanges();
+      selection.addRange(savedRange);
     }
     if(selection?.isCollapsed){
       document.execCommand('insertHTML',false,
@@ -82,6 +88,8 @@ export function RichTextEditor({value,onChange,onUploadImage,disabled=false}:Pro
       document.execCommand('insertHTML',false,
         '<figure><img data-asset="'+safe+'" src="'+src+'" alt=""><figcaption>Подпись к изображению</figcaption></figure><p><br></p>');
       sync();
+    }catch{
+      // The parent editor surfaces the upload error.
     }finally{setUploading(false);}
   }
 
