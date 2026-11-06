@@ -8,6 +8,7 @@ import {
 import { requireAdmin } from './auth.js';
 import { createBackup } from './backup.js';
 import { cleanArticle } from './html.js';
+import { recordHistory } from './history.js';
 
 const fail=(res:Response,status:number,code:string,message:string)=>{
   res.status(status).json({error:{code,message}});
@@ -107,11 +108,15 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!await requireIcon(parsed.data.iconSvg)){fail(res,400,'BAD_ASSET','SVG-значок не найден');return;}
     const order=1+await maxSort(db.markerType.findFirst({orderBy:{sortOrder:'desc'}}));
     const newId=randomUUID();
-    const t=await db.markerType.create({data:{
-      id:newId,name:parsed.data.name,symbol:parsed.data.symbol,
-      color:parsed.data.color,iconSvg:parsed.data.iconSvg,
-      sortOrder:order,raw:JSON.stringify({...parsed.data,id:newId}),
-    }});
+    const t=await db.$transaction(async tx=>{
+      const created=await tx.markerType.create({data:{
+        id:newId,name:parsed.data.name,symbol:parsed.data.symbol,
+        color:parsed.data.color,iconSvg:parsed.data.iconSvg,
+        sortOrder:order,raw:JSON.stringify({...parsed.data,id:newId}),
+      }});
+      await recordHistory(tx,'type','create',created.id,null,created);
+      return created;
+    });
     await markModified();
     res.status(201).json({id:t.id});
   }));
@@ -122,9 +127,12 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     const row=await db.markerType.findUnique({where:{id:id(req.params.id)}});
     if(!row){fail(res,404,'NOT_FOUND','Тип не найден');return;}
     await createBackup(db);
-    await db.markerType.update({where:{id:row.id},data:{
-      ...parsed.data,raw:changed(row.raw,parsed.data)
-    }});
+    await db.$transaction(async tx=>{
+      const updated=await tx.markerType.update({where:{id:row.id},data:{
+        ...parsed.data,raw:changed(row.raw,parsed.data)
+      }});
+      await recordHistory(tx,'type','update',row.id,row,updated);
+    });
     await markModified();
     res.json({ok:true});
   }));
@@ -133,7 +141,11 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!row){fail(res,404,'NOT_FOUND','Тип не найден');return;}
     if(row._count.locations){fail(res,409,'HAS_CHILDREN','Тип используется локациями');return;}
     const backup=await createBackup(db);
-    await db.markerType.delete({where:{id:row.id}});
+    const snapshot=await db.markerType.findUnique({where:{id:row.id}});
+    await db.$transaction(async tx=>{
+      await tx.markerType.delete({where:{id:row.id}});
+      await recordHistory(tx,'type','delete',row.id,snapshot,null);
+    });
     await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
@@ -149,9 +161,13 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     }
     const order=1+await maxSort(db.mapLayer.findFirst({where:{worldId:input.worldId},orderBy:{sortOrder:'desc'}}));
     const newId=randomUUID();
-    const l=await db.mapLayer.create({data:{
-      ...input,id:newId,sortOrder:order,bounds:JSON.stringify(input.bounds),raw:JSON.stringify({...input,id:newId}),
-    }});
+    const l=await db.$transaction(async tx=>{
+      const created=await tx.mapLayer.create({data:{
+        ...input,id:newId,sortOrder:order,bounds:JSON.stringify(input.bounds),raw:JSON.stringify({...input,id:newId}),
+      }});
+      await recordHistory(tx,'layer','create',created.id,null,created);
+      return created;
+    });
     await markModified();
     res.status(201).json({id:l.id});
   }));
@@ -168,15 +184,18 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       fail(res,400,'BAD_ASSET','Изображение карты не найдено');return;
     }
     await createBackup(db);
-    await db.mapLayer.update({where:{id:row.id},data:{
-      name:patch.name,parentId:patch.parentId,
-      bounds:JSON.stringify(patch.bounds),rotation:patch.rotation,
-      showAtZoom:patch.showAtZoom,fadeRange:patch.fadeRange,enabled:patch.enabled,
-      ...(patch.image===undefined?{}:{image:patch.image}),
-      ...(patch.width===undefined?{}:{width:patch.width}),
-      ...(patch.height===undefined?{}:{height:patch.height}),
-      raw:changed(row.raw,patch),
-    }});
+    await db.$transaction(async tx=>{
+      const updated=await tx.mapLayer.update({where:{id:row.id},data:{
+        name:patch.name,parentId:patch.parentId,
+        bounds:JSON.stringify(patch.bounds),rotation:patch.rotation,
+        showAtZoom:patch.showAtZoom,fadeRange:patch.fadeRange,enabled:patch.enabled,
+        ...(patch.image===undefined?{}:{image:patch.image}),
+        ...(patch.width===undefined?{}:{width:patch.width}),
+        ...(patch.height===undefined?{}:{height:patch.height}),
+        raw:changed(row.raw,patch),
+      }});
+      await recordHistory(tx,'layer','update',row.id,row,updated);
+    });
     await markModified();
     res.json({ok:true});
   }));
@@ -185,7 +204,11 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!row){fail(res,404,'NOT_FOUND','Карта не найдена');return;}
     if(row._count.children){fail(res,409,'HAS_CHILDREN','Удаление невозможно, у карты есть дочерние карты');return;}
     const backup=await createBackup(db);
-    await db.mapLayer.delete({where:{id:row.id}});
+    const snapshot=await db.mapLayer.findUnique({where:{id:row.id}});
+    await db.$transaction(async tx=>{
+      await tx.mapLayer.delete({where:{id:row.id}});
+      await recordHistory(tx,'layer','delete',row.id,snapshot,null);
+    });
     await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
@@ -201,12 +224,16 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     const order=1+await maxSort(db.location.findFirst({where:{worldId:input.worldId},orderBy:{sortOrder:'desc'}}));
     const article=cleanArticle(input.article);
     const newId=randomUUID();
-    const l=await db.location.create({data:{
-      id:newId,worldId:input.worldId,typeId:input.type,name:input.name,x:input.x,y:input.y,
-      color:input.color,minZoom:input.minZoom,description:input.description,article,
-      tags:JSON.stringify(input.tags),sortOrder:order,
-      raw:JSON.stringify({...input,id:newId,article}),
-    }});
+    const l=await db.$transaction(async tx=>{
+      const created=await tx.location.create({data:{
+        id:newId,worldId:input.worldId,typeId:input.type,name:input.name,x:input.x,y:input.y,
+        color:input.color,minZoom:input.minZoom,description:input.description,article,
+        tags:JSON.stringify(input.tags),sortOrder:order,
+        raw:JSON.stringify({...input,id:newId,article}),
+      }});
+      await recordHistory(tx,'location','create',created.id,null,created);
+      return created;
+    });
     await markModified();
     res.status(201).json({id:l.id});
   }));
@@ -220,11 +247,14 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     }
     const input={...parsed.data,article:cleanArticle(parsed.data.article)};
     await createBackup(db);
-    await db.location.update({where:{id:row.id},data:{
-      typeId:input.type,name:input.name,x:input.x,y:input.y,
-      color:input.color,minZoom:input.minZoom,description:input.description,
-      article:input.article,tags:JSON.stringify(input.tags),raw:changed(row.raw,input),
-    }});
+    await db.$transaction(async tx=>{
+      const updated=await tx.location.update({where:{id:row.id},data:{
+        typeId:input.type,name:input.name,x:input.x,y:input.y,
+        color:input.color,minZoom:input.minZoom,description:input.description,
+        article:input.article,tags:JSON.stringify(input.tags),raw:changed(row.raw,input),
+      }});
+      await recordHistory(tx,'location','update',row.id,row,updated);
+    });
     await markModified();
     res.json({ok:true});
   }));
@@ -233,7 +263,11 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!row){fail(res,404,'NOT_FOUND','Локация не найдена');return;}
     if(row._count.events){fail(res,409,'HAS_CHILDREN','Локация связана с историческими событиями');return;}
     const backup=await createBackup(db);
-    await db.location.delete({where:{id:row.id}});
+    const snapshot=await db.location.findUnique({where:{id:row.id}});
+    await db.$transaction(async tx=>{
+      await tx.location.delete({where:{id:row.id}});
+      await recordHistory(tx,'location','delete',row.id,snapshot,null);
+    });
     await markModified();
     res.json({ok:true,backup:backup.folder});
   }));
