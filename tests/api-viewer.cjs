@@ -47,6 +47,8 @@ test('Viewer API serves imported Atlas without write permissions or precision lo
     assert.equal(worlds[1].name,'Элдран');
     const types=await(await call('/api/types')).json();
     assert.equal(types.length,7);
+    assert(types.every(type=>/^#[0-9a-f]{6}$/i.test(type.color)));
+    assert(types.every(type=>type.iconSvg===null));
     const id=worlds[1].id;
     const layers=await(await call('/api/worlds/'+id+'/layers')).json();
     assert.equal(layers.length,2);
