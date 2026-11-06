@@ -209,3 +209,9 @@ html, body, #root { margin: 0; height: 100%; }
     padding: 18px 18px 60px;
   }
 }
+
+.atlas-layer-ctrlmove,
+.atlas-layer-ctrlmove .leaflet-container,
+.atlas-layer-ctrlmove .leaflet-pane { cursor: grab !important; }
+.atlas-layer-ctrlmove:active,
+.atlas-layer-ctrlmove:active .leaflet-pane { cursor: grabbing !important; }
