@@ -33,6 +33,8 @@ jobs:
         run: npm run test:geometry
       - name: Verify two-point alignment against original Atlas v4
         run: npm run test:alignment
+      - name: Verify parent-relative drag resize
+        run: npm run test:layer-editor
       - name: Test admin authentication, authorization, timelines and backups
         run: npm run test:admin
       - name: ESLint
