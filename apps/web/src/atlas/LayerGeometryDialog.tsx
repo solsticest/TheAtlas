@@ -22,8 +22,8 @@ const handles: LayerHandle[] = ['nw', 'ne', 'sw', 'se', 'center'];
 const names: Record<LayerHandle, string> = {
   nw: '↖', ne: '↗', sw: '↙', se: '↘', center: '✥',
 };
-const asLeafletBounds = (bounds: ImageBounds): L.LatLngBoundsExpression =>
-  [[bounds.y1, bounds.x1], [bounds.y2, bounds.x2]];
+const asLeafletBounds = (bounds: ImageBounds): L.LatLngBounds =>
+  L.latLngBounds([bounds.y1, bounds.x1], [bounds.y2, bounds.x2]);
 
 export function LayerGeometryDialog({
   open, parent, child, bounds, rotation, onApply, onClose,
