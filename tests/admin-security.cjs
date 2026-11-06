@@ -166,6 +166,44 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert(publicTypes.data.some(type=>type.id===svgType.data.id&&
       type.color==='#33aacc'&&type.iconSvg===svgAsset.filename&&type.symbol===''));
 
+    // Persistent global map history: create -> update -> undo update -> undo create -> redo both.
+    const historyLocation=await request('/api/admin/locations','POST',{
+      worldId,name:'History marker',x:111,y:222,type:emojiType.data.id,
+      color:'#cc3344',minZoom:-2,description:'before',article:'',tags:['history']
+    });
+    assert.equal(historyLocation.status,201);
+    const historyUpdated=await request('/api/admin/locations/'+historyLocation.data.id,'PATCH',{
+      name:'History marker moved',x:333,y:444,type:emojiType.data.id,
+      color:'#cc3344',minZoom:-2,description:'after',article:'',tags:['history']
+    });
+    assert.equal(historyUpdated.status,200);
+    const historyState=await request('/api/admin/history/state');
+    assert.equal(historyState.status,200);
+    assert.equal(historyState.data.canUndo,true);
+    assert.match(historyState.data.undo.label,/History marker moved/);
+
+    const undoUpdate=await request('/api/admin/history/undo','POST',{});
+    assert.equal(undoUpdate.status,200);
+    let historyRow=await db.location.findUnique({where:{id:historyLocation.data.id}});
+    assert.equal(historyRow.name,'History marker');
+    assert.equal(historyRow.x,111);
+
+    const undoCreate=await request('/api/admin/history/undo','POST',{});
+    assert.equal(undoCreate.status,200);
+    historyRow=await db.location.findUnique({where:{id:historyLocation.data.id}});
+    assert.equal(historyRow,null);
+
+    const redoCreate=await request('/api/admin/history/redo','POST',{});
+    assert.equal(redoCreate.status,200);
+    historyRow=await db.location.findUnique({where:{id:historyLocation.data.id}});
+    assert.equal(historyRow.name,'History marker');
+
+    const redoUpdate=await request('/api/admin/history/redo','POST',{});
+    assert.equal(redoUpdate.status,200);
+    historyRow=await db.location.findUnique({where:{id:historyLocation.data.id}});
+    assert.equal(historyRow.name,'History marker moved');
+    assert.equal(historyRow.x,333);
+
     assert.equal((await request('/api/admin/timelines/'+published.data.id,'DELETE')).status,409);
     const snapshot=await createBackup(db,path.join(temp,'snapshots'));
     const manifest=await verifyBackup(snapshot.folder);
