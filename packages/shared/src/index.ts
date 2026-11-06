@@ -66,3 +66,74 @@ export type SearchItem = z.infer<typeof searchItemSchema>;
 export const searchQuerySchema = z.object({
   q: z.string().trim().max(150).default(''),
 });
+
+export const publishStatusSchema = z.enum(['draft', 'published']);
+const id = z.string().trim().min(1).max(128);
+const label = z.string().trim().min(1).max(200);
+const shortText = z.string().max(4000);
+const article = z.string().max(100000);
+export const timelineInputSchema = z.object({
+  worldId: id,
+  name: label,
+  description: shortText.default(''),
+  sortOrder: z.number().int().min(-1000000).max(1000000).default(0),
+  isDefault: z.boolean().default(false),
+  status: publishStatusSchema.default('draft'),
+}).strict();
+export const eraInputSchema = z.object({
+  timelineId: id,
+  name: label,
+  description: shortText.default(''),
+  dateLabel: z.string().max(120).default(''),
+  sortOrder: z.number().int().min(-1000000).max(1000000).default(0),
+  image: z.string().max(255).nullable().default(null),
+}).strict();
+export const eventInputSchema = z.object({
+  eraId: id,
+  title: label,
+  summary: shortText.default(''),
+  article: article.default(''),
+  type: z.string().max(120).default(''),
+  tags: z.array(z.string().trim().min(1).max(100)).max(30).default([]),
+  sortOrder: z.number().int().min(-1000000).max(1000000).default(0),
+  dateLabel: z.string().max(120).default(''),
+  locationId: id.nullable().default(null),
+  x: z.number().finite().nullable().default(null),
+  y: z.number().finite().nullable().default(null),
+  image: z.string().max(255).nullable().default(null),
+  status: publishStatusSchema.default('draft'),
+}).strict().refine(value => (value.x === null) === (value.y === null),
+ { message: 'x and y must be set together' });
+export const timelineRecordSchema = timelineInputSchema.extend({ id });
+export const eraRecordSchema = eraInputSchema.extend({ id });
+export const eventRecordSchema = eventInputSchema.safeExtend({ id });
+export type TimelineRecord = z.infer<typeof timelineRecordSchema>;
+export type EraRecord = z.infer<typeof eraRecordSchema>;
+export type EventRecord = z.infer<typeof eventRecordSchema>;
+
+export const loginSchema = z.object({ password: z.string().min(1).max(500) }).strict();
+export const worldEditSchema = z.object({
+  name: label,
+  kmPerPixel: z.number().finite().positive().nullable().optional(),
+}).strict();
+export const locationEditSchema = z.object({
+  name: label,
+  x: z.number().finite(),
+  y: z.number().finite(),
+  type: id,
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  minZoom: z.number().finite().min(-20).max(20),
+  description: shortText,
+  article: article,
+  tags: z.array(z.string().max(100)).max(30),
+}).strict();
+export const layerEditSchema = z.object({
+  name: label,
+  parentId: id.nullable(),
+  bounds: boundsSchema,
+  rotation: z.number().finite().min(-3600).max(3600),
+  showAtZoom: z.number().finite().min(-20).max(20),
+  fadeRange: z.number().finite().min(0).max(20),
+  enabled: z.boolean(),
+}).strict().refine(v=>v.bounds.x2>v.bounds.x1 && v.bounds.y2>v.bounds.y1,
+ {message:'Invalid bounds'});
