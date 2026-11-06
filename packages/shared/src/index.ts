@@ -10,6 +10,8 @@ export const markerTypeSchema = z.object({
   id: z.string(),
   name: z.string(),
   symbol: z.string(),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  iconSvg: z.string().nullable(),
 }).passthrough();
 export type MarkerTypeRecord = z.infer<typeof markerTypeSchema>;
 
@@ -150,8 +152,12 @@ export const worldUpdateSchema = worldEditSchema.extend({
 });
 export const markerTypeInputSchema = z.object({
   name: label,
-  symbol: z.string().trim().min(1).max(12),
-}).strict();
+  symbol: z.string().trim().max(12).default(''),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i).default('#d6b77a'),
+  iconSvg: z.string().trim().max(255).regex(/^[a-zA-Z0-9][\\w.-]*\\.svg$/i).nullable().default(null),
+}).strict().refine(value => Boolean(value.symbol) !== Boolean(value.iconSvg), {
+  message: 'Выберите ровно один значок: эмодзи или SVG',
+});
 export const layerUpdateSchema = layerEditSchema.safeExtend({
   image: z.string().max(255).nullable().optional(),
   width: z.number().int().positive().max(100000).optional(),
