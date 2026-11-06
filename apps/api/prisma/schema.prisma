@@ -12,6 +12,7 @@ model AtlasDocument {
   id           String   @id
   version      Int
   sourceSha256 String
+  isModified   Boolean  @default(false)
   rootExtras   String
   importedAt   DateTime @default(now())
 }
