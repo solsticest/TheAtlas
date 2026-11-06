@@ -28,6 +28,11 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(name===null)return true;
     return !!await db.mediaAsset.findUnique({where:{path:'maps/'+name}});
   }
+  async function requireIcon(name:string|null){
+    if(name===null)return true;
+    if(!/^[a-zA-Z0-9][\w.-]*\.svg$/i.test(name)||name.includes('..'))return false;
+    return !!await db.mediaAsset.findUnique({where:{path:'icons/'+name}});
+  }
   async function checkParent(worldId:string,parentId:string|null,editingId:string|null){
     if(parentId===null)return true;
     if(parentId===editingId)return false;
@@ -98,11 +103,13 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
   }));
   app.post('/api/admin/types',guard,route(async(req,res)=>{
     const parsed=markerTypeInputSchema.safeParse(req.body);
-    if(!parsed.success){fail(res,400,'BAD_INPUT','Укажите название и символ типа');return;}
+    if(!parsed.success){fail(res,400,'BAD_INPUT','Укажите название, цвет и один значок: эмодзи или SVG');return;}
+    if(!await requireIcon(parsed.data.iconSvg)){fail(res,400,'BAD_ASSET','SVG-значок не найден');return;}
     const order=1+await maxSort(db.markerType.findFirst({orderBy:{sortOrder:'desc'}}));
     const newId=randomUUID();
     const t=await db.markerType.create({data:{
       id:newId,name:parsed.data.name,symbol:parsed.data.symbol,
+      color:parsed.data.color,iconSvg:parsed.data.iconSvg,
       sortOrder:order,raw:JSON.stringify({...parsed.data,id:newId}),
     }});
     await markModified();
@@ -111,6 +118,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
   app.patch('/api/admin/types/:id',guard,route(async(req,res)=>{
     const parsed=markerTypeInputSchema.safeParse(req.body);
     if(!parsed.success){fail(res,400,'BAD_INPUT','Некорректный тип маркера');return;}
+    if(!await requireIcon(parsed.data.iconSvg)){fail(res,400,'BAD_ASSET','SVG-значок не найден');return;}
     const row=await db.markerType.findUnique({where:{id:id(req.params.id)}});
     if(!row){fail(res,404,'NOT_FOUND','Тип не найден');return;}
     await createBackup(db);
