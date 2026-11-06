@@ -28,7 +28,8 @@ async function exportAtlas(db){
 async function assertAssetIntegrity(db){
   const rows=await db.mediaAsset.findMany({orderBy:{path:'asc'}});
   for(const item of rows){
-    const file=path.join(root,'storage','assets',item.path);
+    const assetRoot=process.env.ATLAS_ASSETS_DIR ? path.resolve(process.env.ATLAS_ASSETS_DIR) : path.join(root,'storage','assets');
+    const file=path.join(assetRoot,item.path);
     const digest=await hashFile(file);
     if(digest!==item.sha256) throw Error('Несовпадение SHA-256 файла после миграции: '+item.path);
   }
