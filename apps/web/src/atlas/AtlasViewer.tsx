@@ -219,25 +219,26 @@ export function AtlasViewer(){
       await refetchVisibleData();setNotice('Объект удалён.');
     }catch(reason){setNotice(reason instanceof Error?reason.message:String(reason));}
   }
-  async function duplicateObject(target:AtlasContextTarget){
-    if(!session?.csrfToken)return;
-    try{
-      if(target.kind==='location'){
-        const source=target.location;
-        const payload={...locationPayload(source,source.name+' (копия)'),x:source.x+12,y:source.y+12};
-        await apiRequest('/api/admin/locations','POST',payload,session);
-      }else if(target.kind==='event'){
-        await apiRequest('/api/admin/events','POST',
-          eventPayload(target.event,target.event.title+' (копия)'),session);
-      }else if(target.kind==='layer'){
-        const source=target.layer,b=source.bounds;
-        await apiRequest('/api/admin/layers','POST',{
-          ...layerPayload(source,source.name+' (копия)'),
-          bounds:{x1:b.x1+20,y1:b.y1+20,x2:b.x2+20,y2:b.y2+20},
-        },session);
-      }else return;
-      await refetchVisibleData();setNotice('Создана копия объекта.');
-    }catch(reason){setNotice(reason instanceof Error?reason.message:String(reason));}
+  function duplicateObject(target:AtlasContextTarget){
+    if(target.kind==='location'){
+      const source=target.location;
+      openEditor({kind:'location',create:true,section:'marker',initial:{
+        ...locationPayload(source,source.name+' (копия)'),x:source.x+12,y:source.y+12,
+      }});
+      return;
+    }
+    if(target.kind==='event'){
+      openEditor({kind:'event',create:true,initial:
+        eventPayload(target.event,target.event.title+' (копия)')});
+      return;
+    }
+    if(target.kind==='layer'){
+      const source=target.layer,b=source.bounds;
+      openEditor({kind:'layer',create:true,initial:{
+        ...layerPayload(source,source.name+' (копия)'),
+        x1:b.x1+20,y1:b.y1+20,x2:b.x2+20,y2:b.y2+20,
+      }});
+    }
   }
   async function copyCoordinates(point:AtlasMapPoint){
     try{
@@ -265,19 +266,19 @@ export function AtlasViewer(){
       if(action==='edit-marker'){editLocation(target.location,'marker');return;}
       if(action==='edit-article'){editLocation(target.location,'article');return;}
       if(action==='move'){startMove(target.location);return;}
-      if(action==='duplicate'){void duplicateObject(target);return;}
+      if(action==='duplicate'){duplicateObject(target);return;}
       if(action==='delete'){void removeObject('location',target.location.id);return;}
     }
     if(target.kind==='event'){
       if(action==='details'){setEventId(target.event.id);return;}
       if(action==='edit'){openEditor({kind:'event',id:target.event.id});return;}
-      if(action==='duplicate'){void duplicateObject(target);return;}
+      if(action==='duplicate'){duplicateObject(target);return;}
       if(action==='delete'){void removeObject('event',target.event.id);return;}
     }
     if(target.kind==='layer'){
       if(action==='edit'){openEditor({kind:'layer',id:target.layer.id});return;}
       if(action==='child'){openEditor({kind:'layer',create:true,initial:{parentId:target.layer.id}});return;}
-      if(action==='duplicate'){void duplicateObject(target);return;}
+      if(action==='duplicate'){duplicateObject(target);return;}
       if(action==='delete'){void removeObject('layer',target.layer.id);return;}
     }
   }
