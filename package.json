@@ -21,12 +21,23 @@
     "export:atlas": "node scripts/export-legacy-atlas.cjs",
     "test:database": "node --test tests/db-import.cjs",
     "test:api": "node --import tsx --test tests/api-viewer.cjs",
-    "test:geometry": "node --import tsx --test tests/viewer-geometry.cjs"
+    "test:geometry": "node --import tsx --test tests/viewer-geometry.cjs",
+    "admin:setup": "node scripts/setup-admin.cjs",
+    "backup:atlas": "node --import tsx scripts/backup-atlas.cjs",
+    "test:admin": "node --import tsx --test tests/admin-security.cjs",
+    "lint": "eslint \"apps/**/*.{ts,tsx}\" \"packages/**/*.{ts,tsx}\"",
+    "format": "prettier --write \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"apps/**/*.{ts,tsx,css}\" \"packages/**/*.{ts,tsx}\""
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
     "typescript": "^5.9.0",
-    "prisma": "6.19.0"
+    "prisma": "6.19.0",
+    "eslint": "^9.39.0",
+    "@eslint/js": "^9.39.0",
+    "typescript-eslint": "^8.46.0",
+    "prettier": "^3.6.0",
+    "globals": "^16.0.0"
   },
   "engines": {
     "node": ">=22"
