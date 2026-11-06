@@ -16,29 +16,30 @@ const timelineDTO=(t:{id:string;worldId:string;name:string;description:string;so
 const eraDTO=(e:{id:string;timelineId:string;name:string;description:string;dateLabel:string;sortOrder:number;image:string|null})=>e;
 const eventDTO=(e:{id:string;eraId:string;title:string;summary:string;article:string;type:string;tags:string;sortOrder:number;dateLabel:string;locationId:string|null;x:number|null;y:number|null;image:string|null;status:string})=>({...e,tags:JSON.parse(e.tags) as string[]});
 const order=[{sortOrder:'asc' as const},{id:'asc' as const}];
+const routeId=(value:string|string[]|undefined):string=>typeof value==='string'?value:'';
 
 export function registerTimelines(app:Express,db:PrismaClient){
   const admin=requireAdmin(db);
   // Public endpoints never reveal drafts, including draft timelines and their eras.
   app.get('/api/worlds/:worldId/timelines',route(async(req,res)=>{
-    const world=await db.world.findUnique({where:{id:req.params.worldId}});
+    const world=await db.world.findUnique({where:{id:routeId(req.params.worldId)}});
     if(!world){error(res,404,'NOT_FOUND','Мир не найден');return;}
     const rows=await db.timeline.findMany({where:{worldId:world.id,status:'published'},orderBy:order});
     res.json(rows.map(timelineDTO));
   }));
   app.get('/api/timelines/:id/eras',route(async(req,res)=>{
-    const timeline=await db.timeline.findUnique({where:{id:req.params.id}});
+    const timeline=await db.timeline.findUnique({where:{id:routeId(req.params.id)}});
     if(!timeline||timeline.status!=='published'){error(res,404,'NOT_FOUND','Таймлайн не найден');return;}
     res.json((await db.era.findMany({where:{timelineId:timeline.id},orderBy:order})).map(eraDTO));
   }));
   app.get('/api/eras/:id/events',route(async(req,res)=>{
-    const era=await db.era.findUnique({where:{id:req.params.id},include:{timeline:true}});
+    const era=await db.era.findUnique({where:{id:routeId(req.params.id)},include:{timeline:true}});
     if(!era||era.timeline.status!=='published'){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     const rows=await db.event.findMany({where:{eraId:era.id,status:'published'},orderBy:order});
     res.json(rows.map(eventDTO));
   }));
   app.get('/api/events/:id',route(async(req,res)=>{
-    const row=await db.event.findUnique({where:{id:req.params.id},include:{era:{include:{timeline:true}}}});
+    const row=await db.event.findUnique({where:{id:routeId(req.params.id)},include:{era:{include:{timeline:true}}}});
     if(!row||row.status!=='published'||row.era.timeline.status!=='published'){
       error(res,404,'NOT_FOUND','Событие не найдено');return;
     }
@@ -75,7 +76,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
   app.patch('/api/admin/timelines/:id',admin,route(async(req,res)=>{
     const parsed=timelineInputSchema.safeParse(req.body);
     if(!parsed.success){error(res,400,'BAD_INPUT','Некорректные поля таймлайна');return;}
-    const exists=await db.timeline.findUnique({where:{id:req.params.id}});
+    const exists=await db.timeline.findUnique({where:{id:routeId(req.params.id)}});
     if(!exists){error(res,404,'NOT_FOUND','Таймлайн не найден');return;}
     if(parsed.data.worldId!==exists.worldId){error(res,409,'WORLD_CHANGE','Нельзя переносить таймлайн в другой мир');return;}
     const t=await db.$transaction(async tx=>{
@@ -85,7 +86,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     res.json(timelineDTO(t));
   }));
   app.delete('/api/admin/timelines/:id',admin,route(async(req,res)=>{
-    const exists=await db.timeline.findUnique({where:{id:req.params.id},include:{_count:{select:{eras:true}}}});
+    const exists=await db.timeline.findUnique({where:{id:routeId(req.params.id)},include:{_count:{select:{eras:true}}}});
     if(!exists){error(res,404,'NOT_FOUND','Таймлайн не найден');return;}
     if(exists._count.eras){error(res,409,'HAS_CHILDREN','Сначала удалите эпохи');return;}
     await db.timeline.delete({where:{id:exists.id}});
@@ -104,14 +105,14 @@ export function registerTimelines(app:Express,db:PrismaClient){
   app.patch('/api/admin/eras/:id',admin,route(async(req,res)=>{
     const parsed=eraInputSchema.safeParse(req.body);
     if(!parsed.success){error(res,400,'BAD_INPUT','Некорректная эпоха');return;}
-    const existing=await db.era.findUnique({where:{id:req.params.id}});
+    const existing=await db.era.findUnique({where:{id:routeId(req.params.id)}});
     if(!existing){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     if(existing.timelineId!==parsed.data.timelineId){error(res,409,'MOVE_DENIED','Нельзя переносить эпоху');return;}
     const e=await db.era.update({where:{id:existing.id},data:parsed.data});
     res.json(eraDTO(e));
   }));
   app.delete('/api/admin/eras/:id',admin,route(async(req,res)=>{
-    const e=await db.era.findUnique({where:{id:req.params.id},include:{_count:{select:{events:true}}}});
+    const e=await db.era.findUnique({where:{id:routeId(req.params.id)},include:{_count:{select:{events:true}}}});
     if(!e){error(res,404,'NOT_FOUND','Эпоха не найдена');return;}
     if(e._count.events){error(res,409,'HAS_CHILDREN','Сначала удалите события');return;}
     await db.era.delete({where:{id:e.id}});
@@ -145,7 +146,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
   app.patch('/api/admin/events/:id',admin,route(async(req,res)=>{
     const parsed=eventInputSchema.safeParse(req.body);
     if(!parsed.success){error(res,400,'BAD_INPUT','Некорректные поля события');return;}
-    const existing=await db.event.findUnique({where:{id:req.params.id}});
+    const existing=await db.event.findUnique({where:{id:routeId(req.params.id)}});
     if(!existing){error(res,404,'NOT_FOUND','Событие не найдено');return;}
     if(existing.eraId!==parsed.data.eraId){error(res,409,'MOVE_DENIED','Нельзя переносить событие между эпохами');return;}
     const input=parsed.data,check=await checkWorld(input.eraId,input.locationId,input.image);
@@ -156,7 +157,7 @@ export function registerTimelines(app:Express,db:PrismaClient){
     res.json(eventDTO(row));
   }));
   app.delete('/api/admin/events/:id',admin,route(async(req,res)=>{
-    const item=await db.event.findUnique({where:{id:req.params.id}});
+    const item=await db.event.findUnique({where:{id:routeId(req.params.id)}});
     if(!item){error(res,404,'NOT_FOUND','Событие не найдено');return;}
     await db.event.delete({where:{id:item.id}});
     res.json({ok:true});
