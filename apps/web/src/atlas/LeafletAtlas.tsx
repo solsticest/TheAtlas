@@ -1,14 +1,16 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { LayerBounds, LayerRecord, LocationRecord, MarkerTypeRecord, WorldRecord } from '@atlas/shared';
+import type { LayerBounds, LayerRecord, LocationRecord, MarkerTypeRecord, WorldRecord, EventRecord } from '@atlas/shared';
 import { assetUrl, depthOf, opacityAtZoom, worldBox } from './geometry';
 
-type Focus = { kind: 'world' | 'layer' | 'location'; id: string; sequence: number };
+type Focus = { kind: 'world' | 'layer' | 'location' | 'event'; id: string; sequence: number };
 type Props = {
   world: WorldRecord;
   layers: LayerRecord[];
   locations: LocationRecord[];
   types: MarkerTypeRecord[];
+  events: EventRecord[];
+  onSelectEvent: (event: EventRecord) => void;
   visibleTypes: Set<string>;
   focus: Focus | null;
   onSelectLocation: (location: LocationRecord) => void;
@@ -87,18 +89,22 @@ function makePopup(location: LocationRecord, onClick: () => void): HTMLElement {
 }
 
 export function LeafletAtlas({
-  world, layers, locations, types, visibleTypes, focus, onSelectLocation,
+  world, layers, locations, types, visibleTypes, focus, onSelectLocation, events, onSelectEvent,
 }: Props) {
   const elementRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
+  const eventLayerRef = useRef<L.LayerGroup | null>(null);
+  const eventMarkersRef = useRef<Map<string,L.Marker>>(new Map());
+  const eventClickRef = useRef(onSelectEvent);
   const boxesRef = useRef<Map<string, LayerBounds>>(new Map());
   const selectRef = useRef(onSelectLocation);
   const filterRef = useRef(visibleTypes);
 
   useEffect(() => { selectRef.current = onSelectLocation; }, [onSelectLocation]);
   useEffect(() => { filterRef.current = visibleTypes; }, [visibleTypes]);
+  useEffect(() => { eventClickRef.current = onSelectEvent; }, [onSelectEvent]);
 
   useEffect(() => {
     const container = elementRef.current;
@@ -115,6 +121,8 @@ export function LeafletAtlas({
     regionPane.style.zIndex = '260';
     const markerPane = map.createPane('atlasMarkerPane');
     markerPane.style.zIndex = '460';
+    const eventPane = map.createPane('atlasEventPane');
+    eventPane.style.zIndex = '490';
 
     const bounds = [[0, 0], [world.height, world.width]] as L.LatLngBoundsExpression;
     map.setMaxBounds([[-world.height, -world.width], [world.height * 2, world.width * 2]]);
@@ -141,6 +149,8 @@ export function LeafletAtlas({
 
     const markerLayer = L.layerGroup().addTo(map);
     markerLayerRef.current = markerLayer;
+    const eventLayer = L.layerGroup().addTo(map);
+    eventLayerRef.current = eventLayer;
     const markerObjects: { loc: LocationRecord; marker: L.Marker }[] = [];
     const markerTypes = new Map(types.map(t => [t.id, t]));
     for (const loc of locations) {
@@ -201,6 +211,8 @@ export function LeafletAtlas({
       mapRef.current = null;
       markersRef.current = new Map();
       markerLayerRef.current = null;
+      eventLayerRef.current = null;
+      eventMarkersRef.current = new Map();
       boxesRef.current = new Map();
     };
   }, [world, layers, locations, types]);
@@ -221,6 +233,32 @@ export function LeafletAtlas({
   }, [visibleTypes, locations]);
 
   useEffect(() => {
+    const map = mapRef.current, layer = eventLayerRef.current;
+    if (!map || !layer) return;
+    layer.clearLayers();
+    const markers = new Map<string,L.Marker>();
+    for (const event of events) {
+      const location = event.locationId ? locations.find(loc => loc.id === event.locationId) : undefined;
+      const x = location?.x ?? event.x, y = location?.y ?? event.y;
+      if (x == null || y == null) continue;
+      const marker = L.marker([y, x], {
+        interactive:true, draggable:false, pane:'atlasEventPane',
+        icon:L.divIcon({className:'atlas-event-icon',
+          html:'<span class="atlas-event-symbol">✦</span>',
+          iconSize:[32,32],iconAnchor:[16,16]}),
+      });
+      marker.on('click', () => eventClickRef.current(event));
+      const popup=document.createElement('span');
+      popup.textContent=event.title + (event.dateLabel?' · '+event.dateLabel:'');
+      marker.bindTooltip(popup);
+      layer.addLayer(marker);
+      markers.set(event.id,marker);
+    }
+    eventMarkersRef.current = markers;
+    return () => { layer.clearLayers(); eventMarkersRef.current = new Map(); };
+  }, [events, locations]);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || !focus) return;
     if (focus.kind === 'world') {
@@ -232,12 +270,22 @@ export function LeafletAtlas({
       if (box) map.fitBounds(leafletBounds(box), { padding: [45, 45], animate: false });
       return;
     }
+    if (focus.kind === 'event') {
+      const event = events.find(item => item.id === focus.id);
+      if (!event) return;
+      const linked = event.locationId ? locations.find(loc=>loc.id===event.locationId) : undefined;
+      const x = linked?.x ?? event.x, y = linked?.y ?? event.y;
+      if (x == null || y == null) return;
+      map.setView([y,x],Math.min(8,Math.max(map.getZoom(),1)),{animate:false});
+      eventMarkersRef.current.get(event.id)?.openTooltip();
+      return;
+    }
     const loc = locations.find(item => item.id === focus.id);
     if (!loc) return;
     const zoom = Math.min(8, Math.max(map.getZoom(), loc.minZoom + 0.5, 1));
     map.setView([loc.y, loc.x], zoom, { animate: false });
     markersRef.current.get(loc.id)?.openPopup();
-  }, [focus, world, locations]);
+  }, [focus, world, locations, events]);
 
   return <div ref={elementRef} className="atlas-map" role="application" aria-label={'Карта мира ' + world.name} />;
 }
