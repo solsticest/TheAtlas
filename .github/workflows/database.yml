@@ -37,3 +37,5 @@ jobs:
         run: npm run lint
       - name: Build new stack
         run: npm run build
+      - name: Smoke test production / and /admin routes
+        run: npm run test:production
