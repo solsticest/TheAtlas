@@ -297,6 +297,24 @@ export function LeafletAtlas({
     const draftLayer=L.layerGroup().addTo(map);
     const typeMap=new Map(types.map(type=>[type.id,type]));
     const kind=preview.target.kind,draft=preview.draft;
+    const previewTypeId=kind==='type'?preview.target.id:undefined;
+
+    if(kind==='type'&&previewTypeId){
+      const base=types.find(type=>type.id===previewTypeId);
+      if(base){
+        const iconSvg=draft.iconSvg&&draft.iconSvg!=='pending.svg'?String(draft.iconSvg):null;
+        const candidate:MarkerTypeRecord={...base,
+          name:String(draft.name??base.name),
+          symbol:iconSvg?'':String(draft.symbol??base.symbol),
+          color:String(draft.color??base.color),
+          iconSvg,
+        };
+        for(const location of locations){
+          if(location.type!==previewTypeId)continue;
+          markersRef.current.get(location.id)?.setIcon(markerIcon(location,candidate,true));
+        }
+      }
+    }
 
     if(kind==='location'&&preview.target.id!==moveLocationId){
       const x=Number(draft.x),y=Number(draft.y),typeId=String(draft.type??'');
@@ -400,6 +418,13 @@ export function LeafletAtlas({
       draftLayer.remove();
       if(preview.target.kind==='location'&&preview.target.id)
         markersRef.current.get(preview.target.id)?.setOpacity(1);
+      if(previewTypeId){
+        const original=types.find(type=>type.id===previewTypeId);
+        if(original)for(const location of locations){
+          if(location.type!==previewTypeId)continue;
+          markersRef.current.get(location.id)?.setIcon(markerIcon(location,original));
+        }
+      }
     };
   },[preview,types,world,layers,locations,moveLocationId]);
 
