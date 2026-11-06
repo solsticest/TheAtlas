@@ -17,7 +17,7 @@ function classifySvg(buffer:Buffer):ImageResult|null {
   if(/<!DOCTYPE\b|<!ENTITY\b/i.test(text))return null;
   if(/\son[a-z]+\s*=/i.test(text))return null;
   if(/(?:href|xlink:href)\s*=\s*["'](?!#)/i.test(text))return null;
-  if(/url\s*\(|@import\b/i.test(text))return null;
+  if(/url\s*\(\s*["']?(?!#)|@import\b/i.test(text))return null;
   return {extension:'svg',width:null,height:null};
 }
 export function classifyImage(b:Buffer):ImageResult|null {
