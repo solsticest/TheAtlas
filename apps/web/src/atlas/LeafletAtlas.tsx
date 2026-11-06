@@ -266,7 +266,10 @@ export function LeafletAtlas({
       const location=locations.find(item=>item.id===id);
       const draggable=id===moveLocationId;
       const handler=(marker as L.Marker&{dragging?:L.Handler}).dragging;
-      if(draggable)handler?.enable();else handler?.disable();
+      if(draggable)handler?.enable();else{
+        handler?.disable();
+        if(location)marker.setLatLng([location.y,location.x]);
+      }
       marker.off('drag');
       if(draggable&&location)marker.on('drag',()=>{
         const value=marker.getLatLng();moveRef.current(location,value.lng,value.lat);
