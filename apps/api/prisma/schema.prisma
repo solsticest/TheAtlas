@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// This document is a guard against accidental import over existing user edits.
+model AtlasDocument {
+  id           String   @id
+  version      Int
+  sourceSha256 String
+  rootExtras   Json
+  importedAt   DateTime @default(now())
+}
+
+model MarkerType {
+  id        String     @id
+  name      String
+  symbol    String
+  sortOrder Int        @unique
+  raw       Json
+  locations Location[]
+}
+
+model World {
+  id         String     @id
+  name       String
+  image      String?
+  width      Float
+  height     Float
+  kmPerPixel Float?
+  sortOrder  Int        @unique
+  raw        Json
+  layers     MapLayer[]
+  locations  Location[]
+}
+
+model MapLayer {
+  id         String     @id
+  worldId    String
+  parentId   String?
+  name       String
+  image      String?
+  width      Float
+  height     Float
+  bounds     Json
+  rotation   Float
+  showAtZoom Float
+  fadeRange  Float
+  enabled    Boolean
+  sortOrder  Int
+  raw        Json
+
+  world      World       @relation(fields: [worldId], references: [id], onDelete: Restrict)
+  parent     MapLayer?   @relation("LayerHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children   MapLayer[]  @relation("LayerHierarchy")
+
+  @@unique([worldId, sortOrder])
+  @@index([worldId, parentId])
+}
+
+model Location {
+  id          String      @id
+  worldId     String
+  typeId      String
+  name        String
+  x           Float
+  y           Float
+  color       String
+  minZoom     Float
+  description String
+  article     String?
+  tags        Json
+  sortOrder   Int
+  raw         Json
+
+  world       World      @relation(fields: [worldId], references: [id], onDelete: Restrict)
+  markerType  MarkerType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+
+  @@unique([worldId, sortOrder])
+  @@index([worldId, typeId])
+}
+
+model MediaAsset {
+  path       String   @id
+  filename   String
+  kind       String
+  bytes      Int
+  sha256     String
+  width      Int?
+  height     Int?
+  storedPath String
+  importedAt DateTime @default(now())
+}
