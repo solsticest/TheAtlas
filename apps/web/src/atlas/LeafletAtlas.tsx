@@ -124,6 +124,7 @@ export function LeafletAtlas({
 }:Props){
   const elementRef=useRef<HTMLDivElement|null>(null);
   const mapRef=useRef<L.Map|null>(null);
+  const savedViewRef=useRef<{center:L.LatLng;zoom:number}|null>(null);
   const markersRef=useRef<Map<string,L.Marker>>(new Map());
   const markerLayerRef=useRef<L.LayerGroup|null>(null);
   const eventLayerRef=useRef<L.LayerGroup|null>(null);
@@ -221,7 +222,10 @@ export function LeafletAtlas({
         point.x>=box.x1&&point.x<=box.x2&&point.y>=box.y1&&point.y<=box.y2);
       contextRef.current(hit?{kind:'layer',point,layer:hit.layer}:{kind:'map',point});
     });
-    map.fitBounds(bounds,{padding:[28,28],animate:false});update();
+    if(savedViewRef.current){
+      map.setView(savedViewRef.current.center,savedViewRef.current.zoom,{animate:false});
+    }else map.fitBounds(bounds,{padding:[28,28],animate:false});
+    update();
 
     let resizeFrame=0;
     const resize=()=>{
@@ -232,6 +236,7 @@ export function LeafletAtlas({
     observer?.observe(container);resize();
     return()=>{
       observer?.disconnect();cancelAnimationFrame(resizeFrame);
+      if(mapRef.current===map)savedViewRef.current={center:map.getCenter(),zoom:map.getZoom()};
       map.off();map.remove();mapRef.current=null;
       markersRef.current=new Map();markerLayerRef.current=null;eventLayerRef.current=null;
       eventMarkersRef.current=new Map();boxesRef.current=new Map();layerObjectsRef.current=new Map();
