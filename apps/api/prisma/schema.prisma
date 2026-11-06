@@ -12,7 +12,7 @@ model AtlasDocument {
   id           String   @id
   version      Int
   sourceSha256 String
-  rootExtras   Json
+  rootExtras   String
   importedAt   DateTime @default(now())
 }
 
@@ -21,7 +21,7 @@ model MarkerType {
   name      String
   symbol    String
   sortOrder Int        @unique
-  raw       Json
+  raw       String
   locations Location[]
 }
 
@@ -33,7 +33,7 @@ model World {
   height     Float
   kmPerPixel Float?
   sortOrder  Int        @unique
-  raw        Json
+  raw        String
   layers     MapLayer[]
   locations  Location[]
 }
@@ -46,13 +46,13 @@ model MapLayer {
   image      String?
   width      Float
   height     Float
-  bounds     Json
+  bounds     String
   rotation   Float
   showAtZoom Float
   fadeRange  Float
   enabled    Boolean
   sortOrder  Int
-  raw        Json
+  raw        String
 
   world      World       @relation(fields: [worldId], references: [id], onDelete: Restrict)
   parent     MapLayer?   @relation("LayerHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
@@ -73,9 +73,9 @@ model Location {
   minZoom     Float
   description String
   article     String?
-  tags        Json
+  tags        String
   sortOrder   Int
-  raw         Json
+  raw         String
 
   world       World      @relation(fields: [worldId], references: [id], onDelete: Restrict)
   markerType  MarkerType @relation(fields: [typeId], references: [id], onDelete: Restrict)
