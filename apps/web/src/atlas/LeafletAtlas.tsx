@@ -19,7 +19,7 @@ type OverlayInternal = L.ImageOverlay & { _atlasBitmap?: HTMLElement };
 
 // A faithful port of legacy js/app.js's rotated bitmap wrapper. Leaflet owns
 // the outer positioner; its animated transform MUST NOT be applied to the bitmap.
-const RotatableImageOverlay = L.ImageOverlay.extend({
+export const RotatableImageOverlay = L.ImageOverlay.extend({
   _initImage(this: L.ImageOverlay) {
     const base = L.ImageOverlay.prototype as unknown as {
       _initImage: (this: L.ImageOverlay) => void;
