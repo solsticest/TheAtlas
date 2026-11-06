@@ -7,6 +7,7 @@ import {
 import { Link as RouterLink } from 'react-router-dom';
 import { useLayersQuery, useLocationsQuery, useMarkerTypesQuery, useWorldsQuery } from '../atlas/api';
 import { MapPointPicker } from '../atlas/MapPointPicker';
+import { TwoPointAlignDialog } from '../atlas/TwoPointAlignDialog';
 
 type Kind = 'world'|'type'|'layer'|'location'|'timeline'|'era'|'event';
 type Row = Record<string,unknown> & {id:string};
@@ -168,6 +169,7 @@ export function AdminPage(){
   const [dirty,setDirty]=useState(false);
   const [revision,setRevision]=useState(0);
   const [pick,setPick]=useState(false);
+  const [alignOpen,setAlignOpen]=useState(false);
   const [assetKind,setAssetKind]=useState<'maps'|'media'>('media');
   const [timelines,setTimelines]=useState<Row[]>([]);
   const [eras,setEras]=useState<Row[]>([]);
@@ -302,6 +304,19 @@ export function AdminPage(){
     return [];
   };
   const canChoose=kind==='event'||kind==='location';
+  const parentLayer=layers.find(layer=>layer.id===draft.parentId);
+  const sourceSpec={
+    image:typeof draft.image==='string'&&draft.image?draft.image:null,
+    width:Number(draft.width??0),height:Number(draft.height??0),
+    name:'Совмещаемая карта',
+  };
+  const parentSpec=parentLayer?{
+    image:parentLayer.image,width:parentLayer.width,height:parentLayer.height,
+    name:'Родительская карта: '+parentLayer.name,
+  }: {
+    image:currentWorld?.image??null,width:currentWorld?.width??0,
+    height:currentWorld?.height??0,name:'Карта мира',
+  };
   if(session===null)return <Stack sx={{minHeight:'100vh'}} alignItems="center" justifyContent="center">
     <CircularProgress/><Typography>Проверяем сессию администратора…</Typography>
   </Stack>;
@@ -416,6 +431,9 @@ export function AdminPage(){
         {canChoose&&<Button onClick={()=>setPick(true)} sx={{mt:2}} variant="outlined">
           Выбрать координаты на карте
         </Button>}
+        {kind==='layer' && <Button onClick={()=>setAlignOpen(true)} sx={{mt:2,ml:1}} variant="outlined">
+          Совместить изображение по двум точкам
+        </Button>}
         <Stack direction="row" flexWrap="wrap" gap={2} sx={{mt:3}}>
           <Button variant="contained" onClick={()=>void save()} disabled={!selected&&!currentWorldId&&kind!=='world'&&kind!=='type'}>
             Сохранить
@@ -443,6 +461,11 @@ export function AdminPage(){
         </Stack>
       </Paper>
     </Box>
+    <TwoPointAlignDialog open={alignOpen} child={sourceSpec} parent={parentSpec}
+      onApply={(bounds,rotation)=>{
+        setDraft(previous=>({...previous,...bounds,rotation}));
+        setDirty(true);
+      }} onClose={()=>setAlignOpen(false)}/>
     <MapPointPicker open={pick} world={currentWorld} layers={layers}
       x={draft.x==null?null:Number(draft.x)} y={draft.y==null?null:Number(draft.y)}
       onChoose={(x,y)=>{setField('x',x);setField('y',y);}} onClose={()=>setPick(false)}/>
