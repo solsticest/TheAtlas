@@ -5,6 +5,7 @@ import { timelineInputSchema, eraInputSchema, eventInputSchema } from '@atlas/sh
 import { requireAdmin } from './auth.js';
 import { cleanArticle } from './html.js';
 import { createBackup } from './backup.js';
+import { recordHistory } from './history.js';
 
 const error=(res:Response,status:number,code:string,message:string)=>{
   res.status(status).json({error:{code,message}});
@@ -45,7 +46,6 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!row||row.status!=='published'||row.era.timeline.status!=='published'){
       error(res,404,'NOT_FOUND','Событие не найдено');return;
     }
-    await markModified();
     res.json(eventDTO(row));
   }));
 
@@ -152,9 +152,13 @@ export function registerTimelines(app:Express,db:PrismaClient){
     if(!parsed.success){error(res,400,'BAD_INPUT','Некорректные поля события');return;}
     const input=parsed.data,check=await checkWorld(input.eraId,input.locationId,input.image);
     if(check.error){error(res,400,check.error,'Неверная связь события с миром, эпохой или изображением');return;}
-    const row=await db.event.create({data:{
-      ...input,id:randomUUID(),article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
-    }});
+    const row=await db.$transaction(async tx=>{
+      const created=await tx.event.create({data:{
+        ...input,id:randomUUID(),article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
+      }});
+      await recordHistory(tx,'event','create',created.id,null,created);
+      return created;
+    });
     await markModified();
     res.status(201).json(eventDTO(row));
   }));
@@ -167,9 +171,13 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const input=parsed.data,check=await checkWorld(input.eraId,input.locationId,input.image);
     if(check.error){error(res,400,check.error,'Неверная связь события');return;}
     await createBackup(db);
-    const row=await db.event.update({where:{id:existing.id},data:{
-      ...input,article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
-    }});
+    const row=await db.$transaction(async tx=>{
+      const updated=await tx.event.update({where:{id:existing.id},data:{
+        ...input,article:cleanArticle(input.article),tags:JSON.stringify(input.tags)
+      }});
+      await recordHistory(tx,'event','update',existing.id,existing,updated);
+      return updated;
+    });
     await markModified();
     res.json(eventDTO(row));
   }));
@@ -177,7 +185,10 @@ export function registerTimelines(app:Express,db:PrismaClient){
     const item=await db.event.findUnique({where:{id:routeId(req.params.id)}});
     if(!item){error(res,404,'NOT_FOUND','Событие не найдено');return;}
     await createBackup(db);
-    await db.event.delete({where:{id:item.id}});
+    await db.$transaction(async tx=>{
+      await tx.event.delete({where:{id:item.id}});
+      await recordHistory(tx,'event','delete',item.id,item,null);
+    });
     await markModified();
     res.json({ok:true});
   }));
