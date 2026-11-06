@@ -5,7 +5,9 @@ import {
 } from '@mui/material';
 import { RotatableImageOverlay } from './LeafletAtlas';
 import { assetUrl } from './geometry';
-import { handlePoint, moveHandle, type LayerHandle } from './layerEditorMath';
+import {
+  handlePoint, moveBoundsBy, moveHandle, resizeHandleWithAspect, type LayerHandle,
+} from './layerEditorMath';
 import type { ImageBounds } from './atlasMath';
 
 type ImageSpec = { image: string | null; width: number; height: number; name: string };
@@ -15,6 +17,7 @@ type Props = {
   child: ImageSpec;
   bounds: ImageBounds;
   rotation: number;
+  opacity?: number;
   onApply: (bounds: ImageBounds) => void;
   onClose: () => void;
 };
@@ -26,7 +29,7 @@ const asLeafletBounds = (bounds: ImageBounds): L.LatLngBounds =>
   L.latLngBounds([bounds.y1, bounds.x1], [bounds.y2, bounds.x2]);
 
 export function LayerGeometryDialog({
-  open, parent, child, bounds, rotation, onApply, onClose,
+  open, parent, child, bounds, rotation, opacity=.85, onApply, onClose,
 }: Props) {
   // This Dialog uses a conditional MUI portal: wait for the actual DOM node.
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
@@ -63,7 +66,7 @@ export function LayerGeometryDialog({
     }).addTo(map);
     const overlay = new RotatableImageOverlay(assetUrl('maps', child.image),
       asLeafletBounds(working.current), {
-        pane: 'geometryChild', opacity: 0.85, interactive: false,
+        pane: 'geometryChild', opacity: Math.max(.05,Math.min(1,opacity)), interactive: false,
       });
     overlay.setRotation(rotation);
     overlay.addTo(map);
@@ -83,6 +86,57 @@ export function LayerGeometryDialog({
         marker.setLatLng([point.y, point.x]);
       }
     }
+    let shiftDown=false,ctrlDown=false;
+    const keyDown=(event:KeyboardEvent)=>{
+      if(event.key==='Shift')shiftDown=true;
+      if(event.key==='Control'&&!ctrlDown){
+        ctrlDown=true;
+        map.dragging.disable();
+        container.classList.add('atlas-layer-ctrlmove');
+      }
+    };
+    const keyUp=(event:KeyboardEvent)=>{
+      if(event.key==='Shift')shiftDown=false;
+      if(event.key==='Control'){
+        ctrlDown=false;
+        map.dragging.enable();
+        container.classList.remove('atlas-layer-ctrlmove');
+      }
+    };
+    const resetKeys=()=>{
+      shiftDown=false;ctrlDown=false;
+      map.dragging.enable();
+      container.classList.remove('atlas-layer-ctrlmove');
+    };
+    window.addEventListener('keydown',keyDown);
+    window.addEventListener('keyup',keyUp);
+    window.addEventListener('blur',resetKeys);
+
+    const beginCtrlMove=(event:L.LeafletMouseEvent)=>{
+      const mouse=event.originalEvent as MouseEvent;
+      if(!(ctrlDown||mouse.ctrlKey))return;
+      const current=working.current;
+      if(event.latlng.lng<current.x1||event.latlng.lng>current.x2||
+        event.latlng.lat<current.y1||event.latlng.lat>current.y2)return;
+      L.DomEvent.stop(mouse);
+      map.dragging.disable();
+      const start={x:event.latlng.lng,y:event.latlng.lat};
+      const startBounds={...current};
+      const move=(next:L.LeafletMouseEvent)=>{
+        working.current=moveBoundsBy(startBounds,next.latlng.lng-start.x,next.latlng.lat-start.y);
+        display();
+      };
+      const end=()=>{
+        map.off('mousemove',move);
+        map.off('mouseup',end);
+        if(!ctrlDown)map.dragging.enable();
+        setPreview({...working.current});
+      };
+      map.on('mousemove',move);
+      map.on('mouseup',end);
+    };
+    map.on('mousedown',beginCtrlMove);
+
     for (const handle of handles) {
       const point = handlePoint(working.current, handle);
       const marker = L.marker([point.y, point.x], {
@@ -94,15 +148,18 @@ export function LayerGeometryDialog({
           iconSize: [25, 25], iconAnchor: [12, 12],
         }),
       }).addTo(map);
-      marker.bindTooltip(handle === 'center' ? 'Переместить карту' : 'Изменить размер', {
+      marker.bindTooltip(handle === 'center'
+        ? 'Переместить карту'
+        : 'Изменить размер · Shift сохраняет пропорции', {
         direction: 'top',
       });
       marker.on('drag', () => {
         const position = marker.getLatLng();
         try {
-          working.current = moveHandle(working.current, handle, {
-            x: position.lng, y: position.lat,
-          });
+          const point={x:position.lng,y:position.lat};
+          working.current=shiftDown&&handle!=='center'
+            ?resizeHandleWithAspect(working.current,handle,point,child.width/child.height)
+            :moveHandle(working.current,handle,point);
           display(handle);
         } catch (reason: unknown) {
           setError(reason instanceof Error ? reason.message : 'Не удалось изменить размеры');
@@ -133,12 +190,17 @@ export function LayerGeometryDialog({
       disposed = true;
       observer?.disconnect();
       cancelAnimationFrame(frame);
+      window.removeEventListener('keydown',keyDown);
+      window.removeEventListener('keyup',keyUp);
+      window.removeEventListener('blur',resetKeys);
+      map.off('mousedown',beginCtrlMove);
+      container.classList.remove('atlas-layer-ctrlmove');
       map.remove();
     };
   }, [
     open, available, container,
     parent.image, parent.width, parent.height,
-    child.image, child.width, child.height, rotation,
+    child.image, child.width, child.height, rotation, opacity,
   ]);
 
   return <Dialog open={open} onClose={onClose} fullWidth maxWidth="lg">
@@ -146,8 +208,10 @@ export function LayerGeometryDialog({
     <DialogContent>
       <Typography fontSize={13} color="text.secondary" sx={{ mb: 2 }}>
         Перетаскивай центральную точку, чтобы переместить карту, и четыре угловые,
-        чтобы изменить её размеры. Поворот сохраняется; дочерние карты не наследуют
-        поворот родителя. Изменения попадут в форму, но не сохранятся в базу до «Сохранить».
+        чтобы изменить её размеры. Shift при resize сохраняет исходное соотношение сторон.
+        Ctrl + ЛКМ позволяет тащить карту за любую точку внутри изображения.
+        Поворот сохраняется; дочерние карты не наследуют поворот родителя.
+        Изменения попадут в форму, но не сохранятся в базу до «Сохранить».
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {available ? (
