@@ -4,6 +4,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import express, { type Express } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { requireAdmin } from './auth.js';
+import { atlasAssetsDir } from './paths.js';
 
 const MAX_BYTES=40*1024*1024;
 type ImageResult={extension:string;width:number|null;height:number|null};
@@ -51,7 +52,7 @@ export function registerUploads(app:Express,db:PrismaClient){
         }
         const name=randomUUID()+'.'+info.extension;
         const key=kind+'/'+name;
-        const assetsDir=path.resolve(process.env.ATLAS_ASSETS_DIR??path.join(process.cwd(),'storage','assets'));
+        const assetsDir=atlasAssetsDir();
         const targetDir=path.join(assetsDir,kind);
         await fs.mkdir(targetDir,{recursive:true});
         const target=path.join(targetDir,name);
