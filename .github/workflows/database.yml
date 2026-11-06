@@ -31,5 +31,9 @@ jobs:
         run: npm run test:api
       - name: Verify nested Leaflet geometry
         run: npm run test:geometry
+      - name: Test admin authentication, authorization, timelines and backups
+        run: npm run test:admin
+      - name: ESLint
+        run: npm run lint
       - name: Build new stack
         run: npm run build
