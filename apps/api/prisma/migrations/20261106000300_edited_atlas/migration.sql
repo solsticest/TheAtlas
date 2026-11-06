@@ -1,0 +1,1 @@
+ALTER TABLE "AtlasDocument" ADD COLUMN "isModified" BOOLEAN NOT NULL DEFAULT false;
