@@ -192,9 +192,10 @@ export function LeafletAtlas({
         ()=>{marker.closePopup();selectRef.current(loc);},
         ()=>{marker.closePopup();editRef.current(loc,'marker');},
         canEdit));
-      marker.on('contextmenu',(event:L.LeafletMouseEvent)=>contextRef.current({
-        kind:'location',point:pointOf(event),location:loc,
-      }));
+      marker.on('contextmenu',(event:L.LeafletMouseEvent)=>{
+        L.DomEvent.stop(event.originalEvent);
+        contextRef.current({kind:'location',point:pointOf(event),location:loc});
+      });
       markerObjects.push({loc,marker});markersRef.current.set(loc.id,marker);
     }
 
@@ -264,9 +265,10 @@ export function LeafletAtlas({
       const x=location?.x??event.x,y=location?.y??event.y;if(x==null||y==null)continue;
       const marker=L.marker([y,x],{interactive:true,draggable:false,pane:'atlasEventPane',icon:eventIcon()});
       marker.on('click',()=>eventClickRef.current(event));
-      marker.on('contextmenu',(mouse:L.LeafletMouseEvent)=>contextRef.current({
-        kind:'event',point:pointOf(mouse),event,
-      }));
+      marker.on('contextmenu',(mouse:L.LeafletMouseEvent)=>{
+        L.DomEvent.stop(mouse.originalEvent);
+        contextRef.current({kind:'event',point:pointOf(mouse),event});
+      });
       const tooltip=document.createElement('span');tooltip.textContent=event.title+(event.dateLabel?' · '+event.dateLabel:'');
       marker.bindTooltip(tooltip);layer.addLayer(marker);markers.set(event.id,marker);
     }
