@@ -392,7 +392,10 @@ export function AtlasViewer(){
       if(value==='z'&&!event.shiftKey){
         event.preventDefault();
         if(editorTarget)editorRef.current?.undo();
-        else if(historyState.canUndo)void globalHistory('undo');
+        else if(placementTool){
+          setPlacementTool(null);
+          setNotice('Инструмент постановки отменён.');
+        }else if(historyState.canUndo)void globalHistory('undo');
         return;
       }
       if(value==='y'||(value==='z'&&event.shiftKey)){
@@ -433,10 +436,10 @@ export function AtlasViewer(){
       }}>+ Тип маркера</Button>
       {canEdit&&!editorTarget&&<>
         <Divider orientation="vertical" flexItem sx={{mx:.5}}/>
-        <Button size="small" disabled={!historyState.canUndo||historyBusy}
+        <Button size="small" disabled={!historyState.canUndo||historyBusy||Boolean(placementTool)}
           title={historyState.undo?.label??'Нет сохранённых действий для отмены'}
           onClick={()=>void globalHistory('undo')}>↶</Button>
-        <Button size="small" disabled={!historyState.canRedo||historyBusy}
+        <Button size="small" disabled={!historyState.canRedo||historyBusy||Boolean(placementTool)}
           title={historyState.redo?.label??'Нет действий для повтора'}
           onClick={()=>void globalHistory('redo')}>↷</Button>
       </>}
