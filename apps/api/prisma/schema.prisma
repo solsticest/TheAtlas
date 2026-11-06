@@ -153,3 +153,17 @@ model AdminSession {
   expiresAt DateTime
   createdAt DateTime @default(now())
 }
+
+
+model EditHistory {
+  id         Int      @id @default(autoincrement())
+  entityKind String
+  entityId   String
+  action     String
+  beforeJson String?
+  afterJson  String?
+  applied    Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([applied, id])
+}
