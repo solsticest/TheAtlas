@@ -21,8 +21,8 @@ const titles:Record<Kind,string>={
 const fields:Record<Kind,Field[]>={
   world:[
     {key:'name',label:'Название мира'},
-    {key:'width',label:'Ширина изображения (px)',type:'integer',createOnly:true},
-    {key:'height',label:'Высота изображения (px)',type:'integer',createOnly:true},
+    {key:'width',label:'Ширина изображения (px)',type:'integer'},
+    {key:'height',label:'Высота изображения (px)',type:'integer'},
     {key:'image',label:'Имя файла карты',nullable:true},
     {key:'kmPerPixel',label:'Километров на пиксель',type:'number',nullable:true},
   ],
@@ -30,9 +30,9 @@ const fields:Record<Kind,Field[]>={
   layer:[
     {key:'name',label:'Название слоя'},
     {key:'parentId',label:'Родительская карта',type:'select',nullable:true},
-    {key:'image',label:'Имя файла изображения',createOnly:true,nullable:true},
-    {key:'width',label:'Ширина исходного файла',type:'integer',createOnly:true},
-    {key:'height',label:'Высота исходного файла',type:'integer',createOnly:true},
+    {key:'image',label:'Имя файла изображения',nullable:true},
+    {key:'width',label:'Ширина исходного файла',type:'integer'},
+    {key:'height',label:'Высота исходного файла',type:'integer'},
     {key:'x1',label:'Bounds: x1 (родитель)',type:'number'},
     {key:'y1',label:'Bounds: y1 (родитель)',type:'number'},
     {key:'x2',label:'Bounds: x2 (родитель)',type:'number'},
@@ -287,7 +287,7 @@ export function AdminPage(){
       if(!response.ok||!data.filename)throw Error(data.error?.message??'Ошибка загрузки');
       setNotice('Изображение сохранено: '+data.filename);
       setField('image',data.filename);
-      if(!selected&&(kind==='world'||kind==='layer')){
+      if(kind==='world'||kind==='layer'){
         if(data.width)setField('width',data.width);
         if(data.height)setField('height',data.height);
       }
