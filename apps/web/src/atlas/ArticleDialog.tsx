@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { Box, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
 import type { LocationRecord } from '@atlas/shared';
 import { assetUrl } from './geometry';
 
@@ -8,6 +8,8 @@ type Props = {
   location: LocationRecord | null;
   onClose: () => void;
   onLink: (worldId: string, locationId: string) => void;
+  canEdit?: boolean;
+  onEdit?: () => void;
 };
 
 function safeHtml(html: string): string {
@@ -45,7 +47,7 @@ function safeHtml(html: string): string {
   return wrapper.innerHTML;
 }
 
-export function ArticleDialog({ location, onClose, onLink }: Props) {
+export function ArticleDialog({ location, onClose, onLink, canEdit=false, onEdit }: Props) {
   const html = useMemo(() => safeHtml(location?.article ?? ''), [location?.article]);
   return (
     <Dialog open={!!location} onClose={onClose} maxWidth="md" fullWidth
@@ -56,6 +58,9 @@ export function ArticleDialog({ location, onClose, onLink }: Props) {
           sx={{ position: 'absolute', right: 12, top: 12 }}>✕</IconButton>
       </DialogTitle>
       <DialogContent>
+        {canEdit&&location&&<Stack direction="row" justifyContent="flex-end" sx={{mb:1}}>
+          <Button size="small" variant="outlined" onClick={onEdit}>Редактировать статью</Button>
+        </Stack>}
         {location?.description && (
           <Typography color="text.secondary" sx={{ mb: 2 }}>{location.description}</Typography>
         )}
