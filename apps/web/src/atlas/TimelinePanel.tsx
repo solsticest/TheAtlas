@@ -14,8 +14,14 @@ type Props={
   onEra:(id:string)=>void;
   onEvent:(event:EventRecord)=>void;
   loading:boolean;
+  editing?:boolean;
+  onEditTimeline?:(id:string)=>void;
+  onEditEra?:(id:string)=>void;
 };
-export function TimelinePanel({timelines,eras,events,timelineId,eraId,onTimeline,onEra,onEvent,loading}:Props){
+export function TimelinePanel({
+  timelines,eras,events,timelineId,eraId,onTimeline,onEra,onEvent,loading,
+  editing=false,onEditTimeline,onEditEra,
+}:Props){
   return <Stack gap={1.5}>
     <Divider />
     <Typography variant="subtitle2" color="primary.main">История мира</Typography>
@@ -23,18 +29,26 @@ export function TimelinePanel({timelines,eras,events,timelineId,eraId,onTimeline
       Опубликованных линий времени пока нет.
     </Typography>}
     {timelines.length>0 && <>
-      <FormControl size="small" fullWidth>
-        <InputLabel id="timeline-choice">Таймлайн</InputLabel>
-        <Select labelId="timeline-choice" label="Таймлайн" value={timelineId} onChange={event=>onTimeline(event.target.value)}>
-          {timelines.map(t=><MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
-        </Select>
-      </FormControl>
-      <FormControl size="small" fullWidth disabled={!eras.length}>
-        <InputLabel id="era-choice">Эпоха</InputLabel>
-        <Select labelId="era-choice" label="Эпоха" value={eraId} onChange={event=>onEra(event.target.value)}>
-          {eras.map(e=><MenuItem key={e.id} value={e.id}>{e.name}{e.dateLabel?' — '+e.dateLabel:''}</MenuItem>)}
-        </Select>
-      </FormControl>
+      <Stack direction="row" gap={1} alignItems="center">
+        <FormControl size="small" fullWidth>
+          <InputLabel id="timeline-choice">Таймлайн</InputLabel>
+          <Select labelId="timeline-choice" label="Таймлайн" value={timelineId} onChange={event=>onTimeline(event.target.value)}>
+            {timelines.map(t=><MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
+          </Select>
+        </FormControl>
+        {editing&&timelineId&&<ListItemButton sx={{flex:'0 0 auto',p:1,borderRadius:1}}
+          aria-label="Редактировать таймлайн" onClick={()=>onEditTimeline?.(timelineId)}>✎</ListItemButton>}
+      </Stack>
+      <Stack direction="row" gap={1} alignItems="center">
+        <FormControl size="small" fullWidth disabled={!eras.length}>
+          <InputLabel id="era-choice">Эпоха</InputLabel>
+          <Select labelId="era-choice" label="Эпоха" value={eraId} onChange={event=>onEra(event.target.value)}>
+            {eras.map(e=><MenuItem key={e.id} value={e.id}>{e.name}{e.dateLabel?' — '+e.dateLabel:''}</MenuItem>)}
+          </Select>
+        </FormControl>
+        {editing&&eraId&&<ListItemButton sx={{flex:'0 0 auto',p:1,borderRadius:1}}
+          aria-label="Редактировать эпоху" onClick={()=>onEditEra?.(eraId)}>✎</ListItemButton>}
+      </Stack>
       <Typography color="text.secondary" fontSize={12}>
         {loading?'Загружаем события…':eras.length===0?'В этом таймлайне нет эпох.':events.length===0?'В этой эпохе пока нет опубликованных событий.':'События эпохи'}
       </Typography>
