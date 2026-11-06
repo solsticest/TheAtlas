@@ -14,13 +14,13 @@ type Props={
   onEra:(id:string)=>void;
   onEvent:(event:EventRecord)=>void;
   loading:boolean;
-  editing?:boolean;
+  canEdit?:boolean;
   onEditTimeline?:(id:string)=>void;
   onEditEra?:(id:string)=>void;
 };
 export function TimelinePanel({
   timelines,eras,events,timelineId,eraId,onTimeline,onEra,onEvent,loading,
-  editing=false,onEditTimeline,onEditEra,
+  canEdit=false,onEditTimeline,onEditEra,
 }:Props){
   return <Stack gap={1.5}>
     <Divider />
@@ -36,7 +36,7 @@ export function TimelinePanel({
             {timelines.map(t=><MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>)}
           </Select>
         </FormControl>
-        {editing&&timelineId&&<ListItemButton sx={{flex:'0 0 auto',p:1,borderRadius:1}}
+        {canEdit&&timelineId&&<ListItemButton sx={{flex:'0 0 auto',p:1,borderRadius:1}}
           aria-label="Редактировать таймлайн" onClick={()=>onEditTimeline?.(timelineId)}>✎</ListItemButton>}
       </Stack>
       <Stack direction="row" gap={1} alignItems="center">
@@ -46,7 +46,7 @@ export function TimelinePanel({
             {eras.map(e=><MenuItem key={e.id} value={e.id}>{e.name}{e.dateLabel?' — '+e.dateLabel:''}</MenuItem>)}
           </Select>
         </FormControl>
-        {editing&&eraId&&<ListItemButton sx={{flex:'0 0 auto',p:1,borderRadius:1}}
+        {canEdit&&eraId&&<ListItemButton sx={{flex:'0 0 auto',p:1,borderRadius:1}}
           aria-label="Редактировать эпоху" onClick={()=>onEditEra?.(eraId)}>✎</ListItemButton>}
       </Stack>
       <Typography color="text.secondary" fontSize={12}>
