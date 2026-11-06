@@ -30,3 +30,8 @@ html, body, #root { margin: 0; height: 100%; }
   .atlas-sidebar { width: 100%; flex: 0 0 34%; max-height: 260px; border-right: 0; border-bottom: 1px solid #4a453b; }
   .atlas-map-area { min-height: 200px; }
 }
+
+.atlas-event-icon {background:transparent;border:0;}
+.atlas-event-symbol {display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+  color:#231d14;font-size:22px;background:#e5bb70;border:2px solid #fff2bd;border-radius:50%;
+  box-shadow:0 0 0 3px #28221f,0 2px 9px #000c;}
