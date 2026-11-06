@@ -190,9 +190,12 @@ export function LeafletAtlas({
     map.fitBounds(bounds, { padding: [28, 28], animate: false });
     update();
     // Leaflet calculates sizes after React has mounted the container.
-    requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+    const frame = requestAnimationFrame(() => {
+      if (mapRef.current === map) map.invalidateSize({ pan: false });
+    });
 
     return () => {
+      cancelAnimationFrame(frame);
       map.off('zoomend moveend', update);
       map.remove();
       mapRef.current = null;
