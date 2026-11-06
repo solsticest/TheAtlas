@@ -163,11 +163,20 @@ async function execute(options){
     const doc=await db.atlasDocument.findUnique({where:{id:'legacy-v4'}});
     if(options.mode==='verify'){
       if(!doc||doc.sourceSha256!==report.sourceSha256) throw Error('База не импортирована из этого JSON');
+      if(doc.isModified){
+        const count=await assertAssetIntegrity(db);
+        return {status:'verified-edited',count,hash:doc.sourceSha256,
+          note:'База содержит правки редактора. Исходный JSON не перезаписывается.'};
+      }
       const result=await verify(db,data,report);
       return {status:'verified',...result};
     }
     if(doc){
       if(doc.sourceSha256!==report.sourceSha256) throw Error('База уже импортирована из другого JSON. Нельзя автоматически перезаписывать изменения.');
+      if(doc.isModified){
+        const count=await assertAssetIntegrity(db);
+        return {status:'already-imported-edited',count,hash:doc.sourceSha256};
+      }
       const result=await verify(db,data,report);
       return {status:'already-imported',...result};
     }
