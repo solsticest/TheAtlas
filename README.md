@@ -93,3 +93,16 @@ npm.cmd run backup:atlas -- --restore --from "D:\Projects\TheAtlas\storage\backu
 Для размещения в интернете нужны HTTPS, правильно настроенные cookie и **постоянный диск**. Serverless с эфемерной ФС не подходит для SQLite и файлов без дополнительной архитектуры; для него потребуется PostgreSQL и объектное хранилище.
 
 Сложный legacy-редактор drag/resize, двухточечное совмещение и undo/redo пока остаются в старом приложении. Не сливай миграционную ветку в main и не удаляй оригинальные данные до ручной приёмки.
+
+
+## Production build (только после настройки HTTPS)
+
+~~~powershell
+cd D:\Projects\TheAtlas
+npm.cmd run build
+$env:NODE_ENV="production"
+$env:HOST="127.0.0.1"
+npm.cmd start
+~~~
+
+Express отдаёт собранный React и /admin по http://localhost:3001, а также все /api маршруты. Для публичного домена HTTPS terminates в reverse proxy; нельзя просто открыть порт без HTTPS и ожидать безопасной admin-сессии.
