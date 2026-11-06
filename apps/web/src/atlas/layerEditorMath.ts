@@ -31,3 +31,48 @@ export function moveHandle(
     y2: handle.startsWith('n') ? Math.max(at.y, y1 + minSize) : y2,
   };
 }
+
+
+export function moveBoundsBy(original: ImageBounds, dx: number, dy: number): ImageBounds {
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) throw Error('Некорректное смещение.');
+  return {
+    x1: original.x1 + dx, x2: original.x2 + dx,
+    y1: original.y1 + dy, y2: original.y2 + dy,
+  };
+}
+
+export function resizeHandleWithAspect(
+  original: ImageBounds,
+  handle: Exclude<LayerHandle, 'center'>,
+  at: Point,
+  aspectRatio: number,
+): ImageBounds {
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    throw Error('Некорректное соотношение сторон.');
+  }
+  if (!Number.isFinite(at.x) || !Number.isFinite(at.y)) {
+    throw Error('Некорректная координата.');
+  }
+  const { x1, x2, y1, y2 } = original;
+  if (!(x2 > x1 && y2 > y1)) throw Error('Некорректные границы карты.');
+
+  const fixedX = handle.endsWith('w') ? x2 : x1;
+  const fixedY = handle.startsWith('s') ? y2 : y1;
+  const desiredWidth = Math.abs(at.x - fixedX);
+  const desiredHeight = Math.abs(at.y - fixedY);
+
+  // Use the dominant pointer axis, then derive the other dimension.
+  // This mirrors conventional Shift-resize behavior and avoids ratio drift.
+  const minHeight = Math.max(1, 1 / aspectRatio);
+  const height = Math.max(desiredHeight, desiredWidth / aspectRatio, minHeight);
+  const width = height * aspectRatio;
+
+  const west = handle.endsWith('w');
+  const south = handle.startsWith('s');
+  return {
+    x1: west ? fixedX - width : fixedX,
+    x2: west ? fixedX : fixedX + width,
+    y1: south ? fixedY - height : fixedY,
+    y2: south ? fixedY : fixedY + height,
+  };
+}
