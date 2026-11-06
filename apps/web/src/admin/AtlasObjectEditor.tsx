@@ -489,7 +489,7 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
           </Stack>
           <Slider size="small" min={.05} max={1} step={.05}
             value={Number(draft.previewOpacity??.72)}
-            onChange={(_event,value)=>patch({previewOpacity:Number(value)},'preview-opacity')}
+            onChange={(_event,value)=>setDraft(current=>({...current,previewOpacity:Number(value)}))}
             valueLabelDisplay="auto"
             valueLabelFormat={value=>Math.round(value*100)+'%'}/>
           <Typography variant="caption" color="text.secondary">
