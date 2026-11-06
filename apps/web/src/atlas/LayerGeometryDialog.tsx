@@ -28,7 +28,8 @@ const asLeafletBounds = (bounds: ImageBounds): L.LatLngBounds =>
 export function LayerGeometryDialog({
   open, parent, child, bounds, rotation, onApply, onClose,
 }: Props) {
-  const element = useRef<HTMLDivElement>(null);
+  // This Dialog uses a conditional MUI portal: wait for the actual DOM node.
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const working = useRef(bounds);
   const [preview, setPreview] = useState(bounds);
   const [error, setError] = useState('');
@@ -47,8 +48,8 @@ export function LayerGeometryDialog({
   }, [open]); // Starting bounds are captured only when the dialog opens.
 
   useEffect(() => {
-    if (!open || !element.current || !available || !parent.image || !child.image) return;
-    const map = L.map(element.current, {
+    if (!open || !container || !available || !parent.image || !child.image) return;
+    const map = L.map(container, {
       crs: L.CRS.Simple, zoomSnap: 0, minZoom: -7, maxZoom: 9,
       attributionControl: false,
     });
@@ -113,15 +114,29 @@ export function LayerGeometryDialog({
       });
       points.set(handle, marker);
     }
-    map.fitBounds(parentBounds, { padding: [20, 20], animate: false });
-    display();
-    const frame = requestAnimationFrame(() => map.invalidateSize({ pan: false }));
+    let disposed = false;
+    let fitted = false;
+    const resize = () => {
+      if (disposed || !container.clientWidth || !container.clientHeight) return;
+      if (!fitted) {
+        map.fitBounds(parentBounds, { padding: [20, 20], animate: false });
+        fitted = true;
+        display();
+      }
+      map.invalidateSize({ pan: false });
+    };
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null;
+    observer?.observe(container);
+    const frame = requestAnimationFrame(resize);
+    resize();
     return () => {
+      disposed = true;
+      observer?.disconnect();
       cancelAnimationFrame(frame);
       map.remove();
     };
   }, [
-    open, available,
+    open, available, container,
     parent.image, parent.width, parent.height,
     child.image, child.width, child.height, rotation,
   ]);
@@ -136,7 +151,7 @@ export function LayerGeometryDialog({
       </Typography>
       {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
       {available ? (
-        <div ref={element} style={{
+        <div ref={setContainer} data-testid="atlas-layer-geometry-map" style={{
           height: 'min(62vh,650px)', minHeight: 340, width: '100%',
           background: '#10151d', borderRadius: 5,
         }}/>
