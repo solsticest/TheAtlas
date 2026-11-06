@@ -21,6 +21,8 @@ model MarkerType {
   id        String     @id
   name      String
   symbol    String
+  color     String     @default("#d6b77a")
+  iconSvg   String?
   sortOrder Int        @unique
   raw       String
   locations Location[]
