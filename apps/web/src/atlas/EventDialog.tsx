@@ -1,11 +1,14 @@
 import { useMemo } from 'react';
 import DOMPurify from 'dompurify';
-import { Box, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
+import { Box, Button, Chip, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
 import type { EventRecord } from '@atlas/shared';
 import { assetUrl } from './geometry';
 
-type Props={ event:EventRecord|null; onClose:()=>void; onLink:(worldId:string,locationId:string)=>void };
-export function EventDialog({event,onClose,onLink}:Props){
+type Props={
+  event:EventRecord|null; onClose:()=>void; onLink:(worldId:string,locationId:string)=>void;
+  canEdit?:boolean; onEdit?:()=>void;
+};
+export function EventDialog({event,onClose,onLink,canEdit=false,onEdit}:Props){
   const html=useMemo(()=>DOMPurify.sanitize(event?.article??'',{
     ADD_ATTR:['data-world','data-location'],FORBID_TAGS:['script','style','iframe','object','embed','form','svg'],
   }),[event?.article]);
@@ -16,6 +19,9 @@ export function EventDialog({event,onClose,onLink}:Props){
       <IconButton aria-label="Закрыть" onClick={onClose} sx={{position:'absolute',right:10,top:10}}>✕</IconButton>
     </DialogTitle>
     <DialogContent>
+      {canEdit&&event&&<Stack direction="row" justifyContent="flex-end" sx={{mb:1}}>
+        <Button size="small" variant="outlined" onClick={onEdit}>Редактировать событие</Button>
+      </Stack>}
       {event?.dateLabel&&<Typography variant="subtitle2" color="primary.main">{event.dateLabel}</Typography>}
       {event?.summary&&<Typography sx={{my:2}}>{event.summary}</Typography>}
       {!!event?.tags.length&&<Stack direction="row" gap={1} flexWrap="wrap" sx={{my:1}}>
