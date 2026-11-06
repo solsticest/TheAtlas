@@ -13,7 +13,8 @@ function classifySvg(buffer:Buffer):ImageResult|null {
   if(!buffer.length||buffer.length>MAX_SVG_BYTES)return null;
   const text=buffer.toString('utf8').replace(/^\uFEFF/,'').trim();
   if(!/^(?:<\?xml[^>]*>\s*)?<svg\b/i.test(text))return null;
-  if(/<(?:script|foreignObject|iframe|object|embed)\b/i.test(text))return null;
+  if(/<(?:script|style|foreignObject|iframe|object|embed)\b/i.test(text))return null;
+  if(/<!DOCTYPE\b|<!ENTITY\b/i.test(text))return null;
   if(/\son[a-z]+\s*=/i.test(text))return null;
   if(/(?:href|xlink:href)\s*=\s*["'](?!#)/i.test(text))return null;
   if(/url\s*\(/i.test(text))return null;
