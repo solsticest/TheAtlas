@@ -3,7 +3,7 @@ import {
 } from 'react';
 import {
   Alert, Box, Button, Checkbox, Divider, FormControl, FormControlLabel,
-  InputLabel, MenuItem, Select, Stack, TextField, Typography,
+  InputLabel, MenuItem, Select, Slider, Stack, TextField, Typography,
 } from '@mui/material';
 import type {
   EraRecord, EventRecord, LayerRecord, LocationRecord, MarkerTypeRecord,
@@ -136,7 +136,10 @@ function sourceRow(props:Props):Row|null{
 }
 function asForm(kind:EditorKind,row:Row):Record<string,unknown>{
   const result={...row};
-  if(kind==='layer'&&row.bounds&&typeof row.bounds==='object')Object.assign(result,row.bounds);
+  if(kind==='layer'&&row.bounds&&typeof row.bounds==='object'){
+    Object.assign(result,row.bounds);
+    result.previewOpacity=.72;
+  }
   return result;
 }
 function defaults(props:Props):Record<string,unknown>{
@@ -150,7 +153,7 @@ function defaults(props:Props):Record<string,unknown>{
     type:{name:'Новый тип',symbol:'◆',color:'#d6b77a',iconSvg:null},
     layer:{name:'Новый регион',parentId,image:null,width:1000,height:1000,
       x1:width*.25,y1:height*.25,x2:width*.75,y2:height*.75,
-      rotation:0,showAtZoom:1,fadeRange:.75,enabled:true},
+      rotation:0,showAtZoom:1,fadeRange:.75,enabled:true,previewOpacity:.72},
     location:{name:'Новый маркер',type:type?.id??'',x:props.world.width/2,y:props.world.height/2,
       color:type?.color??'#d6b77a',minZoom:-6,description:'',article:'',tags:[]},
     timeline:{name:'Новый таймлайн',description:'',sortOrder:0,isDefault:false,status:'published'},
@@ -477,6 +480,22 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
       </Stack>}
 
       {(props.target.kind==='layer'||props.target.kind==='world')&&<>
+        {props.target.kind==='layer'&&<Box>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Typography variant="subtitle2" sx={{flex:1}}>Прозрачность предпросмотра</Typography>
+            <Typography variant="caption" color="text.secondary">
+              {Math.round(Number(draft.previewOpacity??.72)*100)}%
+            </Typography>
+          </Stack>
+          <Slider size="small" min={.05} max={1} step={.05}
+            value={Number(draft.previewOpacity??.72)}
+            onChange={(_event,value)=>patch({previewOpacity:Number(value)},'preview-opacity')}
+            valueLabelDisplay="auto"
+            valueLabelFormat={value=>Math.round(value*100)+'%'}/>
+          <Typography variant="caption" color="text.secondary">
+            Только для сверки: это значение не сохраняется в карту.
+          </Typography>
+        </Box>}
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button component="label" size="small" variant="outlined">Загрузить карту
             <input hidden type="file" accept="image/png,image/webp,image/jpeg" onChange={event=>{
@@ -513,7 +532,7 @@ export const AtlasObjectEditor=forwardRef<AtlasObjectEditorHandle,Props>(functio
 
     <LayerGeometryDialog open={geometryOpen} child={sourceSpec} parent={parentSpec}
       bounds={{x1:Number(draft.x1),y1:Number(draft.y1),x2:Number(draft.x2),y2:Number(draft.y2)}}
-      rotation={Number(draft.rotation??0)}
+      rotation={Number(draft.rotation??0)} opacity={Number(draft.previewOpacity??.72)}
       onApply={bounds=>patch(bounds,'geometry')} onClose={()=>setGeometryOpen(false)}/>
     <TwoPointAlignDialog open={alignOpen} child={sourceSpec} parent={parentSpec}
       onApply={(bounds,rotation)=>patch({...bounds,rotation},'alignment')}
