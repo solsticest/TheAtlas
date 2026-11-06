@@ -3,7 +3,7 @@ import type { Express, Request, Response, NextFunction } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import {
   worldCreateSchema, worldUpdateSchema, markerTypeInputSchema,
-  layerCreateSchema, layerEditSchema, locationCreateSchema, locationEditSchema,
+  layerCreateSchema, layerUpdateSchema, locationCreateSchema, locationEditSchema,
 } from '@atlas/shared';
 import { requireAdmin } from './auth.js';
 import { createBackup } from './backup.js';
@@ -69,9 +69,16 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     const patch:Record<string,unknown>={name:data.name};
     if(data.kmPerPixel!==undefined)patch.kmPerPixel=data.kmPerPixel;
     if(data.image!==undefined)patch.image=data.image;
+    if(data.width!==undefined)patch.width=data.width;
+    if(data.height!==undefined)patch.height=data.height;
+    if((data.image!==undefined&&data.image!==existing.image)||
+      (data.width!==undefined&&data.width!==existing.width)||
+      (data.height!==undefined&&data.height!==existing.height))await createBackup(db);
     await db.world.update({where:{id:existing.id},data:{
       name:data.name,kmPerPixel:data.kmPerPixel===undefined?existing.kmPerPixel:data.kmPerPixel,
-      image:data.image===undefined?existing.image:data.image,raw:changed(existing.raw,patch),
+      image:data.image===undefined?existing.image:data.image,
+      width:data.width??existing.width,height:data.height??existing.height,
+      raw:changed(existing.raw,patch),
     }});
     await markModified();
     res.json({ok:true});
@@ -140,7 +147,7 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     res.status(201).json({id:l.id});
   }));
   app.patch('/api/admin/layers/:id',guard,route(async(req,res)=>{
-    const parsed=layerEditSchema.safeParse(req.body);
+    const parsed=layerUpdateSchema.safeParse(req.body);
     if(!parsed.success){fail(res,400,'BAD_INPUT','Неверные параметры карты');return;}
     const row=await db.mapLayer.findUnique({where:{id:id(req.params.id)}});
     if(!row){fail(res,404,'NOT_FOUND','Карта-слой не найдена');return;}
@@ -148,6 +155,12 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
     if(!await checkParent(row.worldId,patch.parentId,row.id)){
       fail(res,400,'INVALID_PARENT','Родительская карта не найдена или образуется цикл');return;
     }
+    if(patch.image!==undefined && !await requireMap(patch.image)){
+      fail(res,400,'BAD_ASSET','Изображение карты не найдено');return;
+    }
+    if((patch.image!==undefined&&patch.image!==row.image)||
+      (patch.width!==undefined&&patch.width!==row.width)||
+      (patch.height!==undefined&&patch.height!==row.height))await createBackup(db);
     await db.mapLayer.update({where:{id:row.id},data:{
       ...patch,bounds:JSON.stringify(patch.bounds),raw:changed(row.raw,patch),
     }});
