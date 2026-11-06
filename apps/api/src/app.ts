@@ -39,8 +39,12 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
   app.get('/api/worlds', async (_req, res, next) => {
     try {
       const rows = await db.world.findMany({ orderBy: { sortOrder: 'asc' } });
-      res.json(rows.map(({ id, name, image, width, height, kmPerPixel }) =>
-        ({ id, name, image, width, height, kmPerPixel })));
+      res.json(rows.map(row => {
+        const raw = JSON.parse(row.raw) as Record<string, unknown>;
+        return { id: row.id, name: row.name, image: row.image,
+          width: raw.width ?? row.width, height: raw.height ?? row.height,
+          kmPerPixel: raw.kmPerPixel ?? row.kmPerPixel };
+      }));
     } catch (error) { next(error); }
   });
 
@@ -49,8 +53,10 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
     try {
       const row = await db.world.findUnique({ where: { id: req.params.id } });
       if (!row) { res.status(404).json(issue('NOT_FOUND', 'Мир не найден')); return; }
-      const { id, name, image, width, height, kmPerPixel } = row;
-      res.json({ id, name, image, width, height, kmPerPixel });
+      const raw = JSON.parse(row.raw) as Record<string, unknown>;
+      res.json({ id: row.id, name: row.name, image: row.image,
+        width: raw.width ?? row.width, height: raw.height ?? row.height,
+        kmPerPixel: raw.kmPerPixel ?? row.kmPerPixel });
     } catch (error) { next(error); }
   });
 
@@ -58,10 +64,12 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
     if (!safeId(req.params.id)) { res.status(400).json(issue('BAD_ID', 'Неверный ID мира')); return; }
     try {
       const rows = await db.mapLayer.findMany({ where: { worldId: req.params.id }, orderBy: { sortOrder: 'asc' } });
-      res.json(rows.map(row => ({ ...JSON.parse(row.raw) as Record<string, unknown>,
-        worldId: row.worldId, parentId: row.parentId, image: row.image,
-        rotation: row.rotation, showAtZoom: row.showAtZoom, fadeRange: row.fadeRange,
-        enabled: row.enabled })));
+      res.json(rows.map(row => {
+        const raw = JSON.parse(row.raw) as Record<string, unknown>;
+        return { ...raw, worldId: row.worldId, parentId: row.parentId, image: row.image,
+          rotation: raw.rotation ?? row.rotation, showAtZoom: raw.showAtZoom ?? row.showAtZoom,
+          fadeRange: raw.fadeRange ?? row.fadeRange, enabled: raw.enabled ?? row.enabled };
+      }));
     } catch (error) { next(error); }
   });
 
@@ -69,9 +77,12 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
     if (!safeId(req.params.id)) { res.status(400).json(issue('BAD_ID', 'Неверный ID мира')); return; }
     try {
       const rows = await db.location.findMany({ where: { worldId: req.params.id }, orderBy: { sortOrder: 'asc' } });
-      res.json(rows.map(row => ({ ...JSON.parse(row.raw) as Record<string, unknown>,
-        worldId: row.worldId, color: row.color, minZoom: row.minZoom,
-        description: row.description, article: row.article, tags: JSON.parse(row.tags) as string[] })));
+      res.json(rows.map(row => {
+        const raw = JSON.parse(row.raw) as Record<string, unknown>;
+        return { ...raw, worldId: row.worldId, color: row.color,
+          minZoom: raw.minZoom ?? row.minZoom, description: row.description,
+          article: row.article, tags: JSON.parse(row.tags) as string[] };
+      }));
     } catch (error) { next(error); }
   });
 
