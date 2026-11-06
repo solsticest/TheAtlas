@@ -22,8 +22,8 @@ async function exportAtlas(db){
     db.mapLayer.findMany({orderBy:[{worldId:'asc'},{sortOrder:'asc'}]}),
     db.location.findMany({orderBy:[{worldId:'asc'},{sortOrder:'asc'}]})
   ]);
-  const byWorld=(rows,id)=>rows.filter(item=>item.worldId===id).sort((a,b)=>a.sortOrder-b.sortOrder).map(item=>item.raw);
-  return {...doc.rootExtras,version:doc.version,types:types.map(t=>t.raw),worlds:worlds.map(w=>({...w.raw,layers:byWorld(layers,w.id),locations:byWorld(locations,w.id)}))};
+  const byWorld=(rows,id)=>rows.filter(item=>item.worldId===id).sort((a,b)=>a.sortOrder-b.sortOrder).map(item=>JSON.parse(item.raw));
+  return {...JSON.parse(doc.rootExtras),version:doc.version,types:types.map(t=>JSON.parse(t.raw)),worlds:worlds.map(w=>({...JSON.parse(w.raw),layers:byWorld(layers,w.id),locations:byWorld(locations,w.id)}))};
 }
 async function assertAssetIntegrity(db){
   const rows=await db.mediaAsset.findMany({orderBy:{path:'asc'}});
