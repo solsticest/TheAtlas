@@ -316,8 +316,22 @@ export function AtlasViewer(){
     dispatch(selectWorld(id));setArticleId(null);setEventId(null);closeEditor(true);
   }
   function navigate(worldTarget:string,kind:'world'|'layer'|'location'|'event',id:string){
-    if(worldTarget!==selectedWorldId)dispatch(navigateToWorld(worldTarget));
+    if(worldTarget!==selectedWorldId){
+      if(!mayReplaceEditor())return;
+      closeEditor(true);
+      dispatch(navigateToWorld(worldTarget));
+    }
     setArticleId(null);setEventId(null);nextFocus(kind,id);
+  }
+  function changeTimeline(id:string){
+    if(editorTarget&&!mayReplaceEditor())return;
+    if(editorTarget)closeEditor(true);
+    dispatch(selectTimeline(id));setEventId(null);setArticleId(null);
+  }
+  function changeEra(id:string){
+    if(editorTarget&&!mayReplaceEditor())return;
+    if(editorTarget)closeEditor(true);
+    dispatch(selectEra(id));setEventId(null);setArticleId(null);
   }
   function clickSearchResult(item:SearchItem){
     navigate(item.worldId,item.kind,item.id);setSearch('');
@@ -435,8 +449,8 @@ export function AtlasViewer(){
 
           <TimelinePanel timelines={timelines} eras={eras} events={events}
             timelineId={timeline?.id??''} eraId={era?.id??''}
-            onTimeline={id=>{dispatch(selectTimeline(id));setEventId(null);}}
-            onEra={id=>{dispatch(selectEra(id));setEventId(null);}}
+            onTimeline={changeTimeline}
+            onEra={changeEra}
             onEvent={focusEvent} canEdit={canEdit}
             onEditTimeline={id=>openEditor({kind:'timeline',id})}
             onEditEra={id=>openEditor({kind:'era',id})}
