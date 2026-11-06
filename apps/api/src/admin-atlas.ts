@@ -162,7 +162,13 @@ export function registerAtlasAdmin(app:Express,db:PrismaClient){
       (patch.width!==undefined&&patch.width!==row.width)||
       (patch.height!==undefined&&patch.height!==row.height))await createBackup(db);
     await db.mapLayer.update({where:{id:row.id},data:{
-      ...patch,bounds:JSON.stringify(patch.bounds),raw:changed(row.raw,patch),
+      name:patch.name,parentId:patch.parentId,
+      bounds:JSON.stringify(patch.bounds),rotation:patch.rotation,
+      showAtZoom:patch.showAtZoom,fadeRange:patch.fadeRange,enabled:patch.enabled,
+      ...(patch.image===undefined?{}:{image:patch.image}),
+      ...(patch.width===undefined?{}:{width:patch.width}),
+      ...(patch.height===undefined?{}:{height:patch.height}),
+      raw:changed(row.raw,patch),
     }});
     await markModified();
     res.json({ok:true});
