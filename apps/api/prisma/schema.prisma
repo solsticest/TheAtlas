@@ -36,6 +36,7 @@ model World {
   raw        String
   layers     MapLayer[]
   locations  Location[]
+  timelines   Timeline[]
 }
 
 model MapLayer {
@@ -79,6 +80,7 @@ model Location {
 
   world       World      @relation(fields: [worldId], references: [id], onDelete: Restrict)
   markerType  MarkerType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  events      Event[]
 
   @@unique([worldId, sortOrder])
   @@index([worldId, typeId])
@@ -94,4 +96,57 @@ model MediaAsset {
   height     Int?
   storedPath String
   importedAt DateTime @default(now())
+}
+
+model Timeline {
+  id          String   @id
+  worldId     String
+  name        String
+  description String   @default("")
+  sortOrder   Int      @default(0)
+  isDefault   Boolean  @default(false)
+  status      String   @default("draft")
+  world       World    @relation(fields: [worldId], references: [id], onDelete: Restrict)
+  eras        Era[]
+  @@index([worldId, sortOrder])
+}
+
+model Era {
+  id          String   @id
+  timelineId  String
+  name        String
+  description String   @default("")
+  dateLabel   String   @default("")
+  sortOrder   Int      @default(0)
+  image       String?
+  timeline    Timeline @relation(fields: [timelineId], references: [id], onDelete: Restrict)
+  events      Event[]
+  @@index([timelineId, sortOrder])
+}
+
+model Event {
+  id         String   @id
+  eraId      String
+  title      String
+  summary    String   @default("")
+  article    String   @default("")
+  type       String   @default("")
+  tags       String   @default("[]")
+  dateLabel  String   @default("")
+  sortOrder  Int      @default(0)
+  locationId String?
+  x          Float?
+  y          Float?
+  image      String?
+  status     String   @default("draft")
+  era        Era      @relation(fields: [eraId], references: [id], onDelete: Restrict)
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  @@index([eraId, status, sortOrder])
+}
+
+model AdminSession {
+  idHash    String   @id
+  csrfHash  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 }
