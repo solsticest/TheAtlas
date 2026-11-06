@@ -4,7 +4,9 @@ import type {
   EventRecord, LayerBounds, LayerRecord, LocationRecord, MarkerTypeRecord, WorldRecord,
 } from '@atlas/shared';
 import { assetUrl, depthOf, opacityAtZoom, worldBox } from './geometry';
-import { moveHandle, type LayerHandle } from './layerEditorMath';
+import {
+  moveBoundsBy, moveHandle, resizeHandleWithAspect, type LayerHandle,
+} from './layerEditorMath';
 import type { EditorSection, EditorTarget } from '../admin/AtlasObjectEditor';
 
 type Focus={kind:'world'|'layer'|'location'|'event';id:string;sequence:number};
@@ -300,6 +302,7 @@ export function LeafletAtlas({
     const typeMap=new Map(types.map(type=>[type.id,type]));
     const kind=preview.target.kind,draft=preview.draft;
     const previewTypeId=kind==='type'?preview.target.id:undefined;
+    let cleanupLayerInteraction:(()=>void)|null=null;
 
     if(kind==='type'&&previewTypeId){
       const base=types.find(type=>type.id===previewTypeId);
@@ -364,9 +367,40 @@ export function LeafletAtlas({
         ?initialList.find(layer=>layer.id===initialSynthetic.parentId):undefined;
       const parentWidth=parent?.width??world.width,parentHeight=parent?.height??world.height;
       if(box&&parentBox&&parentBox.x2!==parentBox.x1&&parentBox.y2!==parentBox.y1){
+        const previewOpacity=Math.max(.05,Math.min(1,Number(draft.previewOpacity??.72)));
         const overlay=new RotatableImageOverlay(assetUrl('maps',initialSynthetic.image!),leafletBounds(box),
-          {pane:'atlasDraftPane',interactive:false,opacity:.72});
+          {pane:'atlasDraftPane',interactive:false,opacity:previewOpacity});
         overlay.setRotation(initialSynthetic.rotation);overlay.addTo(draftLayer);
+        let shiftDown=false,ctrlDown=false;
+        const aspectRatio=Number(draft.width)>0&&Number(draft.height)>0
+          ?Number(draft.width)/Number(draft.height)
+          :(working.x2-working.x1)/(working.y2-working.y1);
+        const container=elementRef.current;
+        const keyDown=(event:KeyboardEvent)=>{
+          if(event.key==='Shift')shiftDown=true;
+          if(event.key==='Control'&&!ctrlDown){
+            ctrlDown=true;
+            map.dragging.disable();
+            container?.classList.add('atlas-layer-ctrlmove');
+          }
+        };
+        const keyUp=(event:KeyboardEvent)=>{
+          if(event.key==='Shift')shiftDown=false;
+          if(event.key==='Control'){
+            ctrlDown=false;
+            map.dragging.enable();
+            container?.classList.remove('atlas-layer-ctrlmove');
+          }
+        };
+        const resetKeys=()=>{
+          shiftDown=false;ctrlDown=false;
+          map.dragging.enable();
+          container?.classList.remove('atlas-layer-ctrlmove');
+        };
+        window.addEventListener('keydown',keyDown);
+        window.addEventListener('keyup',keyUp);
+        window.addEventListener('blur',resetKeys);
+
         const handles:LayerHandle[]=['nw','ne','sw','se','center'];
         const symbols:Record<LayerHandle,string>={nw:'↖',ne:'↗',sw:'↙',se:'↘',center:'✥'};
         const markers=new Map<LayerHandle,L.Marker>();
@@ -401,10 +435,15 @@ export function LeafletAtlas({
               html:'<span class="atlas-editor-handle-shape">'+symbols[handle]+'</span>',
               iconSize:[25,25],iconAnchor:[12,12]}),
           }).addTo(draftLayer);
-          marker.bindTooltip(handle==='center'?'Переместить регион':'Изменить размер',{direction:'top'});
+          marker.bindTooltip(handle==='center'
+            ?'Переместить регион'
+            :'Изменить размер · Shift сохраняет пропорции',{direction:'top'});
           marker.on('drag',()=>{
             try{
-              working=moveHandle(working,handle,parentPoint(marker.getLatLng()));
+              const at=parentPoint(marker.getLatLng());
+              working=shiftDown&&handle!=='center'
+                ?resizeHandleWithAspect(working,handle,at,aspectRatio)
+                :moveHandle(working,handle,at);
               display(handle);
             }catch{/* keep last valid bounds while pointer crosses the opposite corner */}
           });
@@ -414,9 +453,48 @@ export function LeafletAtlas({
           });
           markers.set(handle,marker);
         }
+
+        const beginCtrlMove=(event:L.LeafletMouseEvent)=>{
+          const mouse=event.originalEvent as MouseEvent;
+          if(!(ctrlDown||mouse.ctrlKey))return;
+          const target=mouse.target;
+          if(target instanceof Element&&target.closest('.atlas-editor-handle'))return;
+          const currentWorld=worldBoxFor(working);
+          if(!currentWorld||
+            event.latlng.lng<currentWorld.x1||event.latlng.lng>currentWorld.x2||
+            event.latlng.lat<currentWorld.y1||event.latlng.lat>currentWorld.y2)return;
+          L.DomEvent.stop(mouse);
+          map.dragging.disable();
+          const start=parentPoint(event.latlng);
+          const startBounds={...working};
+          const move=(next:L.LeafletMouseEvent)=>{
+            const at=parentPoint(next.latlng);
+            working=moveBoundsBy(startBounds,at.x-start.x,at.y-start.y);
+            display();
+          };
+          const end=()=>{
+            map.off('mousemove',move);
+            map.off('mouseup',end);
+            if(!ctrlDown)map.dragging.enable();
+            layerGeometryRef.current({...working});
+          };
+          map.on('mousemove',move);
+          map.on('mouseup',end);
+        };
+        map.on('mousedown',beginCtrlMove);
+
+        cleanupLayerInteraction=()=>{
+          window.removeEventListener('keydown',keyDown);
+          window.removeEventListener('keyup',keyUp);
+          window.removeEventListener('blur',resetKeys);
+          map.off('mousedown',beginCtrlMove);
+          container?.classList.remove('atlas-layer-ctrlmove');
+          map.dragging.enable();
+        };
       }
     }
     return()=>{
+      cleanupLayerInteraction?.();
       draftLayer.remove();
       if(preview.target.kind==='location'&&preview.target.id)
         markersRef.current.get(preview.target.id)?.setOpacity(1);
