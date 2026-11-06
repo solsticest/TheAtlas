@@ -70,6 +70,17 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     cookie=(login.headers.get('set-cookie')??'').split(';')[0];
     csrf=login.data.csrfToken;
     assert.equal(typeof csrf,'string');
+
+    // Development must allow Vite on any loopback port, but still reject external origins.
+    const loopbackOrigin=await fetch(base+'/api/admin/history/state',{headers:{
+      cookie,'x-csrf-token':csrf,origin:'http://localhost:5179'
+    }});
+    assert.equal(loopbackOrigin.status,200,await loopbackOrigin.text());
+    const evilOrigin=await fetch(base+'/api/admin/history/state',{headers:{
+      cookie,'x-csrf-token':csrf,origin:'https://evil.invalid'
+    }});
+    assert.equal(evilOrigin.status,403);
+
     assert.equal((await request('/api/admin/timelines','POST',timeline,true,false)).status,403);
     assert.equal((await request('/api/admin/timelines','POST',{...timeline,name:'bad', status:'unknown'})).status,400);
     const published=await request('/api/admin/timelines','POST',timeline);
