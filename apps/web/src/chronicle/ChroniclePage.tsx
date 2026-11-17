@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Chip, CircularProgress, Stack, Typography } from '@mui/material';
-import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode, WheelEvent as ReactWheelEvent } from 'react';
 import { useWorldsQuery } from '../atlas/api';
 import { CURRENT_YEAR, DAYS_PER_YEAR, chronicleDateToDay, formatChronicleYearBoundary } from './calendar';
 import './chronicle.css';
@@ -135,7 +135,7 @@ export function ChroniclePage(){
 }
 
 function ChronicleTrack({label,subtitle,ticks,className='',expandable=false,expanded=false,onToggle,child=false}:{
-  label:string;subtitle:string;ticks:React.ReactNode;className?:string;expandable?:boolean;expanded?:boolean;onToggle?:()=>void;child?:boolean;
+  label:string;subtitle:string;ticks:ReactNode;className?:string;expandable?:boolean;expanded?:boolean;onToggle?:()=>void;child?:boolean;
 }){
   return <Box className={'chronicle-track '+className+(child?' is-child':'')}>
     <Box className="chronicle-track-label">
