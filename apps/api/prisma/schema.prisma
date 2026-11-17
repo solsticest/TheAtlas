@@ -39,7 +39,8 @@ model World {
   raw        String
   layers     MapLayer[]
   locations  Location[]
-  timelines   Timeline[]
+  timelines       Timeline[]
+  chronicleEvents ChronicleEventWorld[]
 }
 
 model MapLayer {
@@ -166,4 +167,59 @@ model EditHistory {
   createdAt  DateTime @default(now())
 
   @@index([applied, id])
+}
+
+
+model ChronicleTag {
+  id             String              @id
+  name           String
+  normalizedName String              @unique
+  color          String              @default("#8f744e")
+  icon           String?
+  description    String              @default("")
+  createdAt      DateTime            @default(now())
+  events         ChronicleEventTag[]
+}
+
+model ChronicleEvent {
+  id               String                @id
+  title            String
+  summary          String                @default("")
+  article          String                @default("")
+  kind             String                @default("point")
+  startDay         Int?
+  endDay           Int?
+  startPrecision   String                @default("exact")
+  earliestDay      Int?
+  latestDay        Int?
+  endPrecision     String?
+  significance     String                @default("normal")
+  visibility       String                @default("gm")
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  worlds           ChronicleEventWorld[]
+  tags             ChronicleEventTag[]
+
+  @@index([startDay, endDay])
+  @@index([visibility, startDay])
+}
+
+model ChronicleEventWorld {
+  eventId String
+  worldId String
+  event   ChronicleEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  world   World          @relation(fields: [worldId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, worldId])
+  @@index([worldId, eventId])
+}
+
+model ChronicleEventTag {
+  eventId String
+  tagId   String
+  event   ChronicleEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  tag     ChronicleTag   @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([eventId, tagId])
+  @@index([tagId, eventId])
 }
