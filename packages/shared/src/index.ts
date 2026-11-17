@@ -204,6 +204,8 @@ export const chronicleEventInputSchema = z.object({
   tagNames: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
   significance: chronicleSignificanceSchema.default('normal'),
   visibility: chronicleVisibilitySchema.default('gm'),
+  color: z.string().regex(/^#[0-9a-f]{6}$/i).default('#d6b77a'),
+  icon: z.string().trim().max(12).nullable().default(null),
 }).strict().superRefine((value,ctx)=>{
   if(value.startPrecision==='unknown'){
     if(value.startDay!==null)ctx.addIssue({code:'custom',path:['startDay'],message:'Unknown date must not have startDay'});
@@ -238,6 +240,8 @@ export const chronicleEventSchema = z.object({
   endPrecision: chronicleDatePrecisionSchema.nullable(),
   significance: chronicleSignificanceSchema,
   visibility: chronicleVisibilitySchema,
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  icon: z.string().max(12).nullable(),
   worlds: z.array(chronicleWorldRefSchema),
   tags: z.array(chronicleTagSchema),
 });
