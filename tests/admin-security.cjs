@@ -71,6 +71,30 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     csrf=login.data.csrfToken;
     assert.equal(typeof csrf,'string');
 
+    // Chronicle core: separate event model, world links, tag entities and visibility.
+    const chronicleBase={
+      title:'Chronicle GM event',summary:'private history',article:'',kind:'point',
+      startDay:686664,endDay:null,startPrecision:'exact',earliestDay:null,latestDay:null,
+      endPrecision:null,worldIds:['demo-world'],tagNames:['Война','война'],
+      significance:'important',visibility:'gm'
+    };
+    const gmChronicle=await request('/api/admin/chronicle/events','POST',chronicleBase);
+    assert.equal(gmChronicle.status,201,JSON.stringify(gmChronicle.data));
+    assert.equal(gmChronicle.data.worlds[0].id,'demo-world');
+    assert.equal(gmChronicle.data.tags.length,1,'normalized duplicate tags must merge');
+    const anonymousChronicle=await request('/api/chronicle/events','GET',undefined,false,false);
+    assert.equal(anonymousChronicle.status,200);
+    assert.equal(anonymousChronicle.data.some(item=>item.id===gmChronicle.data.id),false);
+    const authenticatedChronicle=await request('/api/chronicle/events');
+    assert.equal(authenticatedChronicle.data.some(item=>item.id===gmChronicle.data.id),true);
+    const publicChronicle=await request('/api/admin/chronicle/events','POST',{
+      ...chronicleBase,title:'Chronicle public period',kind:'period',endDay:686674,
+      tagNames:['Политика'],visibility:'public'
+    });
+    assert.equal(publicChronicle.status,201,JSON.stringify(publicChronicle.data));
+    const publicChronicleList=await request('/api/chronicle/events','GET',undefined,false,false);
+    assert.equal(publicChronicleList.data.some(item=>item.id===publicChronicle.data.id),true);
+
     // Development must allow Vite on any loopback port, but still reject external origins.
     const loopbackOrigin=await fetch(base+'/api/admin/history/state',{headers:{
       cookie,'x-csrf-token':csrf,origin:'http://localhost:5179'
