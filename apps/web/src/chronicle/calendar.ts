@@ -27,7 +27,7 @@ function assertDate(date:ChronicleDate){
 export function dayOfYear(date:ChronicleDate){
   assertDate(date);
   let result=date.day-1;
-  for(let index=0;index<date.monthIndex;index++)result+=CHRONICLE_MONTHS[index].days;
+  for(let index=0;index<date.monthIndex;index++)result+=CHRONICLE_MONTHS[index]!.days;
   return result;
 }
 export function chronicleDateToDay(date:ChronicleDate){
@@ -44,12 +44,12 @@ export function dayToChronicleDate(absoluteDay:number):ChronicleDate{
     era='BS';year=Math.floor((-whole-1)/DAYS_PER_YEAR)+1;offset=whole+year*DAYS_PER_YEAR;
   }
   let monthIndex=0;
-  while(offset>=CHRONICLE_MONTHS[monthIndex].days){offset-=CHRONICLE_MONTHS[monthIndex].days;monthIndex++;}
+  while(monthIndex<CHRONICLE_MONTHS.length-1&&offset>=CHRONICLE_MONTHS[monthIndex]!.days){offset-=CHRONICLE_MONTHS[monthIndex]!.days;monthIndex++;}
   return {era,year,monthIndex,day:offset+1};
 }
 export function formatChronicleDate(value:ChronicleDate){
   assertDate(value);
-  return value.day+' '+CHRONICLE_MONTHS[value.monthIndex].name+', '+value.year+' '+value.era;
+  return value.day+' '+CHRONICLE_MONTHS[value.monthIndex]!.name+', '+value.year+' '+value.era;
 }
 export function formatChronicleYearBoundary(absoluteDay:number){
   const index=Math.round(absoluteDay/DAYS_PER_YEAR);
