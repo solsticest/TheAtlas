@@ -29,6 +29,7 @@ function dto(row:ChronicleRow){
   };
 }
 const normalize=(name:string)=>name.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
+const routeId=(value:string|string[]|undefined)=>typeof value==='string'?value:'';
 
 async function validateWorlds(db:PrismaClient,ids:string[]){
   const unique=[...new Set(ids)];
@@ -52,8 +53,12 @@ export function registerChronicle(app:Express,db:PrismaClient){
     res.json(rows.map(dto));
   }));
 
-  app.get('/api/chronicle/tags',route(async(_req,res)=>{
-    const rows=await db.chronicleTag.findMany({orderBy:[{name:'asc'}]});
+  app.get('/api/chronicle/tags',route(async(req,res)=>{
+    const session=await sessionFor(req,db);
+    const rows=await db.chronicleTag.findMany({
+      where:session?{}:{events:{some:{event:{visibility:'public'}}}},
+      orderBy:[{name:'asc'}],
+    });
     res.json(rows.map(tag=>({
       id:tag.id,name:tag.name,color:tag.color,icon:tag.icon,description:tag.description,
     })));
@@ -97,7 +102,7 @@ export function registerChronicle(app:Express,db:PrismaClient){
   app.patch('/api/admin/chronicle/events/:id',admin,route(async(req,res)=>{
     const parsed=chronicleEventInputSchema.safeParse(req.body);
     if(!parsed.success){fail(res,400,'BAD_INPUT','Некорректные поля события Chronicle');return;}
-    const existing=await db.chronicleEvent.findUnique({where:{id:req.params.id}});
+    const existing=await db.chronicleEvent.findUnique({where:{id:routeId(req.params.id)}});
     if(!existing){fail(res,404,'NOT_FOUND','Событие Chronicle не найдено');return;}
     const input=parsed.data;
     let worldIds:string[];
@@ -134,7 +139,7 @@ export function registerChronicle(app:Express,db:PrismaClient){
   }));
 
   app.delete('/api/admin/chronicle/events/:id',admin,route(async(req,res)=>{
-    const existing=await db.chronicleEvent.findUnique({where:{id:req.params.id}});
+    const existing=await db.chronicleEvent.findUnique({where:{id:routeId(req.params.id)}});
     if(!existing){fail(res,404,'NOT_FOUND','Событие Chronicle не найдено');return;}
     await createBackup(db);
     await db.chronicleEvent.delete({where:{id:existing.id}});
