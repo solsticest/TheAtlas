@@ -62,7 +62,7 @@ function monthTicks(start:number,end:number):TimelineTick[]{
       const month=CHRONICLE_MONTHS[monthIndex]!;
       result.push({
         day,kind:'month',label:month.name,
-        secondary:monthIndex===0?formatChronicleYearBoundary(yearStart):undefined,
+        ...(monthIndex===0?{secondary:formatChronicleYearBoundary(yearStart)}:{}),
         major:monthIndex===0||month.season==='Излом',
       });
     }
