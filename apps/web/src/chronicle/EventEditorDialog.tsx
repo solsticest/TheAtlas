@@ -25,6 +25,7 @@ export const EVENT_COLOR_PRESETS=[
 export type EventDraft={
   title:string;
   summary:string;
+  article:string;
   kind:'point'|'period';
   start:ChronicleDate;
   end:ChronicleDate;
@@ -38,7 +39,7 @@ export type EventDraft={
 
 export function defaultEventDraft(day:number,worldId:string|null):EventDraft{
   return {
-    title:'',summary:'',kind:'point',
+    title:'',summary:'',article:'',kind:'point',
     start:dayToChronicleDate(day),end:dayToChronicleDate(day+7),
     worldIds:worldId?[worldId]:[],tagText:'',visibility:'gm',
     significance:'normal',color:'#d6b77a',icon:'',
@@ -50,6 +51,7 @@ export function draftFromRecord(event:ChronicleEventRecord):EventDraft{
   return {
     title:event.title,
     summary:event.summary,
+    article:event.article,
     kind:event.kind,
     start:event.startDay===null?fallback:dayToChronicleDate(event.startDay),
     end:event.endDay===null
@@ -69,7 +71,7 @@ export function draftToInput(draft:EventDraft){
   return {
     title:draft.title.trim(),
     summary:draft.summary,
-    article:'',
+    article:draft.article,
     kind:draft.kind,
     startDay,
     endDay:draft.kind==='period'?chronicleDateToDay(draft.end):null,
