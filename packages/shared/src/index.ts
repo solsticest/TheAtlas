@@ -170,3 +170,76 @@ export const layerCreateSchema = layerEditSchema.safeExtend({
   height: z.number().int().positive().max(100000),
 });
 export const locationCreateSchema = locationEditSchema.extend({ worldId: id });
+
+
+export const chronicleEventKindSchema = z.enum(['point','period']);
+export const chronicleDatePrecisionSchema = z.enum(['exact','month','year','approximate','range','unknown']);
+export const chronicleVisibilitySchema = z.enum(['draft','gm','public']);
+export const chronicleSignificanceSchema = z.enum(['normal','important','key']);
+
+export const chronicleTagSchema = z.object({
+  id,
+  name: label,
+  color: z.string().regex(/^#[0-9a-f]{6}$/i),
+  icon: z.string().max(32).nullable(),
+  description: shortText,
+});
+export type ChronicleTagRecord = z.infer<typeof chronicleTagSchema>;
+
+export const chronicleWorldRefSchema = z.object({id,name:label});
+export type ChronicleWorldRef = z.infer<typeof chronicleWorldRefSchema>;
+
+export const chronicleEventInputSchema = z.object({
+  title: label,
+  summary: shortText.default(''),
+  article: article.default(''),
+  kind: chronicleEventKindSchema.default('point'),
+  startDay: z.number().int().nullable().default(null),
+  endDay: z.number().int().nullable().default(null),
+  startPrecision: chronicleDatePrecisionSchema.default('exact'),
+  earliestDay: z.number().int().nullable().default(null),
+  latestDay: z.number().int().nullable().default(null),
+  endPrecision: chronicleDatePrecisionSchema.nullable().default(null),
+  worldIds: z.array(id).max(30).default([]),
+  tagNames: z.array(z.string().trim().min(1).max(100)).max(50).default([]),
+  significance: chronicleSignificanceSchema.default('normal'),
+  visibility: chronicleVisibilitySchema.default('gm'),
+}).strict().superRefine((value,ctx)=>{
+  if(value.startPrecision==='unknown'){
+    if(value.startDay!==null)ctx.addIssue({code:'custom',path:['startDay'],message:'Unknown date must not have startDay'});
+  }else if(value.startDay===null){
+    ctx.addIssue({code:'custom',path:['startDay'],message:'Dated event requires startDay'});
+  }
+  if(value.kind==='point'&&value.endDay!==null){
+    ctx.addIssue({code:'custom',path:['endDay'],message:'Point event must not have endDay'});
+  }
+  if(value.kind==='period'&&value.startPrecision!=='unknown'&&value.endDay===null){
+    ctx.addIssue({code:'custom',path:['endDay'],message:'Period event requires endDay'});
+  }
+  if(value.startDay!==null&&value.endDay!==null&&value.endDay<value.startDay){
+    ctx.addIssue({code:'custom',path:['endDay'],message:'Event cannot end before it begins'});
+  }
+  if(value.earliestDay!==null&&value.latestDay!==null&&value.latestDay<value.earliestDay){
+    ctx.addIssue({code:'custom',path:['latestDay'],message:'Uncertainty range is reversed'});
+  }
+});
+
+export const chronicleEventSchema = z.object({
+  id,
+  title: label,
+  summary: shortText,
+  article,
+  kind: chronicleEventKindSchema,
+  startDay: z.number().int().nullable(),
+  endDay: z.number().int().nullable(),
+  startPrecision: chronicleDatePrecisionSchema,
+  earliestDay: z.number().int().nullable(),
+  latestDay: z.number().int().nullable(),
+  endPrecision: chronicleDatePrecisionSchema.nullable(),
+  significance: chronicleSignificanceSchema,
+  visibility: chronicleVisibilitySchema,
+  worlds: z.array(chronicleWorldRefSchema),
+  tags: z.array(chronicleTagSchema),
+});
+export type ChronicleEventInput = z.infer<typeof chronicleEventInputSchema>;
+export type ChronicleEventRecord = z.infer<typeof chronicleEventSchema>;
