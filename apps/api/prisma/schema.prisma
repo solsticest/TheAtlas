@@ -195,6 +195,8 @@ model ChronicleEvent {
   endPrecision     String?
   significance     String                @default("normal")
   visibility       String                @default("gm")
+  color            String                @default("#d6b77a")
+  icon             String?
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
   worlds           ChronicleEventWorld[]
