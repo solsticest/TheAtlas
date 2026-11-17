@@ -20,7 +20,7 @@ function dto(row:ChronicleRow){
     id:row.id,title:row.title,summary:row.summary,article:row.article,kind:row.kind,
     startDay:row.startDay,endDay:row.endDay,startPrecision:row.startPrecision,
     earliestDay:row.earliestDay,latestDay:row.latestDay,endPrecision:row.endPrecision,
-    significance:row.significance,visibility:row.visibility,
+    significance:row.significance,visibility:row.visibility,color:row.color,icon:row.icon,
     worlds:row.worlds.map(item=>item.world),
     tags:row.tags.map(item=>({
       id:item.tag.id,name:item.tag.name,color:item.tag.color,
@@ -88,7 +88,7 @@ export function registerChronicle(app:Express,db:PrismaClient){
           article:cleanArticle(input.article),kind:input.kind,
           startDay:input.startDay,endDay:input.endDay,startPrecision:input.startPrecision,
           earliestDay:input.earliestDay,latestDay:input.latestDay,endPrecision:input.endPrecision,
-          significance:input.significance,visibility:input.visibility,
+          significance:input.significance,visibility:input.visibility,color:input.color,icon:input.icon,color:input.color,icon:input.icon,
           worlds:{create:worldIds.map(worldId=>({worldId}))},
           tags:{create:tags.map(tag=>({tagId:tag.id}))},
         },
