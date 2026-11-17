@@ -2,15 +2,15 @@ export const DAYS_PER_WEEK=7;
 export const CURRENT_YEAR=1837;
 
 export const CHRONICLE_MONTHS=[
-  {name:'Ард',season:'Весна',days:45},
-  {name:'Аврис',season:'Весна',days:45},
-  {name:'Одра',season:'Лето',days:45},
-  {name:'Сол',season:'Лето',days:45},
-  {name:'Вайрен',season:'Осень',days:45},
-  {name:'Марин',season:'Осень',days:45},
-  {name:'Ундра',season:'Зима',days:45},
-  {name:'Нокт',season:'Зима',days:45},
-  {name:'Излом',season:'Излом',days:14},
+  {name:'Ард',dateName:'Арда',season:'Весна',days:45},
+  {name:'Аврис',dateName:'Авриса',season:'Весна',days:45},
+  {name:'Одра',dateName:'Одры',season:'Лето',days:45},
+  {name:'Сол',dateName:'Сола',season:'Лето',days:45},
+  {name:'Вайрен',dateName:'Вайрена',season:'Осень',days:45},
+  {name:'Марин',dateName:'Марина',season:'Осень',days:45},
+  {name:'Ундра',dateName:'Ундры',season:'Зима',days:45},
+  {name:'Нокт',dateName:'Нокта',season:'Зима',days:45},
+  {name:'Излом',dateName:'Излома',season:'Излом',days:14},
 ] as const;
 
 export const DAYS_PER_YEAR=CHRONICLE_MONTHS.reduce((sum,month)=>sum+month.days,0);
@@ -49,7 +49,7 @@ export function dayToChronicleDate(absoluteDay:number):ChronicleDate{
 }
 export function formatChronicleDate(value:ChronicleDate){
   assertDate(value);
-  return value.day+' '+CHRONICLE_MONTHS[value.monthIndex]!.name+', '+value.year+' '+value.era;
+  return value.day+' '+CHRONICLE_MONTHS[value.monthIndex]!.dateName+', '+value.year+' '+value.era;
 }
 export function formatChronicleYearBoundary(absoluteDay:number){
   const index=Math.round(absoluteDay/DAYS_PER_YEAR);
