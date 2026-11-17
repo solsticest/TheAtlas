@@ -1,13 +1,14 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import {
   worldSchema, layerSchema, locationSchema, markerTypeSchema, searchItemSchema,
-  timelineRecordSchema, eraRecordSchema, eventRecordSchema,
+  timelineRecordSchema, eraRecordSchema, eventRecordSchema, chronicleEventSchema,
   type WorldRecord, type LayerRecord, type LocationRecord, type MarkerTypeRecord, type SearchItem,
-  type TimelineRecord, type EraRecord, type EventRecord,
+  type TimelineRecord, type EraRecord, type EventRecord, type ChronicleEventRecord, type ChronicleEventInput,
 } from '@atlas/shared';
 
 export const atlasApi = createApi({
   reducerPath: 'atlasApi',
+  tagTypes: ['ChronicleEvent'],
   baseQuery: fetchBaseQuery({ baseUrl: '/api' }),
   endpoints: (build) => ({
     worlds: build.query<WorldRecord[], void>({
@@ -38,6 +39,19 @@ export const atlasApi = createApi({
       query: (eraId) => 'eras/' + encodeURIComponent(eraId) + '/events',
       transformResponse: (payload: unknown) => eventRecordSchema.array().parse(payload),
     }),
+    chronicleEvents: build.query<ChronicleEventRecord[], void>({
+      query: () => 'chronicle/events',
+      transformResponse: (payload: unknown) => chronicleEventSchema.array().parse(payload),
+      providesTags: ['ChronicleEvent'],
+    }),
+    createChronicleEvent: build.mutation<ChronicleEventRecord,{input:ChronicleEventInput;csrf:string}>({
+      query: ({input,csrf}) => ({
+        url: 'admin/chronicle/events', method: 'POST', body: input,
+        headers: {'x-csrf-token': csrf},
+      }),
+      transformResponse: (payload: unknown) => chronicleEventSchema.parse(payload),
+      invalidatesTags: ['ChronicleEvent'],
+    }),
     search: build.query<SearchItem[], string>({
       query: (q) => 'search?q=' + encodeURIComponent(q),
       transformResponse: (payload: unknown) => searchItemSchema.array().parse(payload),
@@ -48,4 +62,5 @@ export const atlasApi = createApi({
 export const {
   useWorldsQuery, useMarkerTypesQuery, useLayersQuery, useLocationsQuery, useSearchQuery,
   useTimelinesQuery, useErasQuery, useEventsQuery,
+  useChronicleEventsQuery, useCreateChronicleEventMutation,
 } = atlasApi;
