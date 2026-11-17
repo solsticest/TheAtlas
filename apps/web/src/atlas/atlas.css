@@ -1,6 +1,6 @@
 html, body, #root { margin: 0; height: 100%; }
 .atlas-shell { height: 100vh; min-height: 550px; display: grid; grid-template-rows: 62px minmax(0,1fr); background: #191d24; }
-.atlas-topbar { display: flex; align-items: center; padding: 0 24px; background: #222832; border-bottom: 1px solid #49453e; }
+.atlas-topbar { display: flex; align-items: center; padding: 0 24px 0 72px; background: #222832; border-bottom: 1px solid #49453e; }
 .atlas-workspace { position: relative; display: flex; min-width: 0; min-height: 0; }
 .atlas-sidebar { width: 320px; flex: 0 0 320px; overflow: auto; background: #232831; border-right: 1px solid #4a453b; }
 .atlas-sidebar .MuiListItemText-secondary { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -25,7 +25,7 @@ html, body, #root { margin: 0; height: 100%; }
 .atlas-article figcaption { color: #b9b2a6; font-size: 12px; }
 @media (max-width: 700px) {
   .atlas-shell { height: 100dvh; min-height: 0; grid-template-rows: 48px minmax(0,1fr); }
-  .atlas-topbar { padding: 0 12px; }
+  .atlas-topbar { padding: 0 12px 0 56px; }
   .atlas-workspace { flex-direction: column; }
   .atlas-sidebar { width: 100%; flex: 0 0 34%; max-height: 260px; border-right: 0; border-bottom: 1px solid #4a453b; }
   .atlas-map-area { min-height: 200px; }
