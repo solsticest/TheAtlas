@@ -1,27 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Box, Button, Chip, CircularProgress, Dialog, DialogActions, DialogContent,
-  DialogTitle, FormControl, InputLabel, Menu, MenuItem, Select, Snackbar, Stack,
-  TextField, ToggleButton, ToggleButtonGroup, Typography,
+  DialogTitle, Menu, MenuItem, Snackbar, Stack, TextField, Typography,
 } from '@mui/material';
 import type {
-  PointerEvent as ReactPointerEvent, ReactNode, WheelEvent as ReactWheelEvent,
+  CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent,
+  ReactNode, WheelEvent as ReactWheelEvent,
 } from 'react';
 import type { ChronicleEventRecord } from '@atlas/shared';
 import {
-  useChronicleEventsQuery, useCreateChronicleEventMutation, useWorldsQuery,
+  useChronicleEventsQuery, useCreateChronicleEventMutation,
+  useDeleteChronicleEventMutation, useUpdateChronicleEventMutation, useWorldsQuery,
 } from '../atlas/api';
 import {
-  CHRONICLE_MONTHS, CURRENT_YEAR, DAYS_PER_YEAR, chronicleDateToDay,
-  dayToChronicleDate, formatChronicleDate, formatChronicleYearBoundary,
-  type ChronicleDate,
+  CURRENT_YEAR, DAYS_PER_YEAR, chronicleDateToDay, dayToChronicleDate,
+  formatChronicleDate, formatChronicleYearBoundary,
 } from './calendar';
+import {
+  EventEditorDialog, defaultEventDraft, draftFromRecord, draftToInput,
+  type EventDraft,
+} from './EventEditorDialog';
 import './chronicle.css';
 
 const MIN_SCALE=.0025;
 const MAX_SCALE=3;
 const DEFAULT_SCALE=.08;
-const DRAFT_KEY='chronicle:new-event-draft:v1';
+const NEW_DRAFT_KEY='chronicle:new-event-draft:v2';
 const CURRENT_YEAR_CENTER=chronicleDateToDay({
   era:'AS',year:CURRENT_YEAR,monthIndex:0,day:1,
 })+DAYS_PER_YEAR/2;
@@ -29,11 +33,7 @@ const CURRENT_YEAR_CENTER=chronicleDateToDay({
 type Session={authenticated:boolean;csrfToken?:string};
 type Tick={day:number;left:number;label:string;major:boolean};
 type ContextPoint={mouseX:number;mouseY:number;day:number;worldId:string|null};
-type EventDraft={
-  title:string;summary:string;kind:'point'|'period';
-  start:ChronicleDate;end:ChronicleDate;
-  worldIds:string[];tagText:string;visibility:'draft'|'gm'|'public';
-};
+type EventContext={mouseX:number;mouseY:number;event:ChronicleEventRecord};
 const emptySession:Session={authenticated:false};
 
 function tickStep(scale:number){
@@ -54,19 +54,16 @@ function ticksFor(center:number,width:number,scale:number):Tick[]{
   }
   return ticks;
 }
-function defaultDraft(day:number,worldId:string|null):EventDraft{
-  return {
-    title:'',summary:'',kind:'point',
-    start:dayToChronicleDate(day),end:dayToChronicleDate(day+7),
-    worldIds:worldId?[worldId]:[],tagText:'',visibility:'gm',
-  };
+function draftKey(eventId:string|null){
+  return eventId?'chronicle:event-draft:'+eventId:NEW_DRAFT_KEY;
 }
-function parseStoredDraft():EventDraft|null{
+function parseStoredDraft(key:string):EventDraft|null{
   try{
-    const raw=localStorage.getItem(DRAFT_KEY);
+    const raw=localStorage.getItem(key);
     if(!raw)return null;
     const value=JSON.parse(raw) as EventDraft;
     if(!value||typeof value.title!=='string'||!Array.isArray(value.worldIds))return null;
+    if(typeof value.color!=='string'||typeof value.significance!=='string')return null;
     return value;
   }catch{return null;}
 }
@@ -77,6 +74,8 @@ export function ChroniclePage(){
   const eventsQuery=useChronicleEventsQuery();
   const events=eventsQuery.currentData??[];
   const [createEvent,{isLoading:creating}]=useCreateChronicleEventMutation();
+  const [updateEvent,{isLoading:updating}]=useUpdateChronicleEventMutation();
+  const [deleteEvent,{isLoading:deleting}]=useDeleteChronicleEventMutation();
   const viewportRef=useRef<HTMLDivElement|null>(null);
   const drag=useRef<{x:number;center:number;pointer:number}|null>(null);
   const [width,setWidth]=useState(0);
@@ -87,13 +86,17 @@ export function ChroniclePage(){
   const [loginOpen,setLoginOpen]=useState(false);
   const [password,setPassword]=useState('');
   const [loginError,setLoginError]=useState('');
-  const [context,setContext]=useState<ContextPoint|null>(null);
+  const [trackContext,setTrackContext]=useState<ContextPoint|null>(null);
+  const [eventContext,setEventContext]=useState<EventContext|null>(null);
   const [pendingCreate,setPendingCreate]=useState<ContextPoint|null>(null);
+  const [pendingEditId,setPendingEditId]=useState<string|null>(null);
   const [editorOpen,setEditorOpen]=useState(false);
+  const [editingEventId,setEditingEventId]=useState<string|null>(null);
   const [draft,setDraft]=useState<EventDraft|null>(null);
   const [editorError,setEditorError]=useState('');
   const [notice,setNotice]=useState('');
   const [selectedEvent,setSelectedEvent]=useState<ChronicleEventRecord|null>(null);
+  const [deleteTarget,setDeleteTarget]=useState<ChronicleEventRecord|null>(null);
 
   useEffect(()=>{
     void fetch('/api/auth/me',{credentials:'same-origin'})
@@ -110,8 +113,8 @@ export function ChroniclePage(){
     return()=>observer.disconnect();
   },[]);
   useEffect(()=>{
-    if(editorOpen&&draft)localStorage.setItem(DRAFT_KEY,JSON.stringify(draft));
-  },[editorOpen,draft]);
+    if(editorOpen&&draft)localStorage.setItem(draftKey(editingEventId),JSON.stringify(draft));
+  },[editorOpen,draft,editingEventId]);
 
   const ticks=useMemo(()=>ticksFor(centerDay,width,scale),[centerDay,width,scale]);
   const yearSpan=width&&scale?width/scale/DAYS_PER_YEAR:0;
@@ -154,22 +157,49 @@ export function ChroniclePage(){
       return next;
     });
   }
-  function openTrackContext(event:React.MouseEvent<HTMLDivElement>,worldId:string|null){
+  function openTrackContext(event:ReactMouseEvent<HTMLDivElement>,worldId:string|null){
     event.preventDefault();
+    setEventContext(null);
     const rect=event.currentTarget.getBoundingClientRect();
     const day=Math.round(centerDay+(event.clientX-rect.left-rect.width/2)/scale);
-    setContext({mouseX:event.clientX+2,mouseY:event.clientY-6,day,worldId});
+    setTrackContext({mouseX:event.clientX+2,mouseY:event.clientY-6,day,worldId});
+  }
+  function openEventContext(event:ReactMouseEvent<HTMLButtonElement>,item:ChronicleEventRecord){
+    event.preventDefault();
+    event.stopPropagation();
+    setTrackContext(null);
+    setEventContext({mouseX:event.clientX+2,mouseY:event.clientY-6,event:item});
+  }
+  function openCreateEditor(point:ContextPoint){
+    setTrackContext(null);
+    setEditingEventId(null);
+    const stored=parseStoredDraft(NEW_DRAFT_KEY);
+    setDraft(stored??defaultEventDraft(point.day,point.worldId));
+    setEditorError('');
+    setEditorOpen(true);
+    if(stored)setNotice('Восстановлен несохранённый черновик нового события.');
   }
   function beginCreate(point:ContextPoint){
-    setContext(null);
     if(!session.authenticated){
       setPendingCreate(point);setLoginOpen(true);return;
     }
-    const stored=parseStoredDraft();
-    setDraft(stored??defaultDraft(point.day,point.worldId));
+    openCreateEditor(point);
+  }
+  function openEditEditor(item:ChronicleEventRecord){
+    setEventContext(null);
+    setSelectedEvent(null);
+    setEditingEventId(item.id);
+    const stored=parseStoredDraft(draftKey(item.id));
+    setDraft(stored??draftFromRecord(item));
     setEditorError('');
     setEditorOpen(true);
-    if(stored)setNotice('Восстановлен несохранённый черновик события.');
+    if(stored)setNotice('Восстановлен несохранённый черновик изменений.');
+  }
+  function beginEdit(item:ChronicleEventRecord){
+    if(!session.authenticated){
+      setPendingEditId(item.id);setLoginOpen(true);return;
+    }
+    openEditEditor(item);
   }
   async function login(){
     setLoginError('');
@@ -182,7 +212,13 @@ export function ChroniclePage(){
       if(!response.ok)throw Error(data.error?.message??'Не удалось войти');
       setSession(data);setPassword('');setLoginOpen(false);
       await eventsQuery.refetch();
-      if(pendingCreate){const point=pendingCreate;setPendingCreate(null);beginCreate(point);}
+      if(pendingCreate){
+        const point=pendingCreate;setPendingCreate(null);openCreateEditor(point);
+      }else if(pendingEditId){
+        const item=events.find(value=>value.id===pendingEditId);
+        setPendingEditId(null);
+        if(item)openEditEditor(item);
+      }
     }catch(reason){setLoginError(reason instanceof Error?reason.message:String(reason));}
   }
   async function logout(){
@@ -194,19 +230,16 @@ export function ChroniclePage(){
   async function saveEvent(){
     if(!draft||!session.csrfToken)return;
     setEditorError('');
-    const startDay=chronicleDateToDay(draft.start);
-    const endDay=draft.kind==='period'?chronicleDateToDay(draft.end):null;
-    const tagNames=draft.tagText.split(',').map(x=>x.trim()).filter(Boolean);
+    const input=draftToInput(draft);
     try{
-      await createEvent({csrf:session.csrfToken,input:{
-        title:draft.title.trim(),summary:draft.summary,article:'',kind:draft.kind,
-        startDay,endDay,startPrecision:'exact',earliestDay:null,latestDay:null,
-        endPrecision:draft.kind==='period'?'exact':null,worldIds:draft.worldIds,
-        tagNames,significance:'normal',visibility:draft.visibility,
-      }}).unwrap();
-      localStorage.removeItem(DRAFT_KEY);
-      setEditorOpen(false);setDraft(null);
-      setNotice('Событие Chronicle сохранено.');
+      if(editingEventId){
+        await updateEvent({id:editingEventId,csrf:session.csrfToken,input}).unwrap();
+      }else{
+        await createEvent({csrf:session.csrfToken,input}).unwrap();
+      }
+      localStorage.removeItem(draftKey(editingEventId));
+      setEditorOpen(false);setDraft(null);setEditingEventId(null);
+      setNotice(editingEventId?'Изменения события сохранены.':'Событие Chronicle сохранено.');
     }catch(reason){
       const payload=reason as {data?:{error?:{message?:string}}};
       setEditorError(payload.data?.error?.message??'Не удалось сохранить событие');
@@ -214,7 +247,19 @@ export function ChroniclePage(){
   }
   function closeEditor(){
     setEditorOpen(false);
-    if(draft)setNotice('Черновик сохранён в браузере и восстановится при следующем создании.');
+    if(draft)setNotice('Черновик сохранён в браузере и восстановится при следующем открытии.');
+  }
+  async function confirmDelete(){
+    if(!deleteTarget||!session.csrfToken)return;
+    try{
+      await deleteEvent({id:deleteTarget.id,csrf:session.csrfToken}).unwrap();
+      localStorage.removeItem(draftKey(deleteTarget.id));
+      setDeleteTarget(null);
+      setSelectedEvent(null);
+      setNotice('Событие удалено.');
+    }catch{
+      setNotice('Не удалось удалить событие.');
+    }
   }
 
   const universeEvents=events.filter(item=>item.worlds.length!==1);
@@ -231,39 +276,55 @@ export function ChroniclePage(){
       </Typography>
       <Button size="small" variant="outlined" onClick={()=>zoom(.78)}>−</Button>
       <Button size="small" variant="outlined" onClick={()=>zoom(1.28)}>+</Button>
-      <Button size="small" variant="contained" onClick={()=>{setCenterDay(CURRENT_YEAR_CENTER);setScale(DEFAULT_SCALE);}}>{CURRENT_YEAR} AS</Button>
+      <Button size="small" variant="contained"
+        onClick={()=>{setCenterDay(CURRENT_YEAR_CENTER);setScale(DEFAULT_SCALE);}}>
+        {CURRENT_YEAR} AS
+      </Button>
       {session.authenticated
         ?<Button size="small" onClick={()=>void logout()}>Выйти</Button>
         :<Button size="small" onClick={()=>setLoginOpen(true)}>Войти</Button>}
     </Box>
 
     <Box className="chronicle-intro">
-      <Typography variant="caption" color="text.secondary">ЛКМ + drag — двигать время · колесо — масштаб · ПКМ по дорожке — создать событие</Typography>
-      <Typography variant="caption" color="text.secondary">События мира получают связь с ним автоматически; независимые создаются на дорожке «Мультивселенная».</Typography>
+      <Typography variant="caption" color="text.secondary">
+        ЛКМ + drag — двигать время · колесо — масштаб · ПКМ по дорожке — создать · ПКМ по событию — редактировать
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Цвет, иконка и значимость события теперь управляют его видом на шкале.
+      </Typography>
     </Box>
 
     <Box className="chronicle-board">
-      <Box className="chronicle-ruler-label"><Typography fontSize={11} fontWeight={800} color="text.secondary">ДОРОЖКИ</Typography></Box>
+      <Box className="chronicle-ruler-label">
+        <Typography fontSize={12} fontWeight={800} color="text.secondary">ДОРОЖКИ</Typography>
+      </Box>
       <Box ref={viewportRef} className="chronicle-ruler" onWheel={onWheel}
         onPointerDown={pointerDown} onPointerMove={pointerMove}
         onPointerUp={pointerUp} onPointerCancel={pointerUp}>
         {grid}
-        {ticks.map(tick=><span key={'label-'+tick.day} className="chronicle-tick-label" style={{left:tick.left}}>{tick.label}</span>)}
+        {ticks.map(tick=><span key={'label-'+tick.day} className="chronicle-tick-label"
+          style={{left:tick.left}}>{tick.label}</span>)}
       </Box>
 
       <Box className="chronicle-rows">
         <ChronicleTrack label="Мультивселенная" subtitle="Независимые и межмировые события"
           className="chronicle-track-universe" ticks={grid} events={universeEvents}
           centerDay={centerDay} scale={scale} width={width}
-          onContext={event=>openTrackContext(event,null)} onEvent={setSelectedEvent}/>
-        {worldsQuery.isLoading&&<Box className="chronicle-loading"><CircularProgress size={22}/><Typography variant="caption">Загружаем миры Atlas…</Typography></Box>}
-        {worldsQuery.isError&&<Box className="chronicle-loading"><Typography color="error.main">Не удалось получить миры Atlas.</Typography></Box>}
+          onContext={event=>openTrackContext(event,null)}
+          onEvent={setSelectedEvent} onEventContext={openEventContext}/>
+        {worldsQuery.isLoading&&<Box className="chronicle-loading">
+          <CircularProgress size={22}/><Typography variant="caption">Загружаем миры Atlas…</Typography>
+        </Box>}
+        {worldsQuery.isError&&<Box className="chronicle-loading">
+          <Typography color="error.main">Не удалось получить миры Atlas.</Typography>
+        </Box>}
         {worlds.map(world=><Box key={world.id}>
           <ChronicleTrack label={world.name} subtitle="Обзорная дорожка мира" ticks={grid}
             events={events.filter(item=>item.worlds.some(link=>link.id===world.id))}
             centerDay={centerDay} scale={scale} width={width}
             expandable expanded={expanded.has(world.id)} onToggle={()=>toggleWorld(world.id)}
-            onContext={event=>openTrackContext(event,world.id)} onEvent={setSelectedEvent}/>
+            onContext={event=>openTrackContext(event,world.id)}
+            onEvent={setSelectedEvent} onEventContext={openEventContext}/>
           {expanded.has(world.id)&&<ChronicleTrack label="Поддорожки"
             subtitle="Фильтры по тегам появятся следующим этапом" ticks={grid} events={[]}
             centerDay={centerDay} scale={scale} width={width} child/>}
@@ -271,10 +332,23 @@ export function ChroniclePage(){
       </Box>
     </Box>
 
-    <Menu open={Boolean(context)} onClose={()=>setContext(null)}
+    <Menu open={Boolean(trackContext)} onClose={()=>setTrackContext(null)}
       anchorReference="anchorPosition"
-      anchorPosition={context?{top:context.mouseY,left:context.mouseX}:undefined}>
-      <MenuItem onClick={()=>context&&beginCreate(context)}>+ Создать событие здесь</MenuItem>
+      anchorPosition={trackContext?{top:trackContext.mouseY,left:trackContext.mouseX}:undefined}>
+      <MenuItem onClick={()=>trackContext&&beginCreate(trackContext)}>+ Создать событие здесь</MenuItem>
+    </Menu>
+
+    <Menu open={Boolean(eventContext)} onClose={()=>setEventContext(null)}
+      anchorReference="anchorPosition"
+      anchorPosition={eventContext?{top:eventContext.mouseY,left:eventContext.mouseX}:undefined}>
+      <MenuItem onClick={()=>eventContext&&beginEdit(eventContext.event)}>Редактировать</MenuItem>
+      <MenuItem onClick={()=>{
+        if(!eventContext)return;
+        if(!session.authenticated){
+          setPendingEditId(eventContext.event.id);setEventContext(null);setLoginOpen(true);return;
+        }
+        setDeleteTarget(eventContext.event);setEventContext(null);
+      }} sx={{color:'error.main'}}>Удалить</MenuItem>
     </Menu>
 
     <Dialog open={loginOpen} onClose={()=>setLoginOpen(false)} fullWidth maxWidth="xs">
@@ -291,63 +365,45 @@ export function ChroniclePage(){
       </DialogActions>
     </Dialog>
 
-    <Dialog open={editorOpen&&Boolean(draft)} onClose={closeEditor} fullWidth maxWidth="md">
-      <DialogTitle>Новое событие Chronicle</DialogTitle>
-      {draft&&<DialogContent>
-        <Stack gap={2} sx={{pt:1}}>
-          {editorError&&<Alert severity="error">{editorError}</Alert>}
-          <TextField autoFocus label="Название" value={draft.title}
-            onChange={event=>setDraft({...draft,title:event.target.value})}/>
-          <ToggleButtonGroup exclusive size="small" value={draft.kind}
-            onChange={(_event,value:'point'|'period'|null)=>value&&setDraft({...draft,kind:value})}>
-            <ToggleButton value="point">Момент</ToggleButton>
-            <ToggleButton value="period">Период</ToggleButton>
-          </ToggleButtonGroup>
-          <DateFields title="Начало" value={draft.start}
-            onChange={start=>setDraft({...draft,start})}/>
-          {draft.kind==='period'&&<DateFields title="Окончание" value={draft.end}
-            onChange={end=>setDraft({...draft,end})}/>}
-          <FormControl fullWidth size="small">
-            <InputLabel id="chronicle-worlds">Миры</InputLabel>
-            <Select multiple labelId="chronicle-worlds" label="Миры" value={draft.worldIds}
-              onChange={event=>setDraft({...draft,worldIds:typeof event.target.value==='string'
-                ?event.target.value.split(','):event.target.value})}>
-              {worlds.map(world=><MenuItem key={world.id} value={world.id}>{world.name}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <TextField label="Теги" helperText="Через запятую: Война, Магия, Политика"
-            value={draft.tagText} onChange={event=>setDraft({...draft,tagText:event.target.value})}/>
-          <TextField label="Краткое описание" multiline minRows={3} value={draft.summary}
-            onChange={event=>setDraft({...draft,summary:event.target.value})}/>
-          <FormControl fullWidth size="small">
-            <InputLabel id="chronicle-visibility">Видимость</InputLabel>
-            <Select labelId="chronicle-visibility" label="Видимость" value={draft.visibility}
-              onChange={event=>setDraft({...draft,visibility:event.target.value as EventDraft['visibility']})}>
-              <MenuItem value="draft">Черновик</MenuItem>
-              <MenuItem value="gm">Только мастер</MenuItem>
-              <MenuItem value="public">Публичное</MenuItem>
-            </Select>
-          </FormControl>
-          <Typography variant="caption" color="text.secondary">
-            Черновик сохраняется автоматически в браузере. В SQLite изменения попадут только после «Сохранить».
-          </Typography>
-        </Stack>
-      </DialogContent>}
+    <EventEditorDialog open={editorOpen} draft={draft} worlds={worlds}
+      editing={Boolean(editingEventId)} error={editorError}
+      saving={creating||updating} onChange={setDraft}
+      onClose={closeEditor} onSave={()=>void saveEvent()}/>
+
+    <Dialog open={Boolean(deleteTarget)} onClose={()=>setDeleteTarget(null)} maxWidth="xs" fullWidth>
+      <DialogTitle>Удалить событие?</DialogTitle>
+      <DialogContent>
+        <Typography>
+          {deleteTarget?.title} будет удалено из Chronicle. Перед удалением сервер создаст backup базы.
+        </Typography>
+      </DialogContent>
       <DialogActions>
-        <Button onClick={closeEditor}>Закрыть</Button>
-        <Button variant="contained" disabled={!draft?.title.trim()||creating}
-          onClick={()=>void saveEvent()}>Сохранить</Button>
+        <Button onClick={()=>setDeleteTarget(null)}>Отмена</Button>
+        <Button color="error" variant="contained" disabled={deleting}
+          onClick={()=>void confirmDelete()}>Удалить</Button>
       </DialogActions>
     </Dialog>
 
     <Dialog open={Boolean(selectedEvent)} onClose={()=>setSelectedEvent(null)} fullWidth maxWidth="sm">
       {selectedEvent&&<>
-        <DialogTitle>{selectedEvent.title}</DialogTitle>
+        <DialogTitle>
+          <Stack direction="row" gap={1.2} alignItems="center">
+            {selectedEvent.icon&&<span className="chronicle-detail-icon"
+              style={{background:selectedEvent.color}}>{selectedEvent.icon}</span>}
+            <span>{selectedEvent.title}</span>
+          </Stack>
+        </DialogTitle>
         <DialogContent>
           <Stack gap={1.4}>
-            <Typography color="primary.main">
-              {selectedEvent.startDay===null?'Дата неизвестна':formatChronicleDate(dayToChronicleDate(selectedEvent.startDay))}
-              {selectedEvent.endDay!==null?' — '+formatChronicleDate(dayToChronicleDate(selectedEvent.endDay)):''}
+            <Typography sx={{color:selectedEvent.color,fontWeight:700}}>
+              {selectedEvent.startDay===null?'Дата неизвестна'
+                :formatChronicleDate(dayToChronicleDate(selectedEvent.startDay))}
+              {selectedEvent.endDay!==null
+                ?' — '+formatChronicleDate(dayToChronicleDate(selectedEvent.endDay)):''}
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {selectedEvent.significance==='key'?'Ключевое событие'
+                :selectedEvent.significance==='important'?'Важное событие':'Обычное событие'}
             </Typography>
             <Stack direction="row" gap={.7} flexWrap="wrap">
               {selectedEvent.worlds.map(world=><Chip key={world.id} size="small" label={world.name}/>)}
@@ -356,7 +412,10 @@ export function ChroniclePage(){
             {selectedEvent.summary&&<Typography>{selectedEvent.summary}</Typography>}
           </Stack>
         </DialogContent>
-        <DialogActions><Button onClick={()=>setSelectedEvent(null)}>Закрыть</Button></DialogActions>
+        <DialogActions>
+          {session.authenticated&&<Button onClick={()=>beginEdit(selectedEvent)}>Редактировать</Button>}
+          <Button onClick={()=>setSelectedEvent(null)}>Закрыть</Button>
+        </DialogActions>
       </>}
     </Dialog>
 
@@ -365,58 +424,26 @@ export function ChroniclePage(){
   </Box>;
 }
 
-function DateFields({title,value,onChange}:{
-  title:string;value:ChronicleDate;onChange:(date:ChronicleDate)=>void;
-}){
-  const month=CHRONICLE_MONTHS[value.monthIndex]!;
-  const set=(patch:Partial<ChronicleDate>)=>{
-    const next={...value,...patch};
-    const max=CHRONICLE_MONTHS[next.monthIndex]!.days;
-    if(next.day>max)next.day=max;
-    onChange(next);
-  };
-  return <Stack gap={1}>
-    <Typography variant="caption" color="text.secondary">{title}</Typography>
-    <Stack direction={{xs:'column',sm:'row'}} gap={1}>
-      <FormControl size="small" sx={{minWidth:90}}>
-        <InputLabel>Эра</InputLabel>
-        <Select label="Эра" value={value.era}
-          onChange={event=>set({era:event.target.value as ChronicleDate['era']})}>
-          <MenuItem value="AS">AS</MenuItem><MenuItem value="BS">BS</MenuItem>
-        </Select>
-      </FormControl>
-      <TextField size="small" type="number" label="Год" value={value.year}
-        inputProps={{min:1}} onChange={event=>set({year:Math.max(1,Number(event.target.value)||1)})}/>
-      <FormControl size="small" sx={{minWidth:150}}>
-        <InputLabel>Месяц</InputLabel>
-        <Select label="Месяц" value={value.monthIndex}
-          onChange={event=>set({monthIndex:Number(event.target.value)})}>
-          {CHRONICLE_MONTHS.map((item,index)=><MenuItem key={item.name} value={index}>{item.name}</MenuItem>)}
-        </Select>
-      </FormControl>
-      <TextField size="small" type="number" label="День" value={value.day}
-        helperText={'1–'+month.days} inputProps={{min:1,max:month.days}}
-        onChange={event=>set({day:Math.min(month.days,Math.max(1,Number(event.target.value)||1))})}/>
-    </Stack>
-  </Stack>;
-}
-
 function ChronicleTrack({label,subtitle,ticks,events,centerDay,scale,width,className='',
-  expandable=false,expanded=false,onToggle,onContext,onEvent,child=false}:{
+  expandable=false,expanded=false,onToggle,onContext,onEvent,onEventContext,child=false}:{
   label:string;subtitle:string;ticks:ReactNode;events:ChronicleEventRecord[];
   centerDay:number;scale:number;width:number;className?:string;
   expandable?:boolean;expanded?:boolean;onToggle?:()=>void;
-  onContext?:(event:React.MouseEvent<HTMLDivElement>)=>void;
-  onEvent?:(event:ChronicleEventRecord)=>void;child?:boolean;
+  onContext?:(event:ReactMouseEvent<HTMLDivElement>)=>void;
+  onEvent?:(event:ChronicleEventRecord)=>void;
+  onEventContext?:(event:ReactMouseEvent<HTMLButtonElement>,item:ChronicleEventRecord)=>void;
+  child?:boolean;
 }){
   const placed=layoutEvents(events,centerDay,scale,width);
   const lanes=placed.reduce((max,item)=>Math.max(max,item.lane+1),0);
-  const height=Math.max(child?56:78,lanes?28+lanes*34:0);
-  return <Box className={'chronicle-track '+className+(child?' is-child':'')} style={{minHeight:height}}>
+  const height=Math.max(child?62:86,lanes?30+lanes*50:0);
+  return <Box className={'chronicle-track '+className+(child?' is-child':'')}
+    style={{minHeight:height}}>
     <Box className="chronicle-track-label">
       {expandable?<button className="chronicle-disclosure" onClick={onToggle}
-        aria-label={expanded?'Свернуть дорожку':'Развернуть дорожку'}>{expanded?'⌄':'›'}</button>
-        :<span className="chronicle-disclosure-spacer"/>}
+        aria-label={expanded?'Свернуть дорожку':'Развернуть дорожку'}>
+        {expanded?'⌄':'›'}
+      </button>:<span className="chronicle-disclosure-spacer"/>}
       <Box minWidth={0}>
         <Typography className="chronicle-track-name">{label}</Typography>
         <Typography className="chronicle-track-subtitle">{subtitle}</Typography>
@@ -425,27 +452,41 @@ function ChronicleTrack({label,subtitle,ticks,events,centerDay,scale,width,class
     <Box className="chronicle-track-time" onContextMenu={onContext}>
       {ticks}
       {!placed.length&&<span className="chronicle-empty-track">ПКМ — создать событие</span>}
-      {placed.map(item=><button key={item.event.id}
-        className={'chronicle-event chronicle-event-'+item.event.kind}
-        style={{left:item.left,top:14+item.lane*34,width:item.width}}
-        title={item.event.title} onClick={()=>onEvent?.(item.event)}>
-        <span className="chronicle-event-mark"/><span className="chronicle-event-title">{item.event.title}</span>
-      </button>)}
+      {placed.map(item=>{
+        const style={
+          left:item.left,top:14+item.lane*50,width:item.width,
+          '--event-color':item.event.color,
+        } as CSSProperties;
+        return <button key={item.event.id}
+          className={'chronicle-event chronicle-event-'+item.event.kind+
+            ' chronicle-event-'+item.event.significance}
+          style={style} title={item.event.title}
+          onClick={event=>{event.stopPropagation();onEvent?.(item.event);}}
+          onContextMenu={event=>onEventContext?.(event,item.event)}>
+          {item.event.icon
+            ?<span className="chronicle-event-icon">{item.event.icon}</span>
+            :<span className="chronicle-event-mark"/>}
+          <span className="chronicle-event-title">{item.event.title}</span>
+        </button>;
+      })}
     </Box>
   </Box>;
 }
+
 function layoutEvents(events:ChronicleEventRecord[],center:number,scale:number,width:number){
   const raw=events.filter(event=>event.startDay!==null).map(event=>{
     const start=event.startDay!;
     const left=width/2+(start-center)*scale;
     const end=event.endDay??start;
     const span=Math.max(event.kind==='period'?18:10,(end-start)*scale);
-    const visualWidth=event.kind==='period'?Math.max(90,span):150;
+    const base=event.significance==='key'?240:event.significance==='important'?205:175;
+    const periodMin=event.significance==='key'?180:event.significance==='important'?135:105;
+    const visualWidth=event.kind==='period'?Math.max(periodMin,span):base;
     return {event,left,width:visualWidth,right:left+visualWidth,lane:0};
-  }).filter(item=>item.right>-180&&item.left<width+180).sort((a,b)=>a.left-b.left);
+  }).filter(item=>item.right>-260&&item.left<width+260).sort((a,b)=>a.left-b.left);
   const ends:number[]=[];
   for(const item of raw){
-    let lane=ends.findIndex(end=>item.left>end+8);
+    let lane=ends.findIndex(end=>item.left>end+10);
     if(lane<0){lane=ends.length;ends.push(item.right);}else ends[lane]=item.right;
     item.lane=lane;
   }
