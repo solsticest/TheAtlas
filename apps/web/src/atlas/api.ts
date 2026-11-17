@@ -52,6 +52,21 @@ export const atlasApi = createApi({
       transformResponse: (payload: unknown) => chronicleEventSchema.parse(payload),
       invalidatesTags: ['ChronicleEvent'],
     }),
+    updateChronicleEvent: build.mutation<ChronicleEventRecord,{id:string;input:ChronicleEventInput;csrf:string}>({
+      query: ({id,input,csrf}) => ({
+        url: 'admin/chronicle/events/' + encodeURIComponent(id), method: 'PATCH', body: input,
+        headers: {'x-csrf-token': csrf},
+      }),
+      transformResponse: (payload: unknown) => chronicleEventSchema.parse(payload),
+      invalidatesTags: ['ChronicleEvent'],
+    }),
+    deleteChronicleEvent: build.mutation<{ok:true},{id:string;csrf:string}>({
+      query: ({id,csrf}) => ({
+        url: 'admin/chronicle/events/' + encodeURIComponent(id), method: 'DELETE',
+        headers: {'x-csrf-token': csrf},
+      }),
+      invalidatesTags: ['ChronicleEvent'],
+    }),
     search: build.query<SearchItem[], string>({
       query: (q) => 'search?q=' + encodeURIComponent(q),
       transformResponse: (payload: unknown) => searchItemSchema.array().parse(payload),
@@ -63,4 +78,5 @@ export const {
   useWorldsQuery, useMarkerTypesQuery, useLayersQuery, useLocationsQuery, useSearchQuery,
   useTimelinesQuery, useErasQuery, useEventsQuery,
   useChronicleEventsQuery, useCreateChronicleEventMutation,
+  useUpdateChronicleEventMutation, useDeleteChronicleEventMutation,
 } = atlasApi;
