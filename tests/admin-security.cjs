@@ -76,12 +76,23 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
       title:'Chronicle GM event',summary:'private history',article:'',kind:'point',
       startDay:686664,endDay:null,startPrecision:'exact',earliestDay:null,latestDay:null,
       endPrecision:null,worldIds:['demo-world'],tagNames:['Война','война'],
-      significance:'important',visibility:'gm'
+      significance:'important',visibility:'gm',color:'#c95f5f',icon:'⚔'
     };
     const gmChronicle=await request('/api/admin/chronicle/events','POST',chronicleBase);
     assert.equal(gmChronicle.status,201,JSON.stringify(gmChronicle.data));
     assert.equal(gmChronicle.data.worlds[0].id,'demo-world');
     assert.equal(gmChronicle.data.tags.length,1,'normalized duplicate tags must merge');
+    assert.equal(gmChronicle.data.color,'#c95f5f');
+    assert.equal(gmChronicle.data.icon,'⚔');
+    const editedChronicle=await request('/api/admin/chronicle/events/'+gmChronicle.data.id,'PATCH',{
+      ...chronicleBase,title:'Chronicle GM event edited',color:'#5f86c9',icon:'★',significance:'key'
+    });
+    assert.equal(editedChronicle.status,200,JSON.stringify(editedChronicle.data));
+    assert.equal(editedChronicle.data.id,gmChronicle.data.id,'edit must update, not duplicate');
+    assert.equal(editedChronicle.data.color,'#5f86c9');
+    assert.equal(editedChronicle.data.icon,'★');
+    assert.equal(editedChronicle.data.significance,'key');
+    assert.equal(await db.chronicleEvent.count({where:{id:gmChronicle.data.id}}),1);
     const anonymousChronicle=await request('/api/chronicle/events','GET',undefined,false,false);
     assert.equal(anonymousChronicle.status,200);
     assert.equal(anonymousChronicle.data.some(item=>item.id===gmChronicle.data.id),false);
