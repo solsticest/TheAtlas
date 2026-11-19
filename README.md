@@ -123,6 +123,8 @@ Git не содержит пользовательскую SQLite и прива�
 
 SQLite, загруженные assets и локальные backups должны находиться на persistent disk. Render build не имеет доступа к этому диску, поэтому Prisma migrations выполняются в `startCommand`, а не во время build.
 
+Для первого переноса существующего локального Atlas создай архив только из `storage/atlas.db` и `storage/assets`, загрузи его на persistent disk как `storage/render-storage.tgz` и перезапусти сервис. `startCommand` проверит архив, распакует его до запуска Prisma, удалит архив и применит migrations.
+
 ## Production build (локально, только после настройки HTTPS)
 
 ~~~powershell
