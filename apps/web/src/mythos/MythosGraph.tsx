@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, Menu, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import type {
-  MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent,
+  MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent,
 } from 'react';
 import type {
   MythosDeityRecord, MythosPantheonRecord, MythosRelationInput, MythosRelationRecord,
@@ -98,10 +98,10 @@ function genealogyPositions(deities:MythosDeityRecord[],relations:MythosRelation
   return result;
 }
 
-export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onSelectDeity,
+export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pantheonFocusId,onSelectDeity,
   onCreateDeityAt,onSavePosition,onCreateRelation,onUpdateRelation,onDeleteRelation}:{
   deities:MythosDeityRecord[];relations:MythosRelationRecord[];pantheons:MythosPantheonRecord[];
-  admin:boolean;historicalDay:number|null;
+  admin:boolean;historicalDay:number|null;pantheonFocusId:string|null;
   onSelectDeity:(deity:MythosDeityRecord)=>void;
   onCreateDeityAt:(x:number,y:number)=>void;
   onSavePosition:(deity:MythosDeityRecord,x:number,y:number)=>Promise<void>;
@@ -136,6 +136,27 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
   useEffect(()=>{
     setPositions(Object.fromEntries(deities.map(item=>[item.id,{x:item.graphX,y:item.graphY}])));
   },[deities]);
+
+  useEffect(()=>{
+    const element=board.current;
+    if(!element)return;
+    const handleWheel=(event:WheelEvent)=>{
+      event.preventDefault();
+      event.stopPropagation();
+      const rect=element.getBoundingClientRect();
+      const cursorX=event.clientX-rect.left,cursorY=event.clientY-rect.top;
+      const factor=clamp(Math.exp(-event.deltaY*.0015),.82,1.22);
+      setViewport(current=>{
+        const scale=clamp(current.scale*factor,MIN_ZOOM,MAX_ZOOM);
+        if(Math.abs(scale-current.scale)<.0001)return current;
+        const worldX=(cursorX-current.x)/current.scale;
+        const worldY=(cursorY-current.y)/current.scale;
+        return {scale,x:cursorX-worldX*scale,y:cursorY-worldY*scale};
+      });
+    };
+    element.addEventListener('wheel',handleWheel,{passive:false});
+    return()=>element.removeEventListener('wheel',handleWheel);
+  },[]);
 
   const activeRelations=useMemo(()=>relations.filter(rel=>
     historicalDay===null||
@@ -182,11 +203,6 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
   function zoomCenter(factor:number){
     const rect=board.current?.getBoundingClientRect();
     if(rect)zoomAt(rect.left+rect.width/2,rect.top+rect.height/2,factor);
-  }
-  function wheel(event:ReactWheelEvent<HTMLDivElement>){
-    event.preventDefault();
-    const factor=clamp(Math.exp(-event.deltaY*.0015),.82,1.22);
-    zoomAt(event.clientX,event.clientY,factor);
   }
   function boardPointerDown(event:ReactPointerEvent<HTMLDivElement>){
     if(event.button!==0||drag.current)return;
@@ -356,7 +372,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
         backgroundPosition:`center, ${viewport.x}px ${viewport.y}px, ${viewport.x}px ${viewport.y}px`,
       }}
       onPointerDown={boardPointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp}
-      onPointerCancel={pointerCancel} onWheel={wheel} onContextMenu={event=>openContext(event)}>
+      onPointerCancel={pointerCancel} onContextMenu={event=>openContext(event)}>
       <Box className="mythos-graph-world"
         style={{transform:`translate(${viewport.x}px,${viewport.y}px) scale(${viewport.scale})`}}>
         <svg className="mythos-graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -368,15 +384,23 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
           </defs>
           {edges.map(edge=>{
             const a=pos(edge.sourceId),b=pos(edge.targetId);
+            const source=deities.find(item=>item.id===edge.sourceId);
+            const target=deities.find(item=>item.id===edge.targetId);
+            const edgeFocused=!pantheonFocusId||source?.pantheonId===pantheonFocusId||target?.pantheonId===pantheonFocusId;
             return <line key={edge.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
               stroke={edge.color} strokeWidth={edge.category==='conflict'?'.48':'.34'}
               strokeDasharray={edge.category==='conflict'?'1.2 1':''}
+              opacity={edgeFocused?1:.18}
               markerEnd={edge.relation?'url(#mythos-arrow)':undefined}/>;
           })}
         </svg>
         {edges.map(edge=>{
           const a=pos(edge.sourceId),b=pos(edge.targetId);
-          return <button key={'label-'+edge.id} className={'mythos-edge-label edge-'+edge.category}
+          const source=deities.find(item=>item.id===edge.sourceId);
+          const target=deities.find(item=>item.id===edge.targetId);
+          const edgeFocused=!pantheonFocusId||source?.pantheonId===pantheonFocusId||target?.pantheonId===pantheonFocusId;
+          return <button key={'label-'+edge.id}
+            className={'mythos-edge-label edge-'+edge.category+(edgeFocused?'':' is-pantheon-dim')}
             style={{left:(a.x+b.x)/2+'%',top:(a.y+b.y)/2+'%'}}
             onClick={event=>openEdit(event,edge)} title={edge.relation?.description||edge.label}>
             {edge.label}
@@ -386,9 +410,10 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
           const p=pos(deity.id);
           const pantheon=pantheons.find(item=>item.id===deity.pantheonId);
           const isSource=deity.id===linkSourceId;
+          const pantheonFocusClass=!pantheonFocusId?'':deity.pantheonId===pantheonFocusId?' is-pantheon-focus':' is-pantheon-dim';
           return <button key={deity.id}
             className={'mythos-graph-node'+(layout==='free'&&admin?' is-draggable':'')+
-              (isSource?' is-link-source':linkSourceId?' is-link-target':'')}
+              (isSource?' is-link-source':linkSourceId?' is-link-target':'')+pantheonFocusClass}
             style={{left:p.x+'%',top:p.y+'%','--node-color':deity.color} as React.CSSProperties}
             title={(deity.epithet||deity.rank)+(pantheon?' · '+pantheon.name:'')}
             onPointerDown={event=>{
