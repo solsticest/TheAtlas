@@ -105,7 +105,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
   onSelectDeity:(deity:MythosDeityRecord)=>void;
   onCreateDeityAt:(x:number,y:number)=>void;
   onSavePosition:(deity:MythosDeityRecord,x:number,y:number)=>Promise<void>;
-  onCreateRelation:(input:MythosRelationInput)=>Promise<void>;
+  onCreateRelation:(input:MythosRelationInput)=>Promise<MythosRelationRecord>;
   onUpdateRelation:(id:string,input:MythosRelationInput)=>Promise<void>;
   onDeleteRelation:(id:string)=>Promise<void>;
 }){
@@ -129,6 +129,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
   const [linkSourceId,setLinkSourceId]=useState<string|null>(null);
   const [context,setContext]=useState<ContextState|null>(null);
   const [busy,setBusy]=useState(false);
+  const [quickLinkBusy,setQuickLinkBusy]=useState(false);
   const [relationError,setRelationError]=useState('');
   const [dragError,setDragError]=useState('');
 
@@ -286,13 +287,22 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
       worldX:point.x,worldY:point.y,deityId,
     });
   }
-  function pickRelationTarget(deity:MythosDeityRecord){
-    if(!linkSourceId)return false;
-    if(deity.id===linkSourceId)return true;
-    setEditingRelation(null);setRelationError('');
-    setRelationDraft(emptyRelation(linkSourceId,deity.id));
-    setLinkSourceId(null);
-    return true;
+  async function finishQuickRelation(deity:MythosDeityRecord){
+    const sourceId=linkSourceId;
+    if(!sourceId||deity.id===sourceId||quickLinkBusy)return;
+    setQuickLinkBusy(true);setRelationError('');setDragError('');
+    try{
+      const created=await onCreateRelation(emptyRelation(sourceId,deity.id));
+      setLinkSourceId(null);
+      setEditingRelation(created.id);
+      setRelationDraft({
+        sourceId:created.sourceId,targetId:created.targetId,type:created.type,
+        category:created.category,label:created.label,description:created.description,
+        startDay:created.startDay,endDay:created.endDay,visibility:created.visibility,
+      });
+    }catch(error){
+      setDragError(error instanceof Error?error.message:'Не удалось создать связь.');
+    }finally{setQuickLinkBusy(false);}
   }
   async function saveRelation(){
     if(!relationDraft)return;
@@ -334,9 +344,10 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
 
     {sourceDeity&&<Box className="mythos-link-mode">
       <Typography variant="body2">
-        Создаём связь от <strong>{sourceDeity.name}</strong>. Кликни по второму божеству.
+        {quickLinkBusy?'Создаём связь…':<>Создаём связь от <strong>{sourceDeity.name}</strong>. Кликни по второму божеству.</>}
       </Typography>
-      <Button size="small" color="inherit" onClick={()=>setLinkSourceId(null)}>Отмена</Button>
+      <Button size="small" color="inherit" disabled={quickLinkBusy}
+        onClick={()=>setLinkSourceId(null)}>Отмена</Button>
     </Box>}
 
     <Box ref={board} className={'mythos-graph-board'+(isPanning?' is-panning':'')}
@@ -395,7 +406,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
               const blocked=suppressClick.current;
               if(blocked?.id===deity.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
               suppressClick.current=null;
-              if(pickRelationTarget(deity))return;
+              if(linkSourceId){void finishQuickRelation(deity);return;}
               onSelectDeity(deity);
             }}>
             <span className="mythos-graph-node-symbol">{deity.symbol||'✧'}</span>
