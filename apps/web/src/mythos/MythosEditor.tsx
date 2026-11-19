@@ -2,6 +2,7 @@ import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography, Alert } from '@mui/material';
 import type { MythosDeityInput, MythosDeityRecord, MythosPantheonInput,
   MythosPantheonRecord, WorldRecord } from '@atlas/shared';
+import { BufferedColorField } from './BufferedColorField';
 
 export type DeityDraft=MythosDeityInput & {domainsText:string;primaryDomainsText:string};
 
@@ -64,8 +65,7 @@ export function DeityEditorDialog({open,editing,draft,onChange,onClose,onSave,bu
             value={draft.rank} onChange={event=>set({rank:event.target.value})}/>
           <TextField label="Символ" value={draft.symbol} helperText="Эмодзи или короткий знак"
             inputProps={{maxLength:12}} onChange={event=>set({symbol:event.target.value})}/>
-          <TextField type="color" label="Цвет" value={draft.color} sx={{width:{sm:110}}}
-            onChange={event=>set({color:event.target.value})}/>
+          <BufferedColorField value={draft.color} onCommit={color=>set({color})}/>
         </Stack>
         <Stack direction={{xs:'column',sm:'row'}} gap={1.5}>
           <TextField fullWidth label="Фактическая сила / статус" placeholder="Региональная сила, космический принцип…"
