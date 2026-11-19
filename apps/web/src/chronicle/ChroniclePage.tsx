@@ -346,8 +346,12 @@ export function ChroniclePage(){
       </Box>
 
       <Box className="chronicle-rows">
-        <ChronicleTrack label="Мультивселенная" subtitle="Независимые и межмировые события"
+        <ChronicleTrack label="Мультивселенная"
+          subtitle={globalFilterCount
+            ?universeEvents.length+' событий после глобальных фильтров'
+            :'Независимые и межмировые события'}
           className="chronicle-track-universe" ticks={grid} events={universeEvents}
+          emptyMessage={globalFilterCount?'Нет событий по глобальным фильтрам':'ПКМ — создать событие'}
           centerDay={centerDay} scale={scale} width={width} granularity={granularity}
           hoverDay={hoverDay} onHoverDay={setHoverDay}
           onContext={event=>openTrackContext(event,null)}
@@ -367,6 +371,8 @@ export function ChroniclePage(){
             <ChronicleTrack label={world.name}
               subtitle={worldEvents.length+' из '+totalAfterGlobal+' событий после глобальных фильтров'}
               ticks={grid} events={worldEvents}
+              emptyMessage={(globalFilterCount||localCount)
+                ?'Нет событий по выбранным фильтрам':'ПКМ — создать событие'}
               centerDay={centerDay} scale={scale} width={width} granularity={granularity}
               hoverDay={hoverDay} onHoverDay={setHoverDay}
               filterCount={localCount}
@@ -530,12 +536,14 @@ export function ChroniclePage(){
 }
 
 function ChronicleTrack({label,subtitle,ticks,events,centerDay,scale,width,granularity,
-  hoverDay,onHoverDay,className='',filterCount=0,onFilterMenu,onContext,
+  hoverDay,onHoverDay,className='',emptyMessage='ПКМ — создать событие',
+  filterCount=0,onFilterMenu,onContext,
   onEvent,onEventContext,child=false}:{
   label:string;subtitle:string;ticks:ReactNode;events:ChronicleEventRecord[];
   centerDay:number;scale:number;width:number;granularity:TimelineGranularity;
   hoverDay:number|null;onHoverDay?:(day:number|null)=>void;className?:string;
-  filterCount?:number;onFilterMenu?:(event:ReactMouseEvent<HTMLButtonElement>)=>void;
+  emptyMessage?:string;filterCount?:number;
+  onFilterMenu?:(event:ReactMouseEvent<HTMLButtonElement>)=>void;
   onContext?:(event:ReactMouseEvent<HTMLDivElement>)=>void;
   onEvent?:(event:ChronicleEventRecord)=>void;
   onEventContext?:(event:ReactMouseEvent<HTMLButtonElement>,item:ChronicleEventRecord)=>void;
@@ -569,7 +577,7 @@ function ChronicleTrack({label,subtitle,ticks,events,centerDay,scale,width,granu
       {ticks}
       {hoverLeft!==null&&hoverLeft>=0&&hoverLeft<=width&&
         <span className="chronicle-hover-line" style={{left:hoverLeft}}/>}
-      {!placed.length&&<span className="chronicle-empty-track">ПКМ — создать событие</span>}
+      {!placed.length&&<span className="chronicle-empty-track">{emptyMessage}</span>}
       {placed.map(item=>{
         const style={
           left:item.left,top:14+item.lane*laneHeight,width:item.width,
