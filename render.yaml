@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: the-atlas
+    runtime: node
+    branch: main
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm run db:setup && npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: checksPass
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        value: file:../../../storage/atlas.db
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
+    disk:
+      name: atlas-storage
+      mountPath: /opt/render/project/src/storage
+      sizeGB: 5
