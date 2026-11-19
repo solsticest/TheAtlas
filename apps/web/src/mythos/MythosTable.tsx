@@ -5,7 +5,9 @@ import type { MythosDeityRecord } from '@atlas/shared';
 type TableMode='list'|'matrix';
 type SortKey='name'|'rank'|'pantheon'|'influence';
 
-export function MythosTable({deities,onSelect}:{deities:MythosDeityRecord[];onSelect:(d:MythosDeityRecord)=>void}){
+export function MythosTable({deities,pantheonFocusId,onSelect}:{
+  deities:MythosDeityRecord[];pantheonFocusId:string|null;onSelect:(d:MythosDeityRecord)=>void;
+}){
   const [mode,setMode]=useState<TableMode>('list');
   const [sort,setSort]=useState<SortKey>('name');
   const domains=useMemo(()=>[...new Map(deities.flatMap(d=>d.domains)
@@ -35,7 +37,9 @@ export function MythosTable({deities,onSelect}:{deities:MythosDeityRecord[];onSe
     {mode==='list'?<Box className="mythos-table-scroll">
       <table className="mythos-data-table">
         <thead><tr><th>Божество</th><th>Природа</th><th>Сила</th><th>Влияние</th><th>Пантеон</th><th>Основные домены</th><th>Все домены</th><th>Миры</th></tr></thead>
-        <tbody>{rows.map(d=><tr key={d.id} onClick={()=>onSelect(d)}>
+        <tbody>{rows.map(d=><tr key={d.id}
+          className={!pantheonFocusId?'':d.pantheonId===pantheonFocusId?'is-pantheon-focus':'is-pantheon-dim'}
+          onClick={()=>onSelect(d)}>
           <td><span className="mythos-table-symbol" style={{color:d.color}}>{d.symbol||'✧'}</span><strong>{d.name}</strong>
             {d.epithet&&<small>{d.epithet}</small>}</td>
           <td>{d.rank}</td><td>{d.power||'—'}</td><td>{d.influence}</td><td>{d.pantheon?.name??'—'}</td>
@@ -47,7 +51,9 @@ export function MythosTable({deities,onSelect}:{deities:MythosDeityRecord[];onSe
     </Box>:<Box className="mythos-table-scroll">
       <table className="mythos-domain-matrix">
         <thead><tr><th className="is-sticky">Божество</th>{domains.map(domain=><th key={domain} title={domain}>{domain}</th>)}</tr></thead>
-        <tbody>{rows.map(d=><tr key={d.id} onClick={()=>onSelect(d)}>
+        <tbody>{rows.map(d=><tr key={d.id}
+          className={!pantheonFocusId?'':d.pantheonId===pantheonFocusId?'is-pantheon-focus':'is-pantheon-dim'}
+          onClick={()=>onSelect(d)}>
           <td className="is-sticky"><span style={{color:d.color}}>{d.symbol||'✧'}</span> {d.name}</td>
           {domains.map(domain=>{
             const key=domain.toLocaleLowerCase('ru');
