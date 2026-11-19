@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import type { ReactNode } from 'react';
 import { Alert, Box, Button, ButtonBase, Chip, CircularProgress, Dialog,
@@ -121,11 +121,28 @@ export function MythosPage(){
   const [editorError,setEditorError]=useState('');
   const [notice,setNotice]=useState('');
 
+  const viewbarRef=useRef<HTMLDivElement|null>(null);
+  const graphSectionRef=useRef<HTMLDivElement|null>(null);
+  const cosmologySectionRef=useRef<HTMLDivElement|null>(null);
+  const previousViewRef=useRef<View>(view);
+
   useEffect(()=>{
     void fetch('/api/auth/me',{credentials:'same-origin'})
       .then(async response=>setSession(await response.json() as Session))
       .catch(()=>setSession({authenticated:false}));
   },[]);
+
+  useEffect(()=>{
+    if(previousViewRef.current===view||loading)return;
+    const target=view==='graph'?graphSectionRef.current:view==='cosmology'?viewbarRef.current:null;
+    previousViewRef.current=view;
+    if(!target)return;
+    const frame=requestAnimationFrame(()=>{
+      const top=window.scrollY+target.getBoundingClientRect().top-(view==='graph'?34:28);
+      window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[view,loading]);
 
   const domainOptions=useMemo(()=>[...new Map(deities.flatMap(item=>item.domains)
     .map(domain=>[normalize(domain),domain])).values()].sort((a,b)=>a.localeCompare(b,'ru')),[deities]);
@@ -264,7 +281,7 @@ export function MythosPage(){
       <Box><Typography className="mythos-metric-value">{myths.length}</Typography><Typography variant="caption" color="text.secondary">Мифов</Typography></Box>
     </Box>
 
-    <Box className="mythos-viewbar">
+    <Box className="mythos-viewbar" ref={viewbarRef}>
       {([
         ['graph','Связи'],['table','Таблица'],['encyclopedia','Энциклопедия'],
         ['lore','Предания'],['cosmology','Космология'],['pantheons','Пантеоны'],
@@ -296,7 +313,7 @@ export function MythosPage(){
     {loading&&<Box className="mythos-status"><CircularProgress size={24}/><Typography>Открываем Mythos…</Typography></Box>}
     {failed&&<Alert severity="error" sx={{my:2}}>Часть Mythos не загрузилась. Проверь, применена ли новая миграция базы.</Alert>}
 
-    {!loading&&view==='graph'&&<Box className="mythos-content mythos-graph-content">
+    {!loading&&view==='graph'&&<Box className="mythos-content mythos-graph-content" ref={graphSectionRef}>
       <Box className="mythos-history-filter">
         <Stack gap={1}>
           <Stack direction={{xs:'column',sm:'row'}} gap={1} alignItems={{sm:'center'}}>
@@ -392,7 +409,7 @@ export function MythosPage(){
         onDeleteHistory={async(deityId,eventId)=>{await perform(deleteHistory({deityId,eventId,csrf:requireCsrf()}).unwrap());}}/>
     </Box>}
 
-    {!loading&&view==='cosmology'&&<Box className="mythos-content mythos-graph-content">
+    {!loading&&view==='cosmology'&&<Box className="mythos-content mythos-graph-content" ref={cosmologySectionRef}>
       <MythosCosmology nodes={cosmicNodes} links={cosmicLinks} worlds={worlds} admin={session.authenticated}
         onCreateNode={async input=>{await perform(createCosmicNode({input,csrf:requireCsrf()}).unwrap());}}
         onUpdateNode={async(id,input)=>{await perform(updateCosmicNode({id,input,csrf:requireCsrf()}).unwrap());}}
