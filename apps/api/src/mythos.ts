@@ -32,7 +32,12 @@ function deityDTO(row:DeityRow,admin:boolean){
 }
 const normalize=(value:string)=>value.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
 function distinctDomains(values:string[]){
-  return [...new Map(values.map(name=>[normalize(name),name.trim().replace(/\s+/g,' ')])).values()];
+  const unique=new Map<string,string>();
+  for(const value of values){
+    const key=normalize(value);
+    if(key&&!unique.has(key))unique.set(key,value.trim().replace(/\s+/g,' '));
+  }
+  return [...unique.values()];
 }
 async function validateWorlds(db:PrismaClient,ids:string[]){
   const unique=[...new Set(ids)];
