@@ -358,7 +358,7 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert((await request('/api/mythos/cosmology/links','GET',undefined,false,false)).data
       .some(item=>item.id===cosmicLink.data.id));
     // Every change to an existing record must have a verified pre-write snapshot.
-    const {createBackup,verifyBackup}=await import('../apps/api/src/backup.ts');
+    const {createBackup,verifyBackup,pruneBackups}=await import('../apps/api/src/backup.ts');
     const snapshotsBefore=fs.readdirSync(env.ATLAS_BACKUP_DIR).filter(name=>name.startsWith('atlas-snapshot-'));
     const updated=await request('/api/admin/locations/'+location.data.id,'PATCH',{
       name:'Переименованный город',x:400.123456789,y:200.987654321,type:'city',
@@ -369,11 +369,12 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     const stored=await db.location.findUnique({where:{id:location.data.id}});
     assert.equal(stored.name,'Переименованный город');
     const afterWriteSnapshots=fs.readdirSync(env.ATLAS_BACKUP_DIR).filter(name=>name.startsWith('atlas-snapshot-'));
-    assert.equal(afterWriteSnapshots.length,snapshotsBefore.length+1,'save must create a snapshot before overwriting');
     const createdSnapshot=afterWriteSnapshots.find(name=>!snapshotsBefore.includes(name));
-    assert.ok(createdSnapshot,'new snapshot must be separately identifiable');
+    assert.ok(createdSnapshot,'save must create a new pre-write DB snapshot');
     const beforeWriteManifest=await verifyBackup(path.join(env.ATLAS_BACKUP_DIR,createdSnapshot));
-    assert.equal(beforeWriteManifest.assets.length,5);
+    assert.equal(beforeWriteManifest.format,'the-atlas-v2');
+    assert.equal(beforeWriteManifest.kind,'database');
+    assert.equal(beforeWriteManifest.assets.length,0);
     const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9WlEdWMAAAAASUVORK5CYII=','base64');
     const imageResponse=await fetch(base+'/api/admin/assets/media',{method:'POST',headers:{
       cookie,'x-csrf-token':csrf,'content-type':'application/octet-stream'
@@ -455,12 +456,34 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal(historyRow.x,333);
 
     assert.equal((await request('/api/admin/timelines/'+published.data.id,'DELETE')).status,409);
-    const snapshot=await createBackup(db,path.join(temp,'snapshots'));
+    const fullBackupRoot=path.join(temp,'snapshots');
+    const snapshot=await createBackup(db,fullBackupRoot,{kind:'full',prune:false});
     const manifest=await verifyBackup(snapshot.folder);
+    assert.equal(manifest.format,'the-atlas-v2');
+    assert.equal(manifest.kind,'full');
     assert.equal(manifest.assets.length,7);
     assert.ok(fs.existsSync(path.join(snapshot.folder,'atlas.db')));
+    const blobFiles=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(entry=>{
+      const target=path.join(dir,entry.name);
+      return entry.isDirectory()?blobFiles(target):[target];
+    });
+    const assetStore=path.join(fullBackupRoot,'.asset-store');
+    const firstBlobCount=blobFiles(assetStore).length;
+    assert.equal(firstBlobCount,new Set(manifest.assets.map(item=>item.sha256)).size);
+
+    const secondSnapshot=await createBackup(db,fullBackupRoot,{kind:'full',prune:false});
+    const secondManifest=await verifyBackup(secondSnapshot.folder);
+    assert.equal(secondManifest.assets.length,7);
+    assert.equal(blobFiles(assetStore).length,firstBlobCount,
+      'unchanged assets must reuse the shared content-addressed store');
+    const pruneResult=await pruneBackups(fullBackupRoot,{
+      keepDatabase:0,keepFull:1,includeLegacy:true
+    });
+    assert.equal(pruneResult.removedSnapshots,1);
+    assert.ok(fs.existsSync(secondSnapshot.folder));
+
     const copied=path.join(outside,'restore-clone');
-    run('scripts/backup-atlas.cjs',['--restore','--from',snapshot.folder,'--into',copied]);
+    run('scripts/backup-atlas.cjs',['--restore','--from',secondSnapshot.folder,'--into',copied]);
     assert.ok(fs.existsSync(path.join(copied,'atlas.db')));
     assert.ok(fs.existsSync(path.join(copied,'assets','media',assets[0].filename)));
     assert.ok(fs.existsSync(path.join(copied,'assets','icons',svgAsset.filename)));
