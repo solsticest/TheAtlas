@@ -10,6 +10,7 @@ import { registerAtlasAdmin } from './admin-atlas.js';
 import { registerUploads } from './uploads.js';
 import { registerHistory } from './history.js';
 import { registerChronicle } from './chronicle.js';
+import { registerMythos } from './mythos.js';
 import { config as loadEnv } from 'dotenv';
 import { atlasEnvFile, atlasAssetsDir, atlasWebDist } from './paths.js';
 
@@ -39,6 +40,7 @@ export function createApp(db: AtlasDb = new PrismaClient()): Express {
   registerUploads(app,db);
   registerHistory(app,db);
   registerChronicle(app,db);
+  registerMythos(app,db);
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true, service: 'the-atlas-api' });
