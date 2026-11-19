@@ -270,6 +270,9 @@ export const mythosDeityInputSchema=z.object({
   color:z.string().regex(/^#[0-9a-f]{6}$/i).default('#d6b77a'),
   rank:z.string().trim().min(1).max(80).default('Божество'),
   domains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+  primaryDomains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+  graphX:z.number().finite().min(0).max(100).default(50),
+  graphY:z.number().finite().min(0).max(100).default(50),
   visibility:mythosVisibilitySchema.default('gm'),
   pantheonId:id.nullable().default(null),
   worldIds:z.array(id).max(30).default([]),
@@ -281,3 +284,104 @@ export const mythosDeitySchema=mythosDeityInputSchema.omit({worldIds:true}).exte
 });
 export type MythosDeityInput=z.infer<typeof mythosDeityInputSchema>;
 export type MythosDeityRecord=z.infer<typeof mythosDeitySchema>;
+
+
+// MYTHOS v2 — typed relations and secondary knowledge layers.
+export const mythosRelationCategorySchema=z.enum([
+  'origin','alliance','conflict','service','identity','other'
+]);
+export const mythosRelationInputSchema=z.object({
+  sourceId:id,targetId:id,
+  type:z.string().trim().min(1).max(80),
+  category:mythosRelationCategorySchema.default('other'),
+  label:z.string().max(150).default(''),
+  description:shortText.default(''),
+  startDay:z.number().int().nullable().default(null),
+  endDay:z.number().int().nullable().default(null),
+  visibility:mythosVisibilitySchema.default('gm'),
+}).strict().refine(v=>v.sourceId!==v.targetId,{message:'Relation endpoints must differ'})
+.refine(v=>v.startDay===null||v.endDay===null||v.endDay>=v.startDay,
+  {message:'Relation cannot end before it begins'});
+export const mythosRelationSchema=mythosRelationInputSchema.extend({id});
+export type MythosRelationInput=z.infer<typeof mythosRelationInputSchema>;
+export type MythosRelationRecord=z.infer<typeof mythosRelationSchema>;
+
+export const mythosMythInputSchema=z.object({
+  title:label,summary:shortText.default(''),description:article.default(''),
+  visibility:mythosVisibilitySchema.default('gm'),
+  participants:z.array(z.object({deityId:id,role:z.string().max(120).default('')})).max(50).default([]),
+}).strict();
+export const mythosMythSchema=mythosMythInputSchema.extend({
+  id,
+  participants:z.array(z.object({deityId:id,deityName:label,role:z.string()})),
+});
+export type MythosMythInput=z.infer<typeof mythosMythInputSchema>;
+export type MythosMythRecord=z.infer<typeof mythosMythSchema>;
+
+export const mythosBeliefIdentitySchema=z.enum(['true','partial','false','unknown']);
+export const mythosBeliefInputSchema=z.object({
+  deityId:id.nullable().default(null),
+  worldId:id.nullable().default(null),
+  culture:label,
+  publicName:label,
+  doctrine:article.default(''),
+  identity:mythosBeliefIdentitySchema.default('unknown'),
+  visibility:mythosVisibilitySchema.default('gm'),
+}).strict();
+export const mythosBeliefSchema=mythosBeliefInputSchema.extend({
+  id,
+  deity:z.object({id,name:label}).nullable(),
+  world:z.object({id,name:label}).nullable(),
+});
+export type MythosBeliefInput=z.infer<typeof mythosBeliefInputSchema>;
+export type MythosBeliefRecord=z.infer<typeof mythosBeliefSchema>;
+
+export const mythosSacredSiteInputSchema=z.object({
+  deityId:id,locationId:id,name:label,description:shortText.default(''),
+  importance:z.string().trim().min(1).max(80).default('Священное место'),
+  visibility:mythosVisibilitySchema.default('gm'),
+}).strict();
+export const mythosSacredSiteSchema=mythosSacredSiteInputSchema.extend({
+  id,
+  deity:z.object({id,name:label}).nullable(),
+  location:z.object({id,name:label,worldId:id,worldName:label}).nullable(),
+});
+export type MythosSacredSiteInput=z.infer<typeof mythosSacredSiteInputSchema>;
+export type MythosSacredSiteRecord=z.infer<typeof mythosSacredSiteSchema>;
+
+export const mythosChronicleLinkInputSchema=z.object({
+  deityId:id,eventId:id,role:z.string().max(120).default(''),
+}).strict();
+export const mythosChronicleLinkSchema=mythosChronicleLinkInputSchema.extend({
+  deity:z.object({id,name:label}),
+  event:z.object({id,title:label,startDay:z.number().int().nullable()}),
+});
+export type MythosChronicleLinkInput=z.infer<typeof mythosChronicleLinkInputSchema>;
+export type MythosChronicleLinkRecord=z.infer<typeof mythosChronicleLinkSchema>;
+
+export const mythosCosmicNodeInputSchema=z.object({
+  name:label,kind:z.string().trim().min(1).max(80).default('План'),
+  description:shortText.default(''),symbol:z.string().trim().max(12).default(''),
+  color:z.string().regex(/^#[0-9a-f]{6}$/i).default('#7f8da8'),
+  x:z.number().finite().min(0).max(100).default(50),
+  y:z.number().finite().min(0).max(100).default(50),
+  worldId:id.nullable().default(null),
+  visibility:mythosVisibilitySchema.default('gm'),
+}).strict();
+export const mythosCosmicNodeSchema=mythosCosmicNodeInputSchema.extend({id});
+export type MythosCosmicNodeInput=z.infer<typeof mythosCosmicNodeInputSchema>;
+export type MythosCosmicNodeRecord=z.infer<typeof mythosCosmicNodeSchema>;
+
+export const mythosCosmicLinkInputSchema=z.object({
+  sourceId:id,targetId:id,type:z.string().trim().min(1).max(80).default('Путь'),
+  label:z.string().max(150).default(''),description:shortText.default(''),
+  visibility:mythosVisibilitySchema.default('gm'),
+}).strict().refine(v=>v.sourceId!==v.targetId,{message:'Cosmic link endpoints must differ'});
+export const mythosCosmicLinkSchema=mythosCosmicLinkInputSchema.extend({id});
+export type MythosCosmicLinkInput=z.infer<typeof mythosCosmicLinkInputSchema>;
+export type MythosCosmicLinkRecord=z.infer<typeof mythosCosmicLinkSchema>;
+
+export const mythosLocationRefSchema=z.object({
+  id,name:label,worldId:id,worldName:label,
+});
+export type MythosLocationRef=z.infer<typeof mythosLocationRefSchema>;
