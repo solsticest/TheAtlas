@@ -26,6 +26,11 @@ import {
   EventEditorDialog, defaultEventDraft, draftFromRecord, draftToInput,
   type EventDraft,
 } from './EventEditorDialog';
+import { ChronicleFilterMenu } from './ChronicleFilterMenu';
+import {
+  chronicleFilterCount, chronicleTagOptions, emptyChronicleFilters,
+  filterChronicleEvents, type ChronicleFilterState,
+} from './filters';
 import './chronicle.css';
 
 const NEW_DRAFT_KEY='chronicle:new-event-draft:v2';
@@ -68,7 +73,10 @@ export function ChroniclePage(){
   const [hoverDay,setHoverDay]=useState<number|null>(null);
   const [jumpOpen,setJumpOpen]=useState(false);
   const [jumpDate,setJumpDate]=useState<ChronicleDate>(()=>dayToChronicleDate(CURRENT_YEAR_CENTER));
-  const [expanded,setExpanded]=useState<Set<string>>(()=>new Set());
+  const [globalFilterAnchor,setGlobalFilterAnchor]=useState<HTMLElement|null>(null);
+  const [globalFilters,setGlobalFilters]=useState<ChronicleFilterState>(()=>emptyChronicleFilters());
+  const [worldFilterAnchor,setWorldFilterAnchor]=useState<{worldId:string;anchor:HTMLElement}|null>(null);
+  const [worldFilters,setWorldFilters]=useState<Record<string,ChronicleFilterState>>({});
   const [session,setSession]=useState<Session>(emptySession);
   const [loginOpen,setLoginOpen]=useState(false);
   const [password,setPassword]=useState('');
@@ -147,13 +155,6 @@ export function ChroniclePage(){
     drag.current=null;
     event.currentTarget.classList.remove('is-panning');
     if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
-  }
-  function toggleWorld(id:string){
-    setExpanded(current=>{
-      const next=new Set(current);
-      if(next.has(id))next.delete(id);else next.add(id);
-      return next;
-    });
   }
   function openTrackContext(event:ReactMouseEvent<HTMLDivElement>,worldId:string|null){
     event.preventDefault();
@@ -260,7 +261,28 @@ export function ChroniclePage(){
     }
   }
 
-  const universeEvents=events.filter(item=>item.worlds.length!==1);
+  const globalTags=useMemo(()=>chronicleTagOptions(events),[events]);
+  const globallyFilteredEvents=useMemo(
+    ()=>filterChronicleEvents(events,globalFilters),[events,globalFilters]);
+  const globalFilterCount=chronicleFilterCount(globalFilters);
+  const visibleWorlds=globalFilters.worldIds.length
+    ?worlds.filter(world=>globalFilters.worldIds.includes(world.id))
+    :worlds;
+  const universeEvents=globallyFilteredEvents.filter(item=>item.worlds.length!==1);
+  const activeWorldFilter=worldFilterAnchor
+    ?worldFilters[worldFilterAnchor.worldId]??emptyChronicleFilters()
+    :emptyChronicleFilters();
+  const activeWorldTags=worldFilterAnchor?chronicleTagOptions(events.filter(item=>
+    item.worlds.some(world=>world.id===worldFilterAnchor.worldId))):[];
+
+  function filteredWorldEvents(worldId:string){
+    const local=worldFilters[worldId]??emptyChronicleFilters();
+    const inWorld=globallyFilteredEvents.filter(item=>item.worlds.some(link=>link.id===worldId));
+    return filterChronicleEvents(inWorld,local);
+  }
+  function updateWorldFilter(worldId:string,filters:ChronicleFilterState){
+    setWorldFilters(current=>({...current,[worldId]:filters}));
+  }
 
   return <Box className="chronicle-shell">
     <Box component="header" className="chronicle-topbar">
@@ -269,6 +291,11 @@ export function ChroniclePage(){
         <Chip size="small" variant="outlined" label="374 дней · AS / BS"/>
       </Stack>
       <Box sx={{flex:1}}/>
+      <Button size="small" variant={globalFilterCount?'contained':'outlined'}
+        className="chronicle-global-filter-button"
+        onClick={event=>setGlobalFilterAnchor(event.currentTarget)}>
+        Фильтры{globalFilterCount?' · '+globalFilterCount:''}
+      </Button>
       <Chip className="chronicle-detail-chip" size="small" label={timelineGranularityLabel(granularity)}/>
       <Typography className="chronicle-range" variant="caption">{rangeLabel}</Typography>
       <Button size="small" variant="outlined" onClick={()=>zoom(.78)}>−</Button>
@@ -331,21 +358,39 @@ export function ChroniclePage(){
         {worldsQuery.isError&&<Box className="chronicle-loading">
           <Typography color="error.main">Не удалось получить миры Atlas.</Typography>
         </Box>}
-        {worlds.map(world=><Box key={world.id}>
-          <ChronicleTrack label={world.name} subtitle="Обзорная дорожка мира" ticks={grid}
-            events={events.filter(item=>item.worlds.some(link=>link.id===world.id))}
-            centerDay={centerDay} scale={scale} width={width} granularity={granularity}
-            hoverDay={hoverDay} onHoverDay={setHoverDay}
-            expandable expanded={expanded.has(world.id)} onToggle={()=>toggleWorld(world.id)}
-            onContext={event=>openTrackContext(event,world.id)}
-            onEvent={setSelectedEvent} onEventContext={openEventContext}/>
-          {expanded.has(world.id)&&<ChronicleTrack label="Поддорожки"
-            subtitle="Фильтры по тегам появятся следующим этапом" ticks={grid} events={[]}
-            centerDay={centerDay} scale={scale} width={width} granularity={granularity}
-            hoverDay={hoverDay} onHoverDay={setHoverDay} child/>}
-        </Box>)}
+        {visibleWorlds.map(world=>{
+          const worldEvents=filteredWorldEvents(world.id);
+          const localCount=chronicleFilterCount(worldFilters[world.id]??emptyChronicleFilters());
+          const totalAfterGlobal=globallyFilteredEvents.filter(item=>
+            item.worlds.some(link=>link.id===world.id)).length;
+          return <Box key={world.id}>
+            <ChronicleTrack label={world.name}
+              subtitle={worldEvents.length+' из '+totalAfterGlobal+' событий после глобальных фильтров'}
+              ticks={grid} events={worldEvents}
+              centerDay={centerDay} scale={scale} width={width} granularity={granularity}
+              hoverDay={hoverDay} onHoverDay={setHoverDay}
+              filterCount={localCount}
+              onFilterMenu={event=>setWorldFilterAnchor({worldId:world.id,anchor:event.currentTarget})}
+              onContext={event=>openTrackContext(event,world.id)}
+              onEvent={setSelectedEvent} onEventContext={openEventContext}/>
+          </Box>;
+        })}
       </Box>
     </Box>
+
+    <ChronicleFilterMenu anchor={globalFilterAnchor} title="Фильтры Chronicle"
+      filters={globalFilters} worlds={worlds} tags={globalTags}
+      onChange={setGlobalFilters} onClose={()=>setGlobalFilterAnchor(null)}/>
+
+    <ChronicleFilterMenu anchor={worldFilterAnchor?.anchor??null}
+      title={worldFilterAnchor
+        ?'Фильтры · '+(worlds.find(world=>world.id===worldFilterAnchor.worldId)?.name??'Мир')
+        :'Фильтры мира'}
+      filters={activeWorldFilter} tags={activeWorldTags}
+      onChange={filters=>{
+        if(worldFilterAnchor)updateWorldFilter(worldFilterAnchor.worldId,filters);
+      }}
+      onClose={()=>setWorldFilterAnchor(null)}/>
 
     <Dialog open={jumpOpen} onClose={()=>setJumpOpen(false)} fullWidth maxWidth="sm">
       <DialogTitle>Перейти к дате</DialogTitle>
@@ -485,12 +530,12 @@ export function ChroniclePage(){
 }
 
 function ChronicleTrack({label,subtitle,ticks,events,centerDay,scale,width,granularity,
-  hoverDay,onHoverDay,className='',expandable=false,expanded=false,onToggle,onContext,
+  hoverDay,onHoverDay,className='',filterCount=0,onFilterMenu,onContext,
   onEvent,onEventContext,child=false}:{
   label:string;subtitle:string;ticks:ReactNode;events:ChronicleEventRecord[];
   centerDay:number;scale:number;width:number;granularity:TimelineGranularity;
   hoverDay:number|null;onHoverDay?:(day:number|null)=>void;className?:string;
-  expandable?:boolean;expanded?:boolean;onToggle?:()=>void;
+  filterCount?:number;onFilterMenu?:(event:ReactMouseEvent<HTMLButtonElement>)=>void;
   onContext?:(event:ReactMouseEvent<HTMLDivElement>)=>void;
   onEvent?:(event:ChronicleEventRecord)=>void;
   onEventContext?:(event:ReactMouseEvent<HTMLButtonElement>,item:ChronicleEventRecord)=>void;
@@ -503,15 +548,17 @@ function ChronicleTrack({label,subtitle,ticks,events,centerDay,scale,width,granu
   const hoverLeft=hoverDay===null?null:width/2+(hoverDay-centerDay)*scale;
   return <Box className={'chronicle-track chronicle-view-'+granularity+' '+className+(child?' is-child':'')}
     style={{minHeight:height}}>
-    <Box className="chronicle-track-label">
-      {expandable?<button className="chronicle-disclosure" onClick={onToggle}
-        aria-label={expanded?'Свернуть дорожку':'Развернуть дорожку'}>
-        {expanded?'⌄':'›'}
-      </button>:<span className="chronicle-disclosure-spacer"/>}
-      <Box minWidth={0}>
+    <Box className={'chronicle-track-label'+(filterCount?' has-filter':'')}>
+      <span className="chronicle-disclosure-spacer"/>
+      <Box minWidth={0} sx={{flex:1}}>
         <Typography className="chronicle-track-name">{label}</Typography>
         <Typography className="chronicle-track-subtitle">{subtitle}</Typography>
       </Box>
+      {onFilterMenu&&<button className={'chronicle-world-filter'+(filterCount?' is-active':'')}
+        onClick={event=>{event.stopPropagation();onFilterMenu(event);}}
+        title="Фильтры этого мира">
+        Фильтр{filterCount?' · '+filterCount:''}
+      </button>}
     </Box>
     <Box className="chronicle-track-time" onContextMenu={onContext}
       onPointerMove={event=>{
