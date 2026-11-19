@@ -376,6 +376,7 @@ export const mythosCosmicNodeInputSchema=z.object({
   color:z.string().regex(/^#[0-9a-f]{6}$/i).default('#7f8da8'),
   x:z.number().finite().min(0).max(100).default(50),
   y:z.number().finite().min(0).max(100).default(50),
+  size:z.number().finite().min(.5).max(3).default(1),
   worldId:id.nullable().default(null),
   visibility:mythosVisibilitySchema.default('gm'),
 }).strict();
