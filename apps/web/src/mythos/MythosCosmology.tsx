@@ -27,7 +27,10 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
   onUpdateLink:(id:string,input:MythosCosmicLinkInput)=>Promise<void>;
   onDeleteLink:(id:string)=>Promise<void>;
 }){
-  const drag=useRef<{id:string;pointer:number}|null>(null);
+  const drag=useRef<{
+    id:string;pointer:number;element:HTMLButtonElement;
+    startClientX:number;startClientY:number;x:number;y:number;moved:boolean;
+  }|null>(null);
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
   const [nodeDraft,setNodeDraft]=useState<MythosCosmicNodeInput|null>(null);
   const [nodeId,setNodeId]=useState<string|null>(null);
@@ -35,26 +38,47 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
   const [linkId,setLinkId]=useState<string|null>(null);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
+  const [dragError,setDragError]=useState('');
 
   useEffect(()=>setPositions(Object.fromEntries(nodes.map(node=>[node.id,{x:node.x,y:node.y}]))),[nodes]);
   const pos=(id:string)=>positions[id]??{x:50,y:50};
 
   function move(event:ReactPointerEvent<HTMLDivElement>){
-    if(!drag.current||drag.current.pointer!==event.pointerId)return;
+    const active=drag.current;
+    if(!active||active.pointer!==event.pointerId)return;
     const rect=event.currentTarget.getBoundingClientRect();
     const x=Math.max(5,Math.min(95,(event.clientX-rect.left)/rect.width*100));
     const y=Math.max(8,Math.min(92,(event.clientY-rect.top)/rect.height*100));
-    setPositions(current=>({...current,[drag.current!.id]:{x,y}}));
+    active.x=x;active.y=y;
+    if(Math.hypot(event.clientX-active.startClientX,event.clientY-active.startClientY)>4)active.moved=true;
+    setPositions(current=>({...current,[active.id]:{x,y}}));
   }
   async function end(event:ReactPointerEvent<HTMLDivElement>){
-    if(!drag.current||drag.current.pointer!==event.pointerId)return;
-    const {id}=drag.current;drag.current=null;
-    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
-    const node=nodes.find(item=>item.id===id),p=positions[id];
-    if(node&&p)await onUpdateNode(id,{
-      name:node.name,kind:node.kind,description:node.description,symbol:node.symbol,color:node.color,
-      x:p.x,y:p.y,worldId:node.worldId,visibility:node.visibility,
-    });
+    const active=drag.current;
+    if(!active||active.pointer!==event.pointerId)return;
+    drag.current=null;
+    if(active.element.hasPointerCapture(event.pointerId))active.element.releasePointerCapture(event.pointerId);
+    if(!active.moved)return;
+    const node=nodes.find(item=>item.id===active.id);
+    if(!node)return;
+    setDragError('');
+    try{
+      await onUpdateNode(active.id,{
+        name:node.name,kind:node.kind,description:node.description,symbol:node.symbol,color:node.color,
+        x:active.x,y:active.y,worldId:node.worldId,visibility:node.visibility,
+      });
+    }catch(reason){
+      setPositions(current=>({...current,[active.id]:{x:node.x,y:node.y}}));
+      setDragError(reason instanceof Error?reason.message:'Не удалось сохранить положение узла.');
+    }
+  }
+  function cancelDrag(event:ReactPointerEvent<HTMLDivElement>){
+    const active=drag.current;
+    if(!active||active.pointer!==event.pointerId)return;
+    drag.current=null;
+    if(active.element.hasPointerCapture(event.pointerId))active.element.releasePointerCapture(event.pointerId);
+    const node=nodes.find(item=>item.id===active.id);
+    if(node)setPositions(current=>({...current,[active.id]:{x:node.x,y:node.y}}));
   }
   function editNode(node?:MythosCosmicNodeRecord){
     setError('');setNodeId(node?.id??null);
@@ -90,7 +114,7 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
       </Stack>}
     </Stack>
 
-    <Box className="mythos-cosmic-board" onPointerMove={move} onPointerUp={end} onPointerCancel={end}>
+    <Box className="mythos-cosmic-board" onPointerMove={move} onPointerUp={end} onPointerCancel={cancelDrag}>
       <svg className="mythos-graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs><marker id="cosmic-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5"
           orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3.5 L0,7 z" fill="context-stroke"/></marker></defs>
@@ -113,7 +137,12 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
           onPointerDown={event=>{
             if(!admin||event.button!==0)return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            drag.current={id:node.id,pointer:event.pointerId};event.stopPropagation();
+            const p=pos(node.id);
+            drag.current={
+              id:node.id,pointer:event.pointerId,element:event.currentTarget,
+              startClientX:event.clientX,startClientY:event.clientY,x:p.x,y:p.y,moved:false,
+            };
+            event.stopPropagation();
           }}
           onDoubleClick={()=>admin&&editNode(node)} title={node.description||node.kind}>
           <span>{node.symbol||'◈'}</span><strong>{node.name}</strong><small>{node.kind}</small>
@@ -124,6 +153,7 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
         <Typography color="text.secondary">Добавь материальный мир, астрал, загробье или любой другой план.</Typography>
       </Box>}
     </Box>
+    {dragError&&<Typography variant="caption" color="error.main">{dragError}</Typography>}
     <Typography variant="caption" color="text.secondary">
       {admin?'Перетаскивай узлы. Двойной клик по узлу или подписи связи — редактирование.':'Карта устройства мироздания.'}
     </Typography>
