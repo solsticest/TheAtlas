@@ -31,7 +31,10 @@ export function chronicleEventMatches(event:ChronicleEventRecord,filters:Chronic
     if(!haystack.includes(query))return false;
   }
   if(filters.worldIds.length&&!event.worlds.some(world=>filters.worldIds.includes(world.id)))return false;
-  if(filters.tags.length&&!event.tags.some(tag=>filters.tags.includes(tag.name)))return false;
+  if(filters.tags.length){
+    const selectedTags=new Set(filters.tags.map(normalize));
+    if(!event.tags.some(tag=>selectedTags.has(normalize(tag.name))))return false;
+  }
   if(filters.significances.length&&!filters.significances.includes(event.significance))return false;
   if(filters.kinds.length&&!filters.kinds.includes(event.kind))return false;
   if(filters.visibilities.length&&!filters.visibilities.includes(event.visibility))return false;
