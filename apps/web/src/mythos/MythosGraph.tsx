@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
-  FormControl, InputLabel, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
-import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+  FormControl, InputLabel, Menu, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+import type {
+  MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent,
+} from 'react';
 import type {
   MythosDeityRecord, MythosPantheonRecord, MythosRelationInput, MythosRelationRecord,
 } from '@atlas/shared';
@@ -12,7 +14,13 @@ type Edge={
   id:string;sourceId:string;targetId:string;label:string;category:string;color:string;
   relation?:MythosRelationRecord;
 };
+type Viewport={x:number;y:number;scale:number};
+type ContextState={
+  mouseX:number;mouseY:number;worldX:number;worldY:number;deityId:string|null;
+};
 
+const MIN_ZOOM=.45;
+const MAX_ZOOM=3.5;
 const relationColors:Record<string,string>={
   origin:'#8aa3c7',alliance:'#7eb48a',conflict:'#c66b68',service:'#c6a569',
   identity:'#a788c7',other:'#8f979f',domain:'#6e9fb1',pantheon:'#b59362',
@@ -29,6 +37,7 @@ const emptyRelation=(sourceId:string,targetId:string):MythosRelationInput=>({
   sourceId,targetId,type:'связан с',category:'other',label:'',description:'',
   startDay:null,endDay:null,visibility:'gm',
 });
+const clamp=(value:number,min:number,max:number)=>Math.max(min,Math.min(max,value));
 
 function syntheticDomainEdges(deities:MythosDeityRecord[]):Edge[]{
   const out:Edge[]=[];
@@ -90,10 +99,11 @@ function genealogyPositions(deities:MythosDeityRecord[],relations:MythosRelation
 }
 
 export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onSelectDeity,
-  onSavePosition,onCreateRelation,onUpdateRelation,onDeleteRelation}:{
+  onCreateDeityAt,onSavePosition,onCreateRelation,onUpdateRelation,onDeleteRelation}:{
   deities:MythosDeityRecord[];relations:MythosRelationRecord[];pantheons:MythosPantheonRecord[];
   admin:boolean;historicalDay:number|null;
   onSelectDeity:(deity:MythosDeityRecord)=>void;
+  onCreateDeityAt:(x:number,y:number)=>void;
   onSavePosition:(deity:MythosDeityRecord,x:number,y:number)=>Promise<void>;
   onCreateRelation:(input:MythosRelationInput)=>Promise<void>;
   onUpdateRelation:(id:string,input:MythosRelationInput)=>Promise<void>;
@@ -104,12 +114,20 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
     id:string;pointer:number;element:HTMLButtonElement;
     startClientX:number;startClientY:number;x:number;y:number;moved:boolean;
   }|null>(null);
+  const pan=useRef<{
+    pointer:number;element:HTMLDivElement;startClientX:number;startClientY:number;
+    originX:number;originY:number;
+  }|null>(null);
   const suppressClick=useRef<{id:string;until:number}|null>(null);
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
+  const [viewport,setViewport]=useState<Viewport>({x:0,y:0,scale:1});
+  const [isPanning,setIsPanning]=useState(false);
   const [layer,setLayer]=useState<GraphLayer>('relations');
   const [layout,setLayout]=useState<LayoutMode>('free');
   const [relationDraft,setRelationDraft]=useState<MythosRelationInput|null>(null);
   const [editingRelation,setEditingRelation]=useState<string|null>(null);
+  const [linkSourceId,setLinkSourceId]=useState<string|null>(null);
+  const [context,setContext]=useState<ContextState|null>(null);
   const [busy,setBusy]=useState(false);
   const [relationError,setRelationError]=useState('');
   const [dragError,setDragError]=useState('');
@@ -139,47 +157,116 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
     :layer==='pantheon'?syntheticPantheonEdges(deities):actualEdges,[layer,deities,actualEdges]);
 
   const pos=(id:string)=>layoutPositions?.get(id)??positions[id]??{x:50,y:50};
+  const sourceDeity=linkSourceId?deities.find(item=>item.id===linkSourceId)??null:null;
+
+  function screenToWorld(clientX:number,clientY:number){
+    const rect=board.current?.getBoundingClientRect();
+    if(!rect)return {x:50,y:50};
+    const x=(clientX-rect.left-viewport.x)/viewport.scale/rect.width*100;
+    const y=(clientY-rect.top-viewport.y)/viewport.scale/rect.height*100;
+    return {x:clamp(x,4,96),y:clamp(y,7,93)};
+  }
+  function zoomAt(clientX:number,clientY:number,factor:number){
+    const rect=board.current?.getBoundingClientRect();
+    if(!rect)return;
+    const cursorX=clientX-rect.left,cursorY=clientY-rect.top;
+    setViewport(current=>{
+      const scale=clamp(current.scale*factor,MIN_ZOOM,MAX_ZOOM);
+      if(Math.abs(scale-current.scale)<.0001)return current;
+      const worldX=(cursorX-current.x)/current.scale;
+      const worldY=(cursorY-current.y)/current.scale;
+      return {scale,x:cursorX-worldX*scale,y:cursorY-worldY*scale};
+    });
+  }
+  function zoomCenter(factor:number){
+    const rect=board.current?.getBoundingClientRect();
+    if(rect)zoomAt(rect.left+rect.width/2,rect.top+rect.height/2,factor);
+  }
+  function wheel(event:ReactWheelEvent<HTMLDivElement>){
+    event.preventDefault();
+    const factor=clamp(Math.exp(-event.deltaY*.0015),.82,1.22);
+    zoomAt(event.clientX,event.clientY,factor);
+  }
+  function boardPointerDown(event:ReactPointerEvent<HTMLDivElement>){
+    if(event.button!==0||drag.current)return;
+    const target=event.target as HTMLElement;
+    if(target.closest('.mythos-graph-node,.mythos-edge-label'))return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    pan.current={
+      pointer:event.pointerId,element:event.currentTarget,
+      startClientX:event.clientX,startClientY:event.clientY,
+      originX:viewport.x,originY:viewport.y,
+    };
+    setIsPanning(true);
+  }
   function pointerMove(event:ReactPointerEvent<HTMLDivElement>){
-    const active=drag.current;
-    if(!active||active.pointer!==event.pointerId||layout!=='free')return;
-    const rect=event.currentTarget.getBoundingClientRect();
-    const x=Math.max(4,Math.min(96,(event.clientX-rect.left)/rect.width*100));
-    const y=Math.max(7,Math.min(93,(event.clientY-rect.top)/rect.height*100));
-    active.x=x;active.y=y;
-    if(Math.hypot(event.clientX-active.startClientX,event.clientY-active.startClientY)>4)active.moved=true;
-    setPositions(current=>({...current,[active.id]:{x,y}}));
+    const activeDrag=drag.current;
+    if(activeDrag&&activeDrag.pointer===event.pointerId&&layout==='free'){
+      const rect=event.currentTarget.getBoundingClientRect();
+      const worldPixelX=(event.clientX-rect.left-viewport.x)/viewport.scale;
+      const worldPixelY=(event.clientY-rect.top-viewport.y)/viewport.scale;
+      const x=clamp(worldPixelX/rect.width*100,4,96);
+      const y=clamp(worldPixelY/rect.height*100,7,93);
+      activeDrag.x=x;activeDrag.y=y;
+      if(Math.hypot(event.clientX-activeDrag.startClientX,event.clientY-activeDrag.startClientY)>4)activeDrag.moved=true;
+      setPositions(current=>({...current,[activeDrag.id]:{x,y}}));
+      return;
+    }
+    const activePan=pan.current;
+    if(activePan&&activePan.pointer===event.pointerId){
+      setViewport(current=>({
+        ...current,
+        x:activePan.originX+(event.clientX-activePan.startClientX),
+        y:activePan.originY+(event.clientY-activePan.startClientY),
+      }));
+    }
   }
   async function pointerUp(event:ReactPointerEvent<HTMLDivElement>){
-    const active=drag.current;
-    if(!active||active.pointer!==event.pointerId)return;
-    drag.current=null;
-    if(active.element.hasPointerCapture(event.pointerId))active.element.releasePointerCapture(event.pointerId);
-    if(!active.moved)return;
-    suppressClick.current={id:active.id,until:performance.now()+350};
-    const deity=deities.find(item=>item.id===active.id);
-    if(!deity)return;
-    setDragError('');
-    try{
-      await onSavePosition(deity,active.x,active.y);
-    }catch(error){
-      setPositions(current=>({...current,[deity.id]:{x:deity.graphX,y:deity.graphY}}));
-      setDragError(error instanceof Error?error.message:'Не удалось сохранить положение узла.');
+    const activeDrag=drag.current;
+    if(activeDrag&&activeDrag.pointer===event.pointerId){
+      drag.current=null;
+      if(activeDrag.element.hasPointerCapture(event.pointerId))activeDrag.element.releasePointerCapture(event.pointerId);
+      if(!activeDrag.moved)return;
+      suppressClick.current={id:activeDrag.id,until:performance.now()+350};
+      const deity=deities.find(item=>item.id===activeDrag.id);
+      if(!deity)return;
+      setDragError('');
+      try{
+        await onSavePosition(deity,activeDrag.x,activeDrag.y);
+      }catch(error){
+        setPositions(current=>({...current,[deity.id]:{x:deity.graphX,y:deity.graphY}}));
+        setDragError(error instanceof Error?error.message:'Не удалось сохранить положение узла.');
+      }
+      return;
+    }
+    const activePan=pan.current;
+    if(activePan&&activePan.pointer===event.pointerId){
+      pan.current=null;setIsPanning(false);
+      if(activePan.element.hasPointerCapture(event.pointerId))activePan.element.releasePointerCapture(event.pointerId);
     }
   }
   function pointerCancel(event:ReactPointerEvent<HTMLDivElement>){
-    const active=drag.current;
-    if(!active||active.pointer!==event.pointerId)return;
-    drag.current=null;
-    if(active.element.hasPointerCapture(event.pointerId))active.element.releasePointerCapture(event.pointerId);
-    setPositions(current=>({...current,[active.id]:{
-      x:deities.find(item=>item.id===active.id)?.graphX??active.x,
-      y:deities.find(item=>item.id===active.id)?.graphY??active.y,
-    }}));
+    const activeDrag=drag.current;
+    if(activeDrag&&activeDrag.pointer===event.pointerId){
+      drag.current=null;
+      if(activeDrag.element.hasPointerCapture(event.pointerId))activeDrag.element.releasePointerCapture(event.pointerId);
+      setPositions(current=>({...current,[activeDrag.id]:{
+        x:deities.find(item=>item.id===activeDrag.id)?.graphX??activeDrag.x,
+        y:deities.find(item=>item.id===activeDrag.id)?.graphY??activeDrag.y,
+      }}));
+    }
+    const activePan=pan.current;
+    if(activePan&&activePan.pointer===event.pointerId){
+      pan.current=null;setIsPanning(false);
+      if(activePan.element.hasPointerCapture(event.pointerId))activePan.element.releasePointerCapture(event.pointerId);
+    }
   }
-  function openCreate(){
+  function openCreate(sourceId?:string,targetId?:string){
     if(deities.length<2)return;
+    const source=sourceId??deities[0]!.id;
+    const target=targetId??deities.find(item=>item.id!==source)?.id??deities[1]!.id;
     setEditingRelation(null);setRelationError('');
-    setRelationDraft(emptyRelation(deities[0]!.id,deities[1]!.id));
+    setRelationDraft(emptyRelation(source,target));
   }
   function openEdit(event:ReactMouseEvent,edge:Edge){
     event.stopPropagation();
@@ -190,6 +277,22 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
       category:edge.relation.category,label:edge.relation.label,description:edge.relation.description,
       startDay:edge.relation.startDay,endDay:edge.relation.endDay,visibility:edge.relation.visibility,
     });
+  }
+  function openContext(event:ReactMouseEvent,deityId:string|null=null){
+    event.preventDefault();
+    const point=screenToWorld(event.clientX,event.clientY);
+    setContext({
+      mouseX:event.clientX+2,mouseY:event.clientY-6,
+      worldX:point.x,worldY:point.y,deityId,
+    });
+  }
+  function pickRelationTarget(deity:MythosDeityRecord){
+    if(!linkSourceId)return false;
+    if(deity.id===linkSourceId)return true;
+    setEditingRelation(null);setRelationError('');
+    setRelationDraft(emptyRelation(linkSourceId,deity.id));
+    setLinkSourceId(null);
+    return true;
   }
   async function saveRelation(){
     if(!relationDraft)return;
@@ -215,79 +318,125 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
           size="small" label={layerLabels[value]} clickable
           variant={layer===value?'filled':'outlined'} onClick={()=>setLayer(value)}/>)}
       </Stack>
-      <Stack direction="row" gap={1}>
+      <Stack direction="row" gap={1} flexWrap="wrap">
         <Button size="small" variant={layout==='free'?'contained':'outlined'}
           onClick={()=>setLayout('free')}>Свободно</Button>
         <Button size="small" variant={layout==='genealogy'?'contained':'outlined'}
           onClick={()=>setLayout('genealogy')}>Генеалогия</Button>
+        <Button size="small" variant="outlined" onClick={()=>zoomCenter(1/1.2)}>−</Button>
+        <Chip size="small" label={Math.round(viewport.scale*100)+'%'}/>
+        <Button size="small" variant="outlined" onClick={()=>zoomCenter(1.2)}>+</Button>
+        <Button size="small" onClick={()=>setViewport({x:0,y:0,scale:1})}>Сбросить вид</Button>
         {admin&&<Button size="small" variant="outlined" disabled={deities.length<2}
-          onClick={openCreate}>+ Связь</Button>}
+          onClick={()=>openCreate()}>+ Связь</Button>}
       </Stack>
     </Box>
-    <Box ref={board} className="mythos-graph-board"
-      onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}>
-      <svg className="mythos-graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
-        <defs>
-          <marker id="mythos-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5"
-            orient="auto" markerUnits="strokeWidth">
-            <path d="M0,0 L7,3.5 L0,7 z" fill="context-stroke"/>
-          </marker>
-        </defs>
+
+    {sourceDeity&&<Box className="mythos-link-mode">
+      <Typography variant="body2">
+        Создаём связь от <strong>{sourceDeity.name}</strong>. Кликни по второму божеству.
+      </Typography>
+      <Button size="small" color="inherit" onClick={()=>setLinkSourceId(null)}>Отмена</Button>
+    </Box>}
+
+    <Box ref={board} className={'mythos-graph-board'+(isPanning?' is-panning':'')}
+      style={{
+        backgroundSize:`auto, ${42*viewport.scale}px ${42*viewport.scale}px, ${42*viewport.scale}px ${42*viewport.scale}px`,
+        backgroundPosition:`center, ${viewport.x}px ${viewport.y}px, ${viewport.x}px ${viewport.y}px`,
+      }}
+      onPointerDown={boardPointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp}
+      onPointerCancel={pointerCancel} onWheel={wheel} onContextMenu={event=>openContext(event)}>
+      <Box className="mythos-graph-world"
+        style={{transform:`translate(${viewport.x}px,${viewport.y}px) scale(${viewport.scale})`}}>
+        <svg className="mythos-graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <defs>
+            <marker id="mythos-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5"
+              orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L7,3.5 L0,7 z" fill="context-stroke"/>
+            </marker>
+          </defs>
+          {edges.map(edge=>{
+            const a=pos(edge.sourceId),b=pos(edge.targetId);
+            return <line key={edge.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+              stroke={edge.color} strokeWidth={edge.category==='conflict'?'.48':'.34'}
+              strokeDasharray={edge.category==='conflict'?'1.2 1':''}
+              markerEnd={edge.relation?'url(#mythos-arrow)':undefined}/>;
+          })}
+        </svg>
         {edges.map(edge=>{
           const a=pos(edge.sourceId),b=pos(edge.targetId);
-          return <line key={edge.id} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-            stroke={edge.color} strokeWidth={edge.category==='conflict'?'.48':'.34'}
-            strokeDasharray={edge.category==='conflict'?'1.2 1':''}
-            markerEnd={edge.relation?'url(#mythos-arrow)':undefined}/>;
+          return <button key={'label-'+edge.id} className={'mythos-edge-label edge-'+edge.category}
+            style={{left:(a.x+b.x)/2+'%',top:(a.y+b.y)/2+'%'}}
+            onClick={event=>openEdit(event,edge)} title={edge.relation?.description||edge.label}>
+            {edge.label}
+          </button>;
         })}
-      </svg>
-      {edges.map(edge=>{
-        const a=pos(edge.sourceId),b=pos(edge.targetId);
-        return <button key={'label-'+edge.id} className={'mythos-edge-label edge-'+edge.category}
-          style={{left:(a.x+b.x)/2+'%',top:(a.y+b.y)/2+'%'}}
-          onClick={event=>openEdit(event,edge)} title={edge.relation?.description||edge.label}>
-          {edge.label}
-        </button>;
-      })}
-      {deities.map(deity=>{
-        const p=pos(deity.id);
-        const pantheon=pantheons.find(item=>item.id===deity.pantheonId);
-        return <button key={deity.id} className={'mythos-graph-node'+(layout==='free'&&admin?' is-draggable':'')}
-          style={{left:p.x+'%',top:p.y+'%','--node-color':deity.color} as React.CSSProperties}
-          title={(deity.epithet||deity.rank)+(pantheon?' · '+pantheon.name:'')}
-          onPointerDown={event=>{
-            if(!admin||layout!=='free'||event.button!==0)return;
-            event.currentTarget.setPointerCapture(event.pointerId);
-            const p=pos(deity.id);
-            drag.current={
-              id:deity.id,pointer:event.pointerId,element:event.currentTarget,
-              startClientX:event.clientX,startClientY:event.clientY,x:p.x,y:p.y,moved:false,
-            };
-            event.stopPropagation();
-          }}
-          onClick={()=>{
-            const blocked=suppressClick.current;
-            if(blocked?.id===deity.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
-            suppressClick.current=null;
-            onSelectDeity(deity);
-          }}>
-          <span className="mythos-graph-node-symbol">{deity.symbol||'✧'}</span>
-          <span className="mythos-graph-node-name">{deity.name}</span>
-          <small>{deity.primaryDomains.slice(0,2).join(' · ')||deity.rank}</small>
-        </button>;
-      })}
+        {deities.map(deity=>{
+          const p=pos(deity.id);
+          const pantheon=pantheons.find(item=>item.id===deity.pantheonId);
+          const isSource=deity.id===linkSourceId;
+          return <button key={deity.id}
+            className={'mythos-graph-node'+(layout==='free'&&admin?' is-draggable':'')+
+              (isSource?' is-link-source':linkSourceId?' is-link-target':'')}
+            style={{left:p.x+'%',top:p.y+'%','--node-color':deity.color} as React.CSSProperties}
+            title={(deity.epithet||deity.rank)+(pantheon?' · '+pantheon.name:'')}
+            onPointerDown={event=>{
+              if(!admin||layout!=='free'||event.button!==0||linkSourceId)return;
+              event.currentTarget.setPointerCapture(event.pointerId);
+              const current=pos(deity.id);
+              drag.current={
+                id:deity.id,pointer:event.pointerId,element:event.currentTarget,
+                startClientX:event.clientX,startClientY:event.clientY,x:current.x,y:current.y,moved:false,
+              };
+              event.stopPropagation();
+            }}
+            onContextMenu={event=>{event.stopPropagation();openContext(event,deity.id);}}
+            onClick={()=>{
+              const blocked=suppressClick.current;
+              if(blocked?.id===deity.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
+              suppressClick.current=null;
+              if(pickRelationTarget(deity))return;
+              onSelectDeity(deity);
+            }}>
+            <span className="mythos-graph-node-symbol">{deity.symbol||'✧'}</span>
+            <span className="mythos-graph-node-name">{deity.name}</span>
+            <small>{deity.primaryDomains.slice(0,2).join(' · ')||deity.rank}</small>
+          </button>;
+        })}
+      </Box>
       {!deities.length&&<Box className="mythos-graph-empty">
         <Typography variant="h6">Граф пока пуст</Typography>
-        <Typography color="text.secondary">Создай хотя бы одно божество.</Typography>
+        <Typography color="text.secondary">ПКМ по полю → «Создать божество здесь».</Typography>
       </Box>}
     </Box>
+
     {dragError&&<Typography variant="caption" color="error.main">{dragError}</Typography>}
     <Typography variant="caption" color="text.secondary">
-      {layout==='free'
-        ?admin?'Перетаскивай божеств мышью — позиция сохраняется автоматически.':'Свободная карта связей.'
+      ЛКМ по пустому месту + drag — двигать граф · колесо — масштаб · ПКМ — контекстное меню.
+      {' '}{layout==='free'
+        ?admin?'Божеств можно перетаскивать отдельно.':'Свободная карта связей.'
         :'Генеалогический режим строится из связей категории «Происхождение».'}
       {historicalDay!==null?' Показаны связи, существующие на выбранную историческую дату.':''}
     </Typography>
+
+    <Menu open={Boolean(context)} onClose={()=>setContext(null)} anchorReference="anchorPosition"
+      anchorPosition={context?{top:context.mouseY,left:context.mouseX}:undefined}>
+      {context?.deityId&&<MenuItem onClick={()=>{
+        const deity=deities.find(item=>item.id===context.deityId);
+        setContext(null);if(deity)onSelectDeity(deity);
+      }}>Открыть божество</MenuItem>}
+      {admin&&<MenuItem onClick={()=>{
+        if(!context)return;
+        const {worldX,worldY}=context;setContext(null);onCreateDeityAt(worldX,worldY);
+      }}>Создать божество здесь</MenuItem>}
+      {admin&&context?.deityId&&<MenuItem disabled={deities.length<2} onClick={()=>{
+        const id=context.deityId;setContext(null);setLinkSourceId(id);
+      }}>Создать связь от этого божества</MenuItem>}
+      {admin&&!context?.deityId&&<MenuItem disabled={deities.length<2} onClick={()=>{
+        setContext(null);openCreate();
+      }}>Создать связь…</MenuItem>}
+      <MenuItem onClick={()=>{setContext(null);setViewport({x:0,y:0,scale:1});}}>Сбросить вид</MenuItem>
+    </Menu>
 
     <Dialog open={Boolean(relationDraft)} onClose={()=>!busy&&setRelationDraft(null)} fullWidth maxWidth="sm">
       <DialogTitle>{editingRelation?'Редактировать связь':'Новая связь'}</DialogTitle>
