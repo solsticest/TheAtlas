@@ -41,6 +41,8 @@ model World {
   locations  Location[]
   timelines       Timeline[]
   chronicleEvents ChronicleEventWorld[]
+  mythosPantheons MythosPantheon[]
+  mythosDeities  MythosDeityWorld[]
 }
 
 model MapLayer {
@@ -224,4 +226,53 @@ model ChronicleEventTag {
 
   @@id([eventId, tagId])
   @@index([tagId, eventId])
+}
+
+
+// Mythos keeps cosmological knowledge independent of Atlas locations and Chronicle events.
+// A deity can appear in several worlds; a pantheon may be world-specific or cross-world.
+model MythosPantheon {
+  id          String       @id
+  name        String
+  description String       @default("")
+  worldId     String?
+  visibility  String       @default("gm")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  world       World?       @relation(fields: [worldId], references: [id], onDelete: Restrict)
+  deities     MythosDeity[]
+
+  @@index([worldId, name])
+  @@index([visibility, name])
+}
+
+model MythosDeity {
+  id          String             @id
+  name        String
+  epithet     String             @default("")
+  summary     String             @default("")
+  description String             @default("")
+  symbol      String             @default("")
+  color       String             @default("#d6b77a")
+  rank        String             @default("deity")
+  domains     String             @default("[]")
+  visibility  String             @default("gm")
+  pantheonId  String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  pantheon    MythosPantheon?    @relation(fields: [pantheonId], references: [id], onDelete: SetNull)
+  worlds      MythosDeityWorld[]
+
+  @@index([pantheonId, name])
+  @@index([visibility, name])
+}
+
+model MythosDeityWorld {
+  deityId String
+  worldId String
+  deity   MythosDeity @relation(fields: [deityId], references: [id], onDelete: Cascade)
+  world   World       @relation(fields: [worldId], references: [id], onDelete: Restrict)
+
+  @@id([deityId, worldId])
+  @@index([worldId, deityId])
 }
