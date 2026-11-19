@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Box, Button, Chip, Divider, Menu, Stack, TextField, Typography } from '@mui/material';
 import type { ChronicleEventRecord } from '@atlas/shared';
 import {
@@ -100,7 +101,7 @@ export function ChronicleFilterMenu({
   </Menu>;
 }
 
-function FilterSection({title,children}:{title:string;children:React.ReactNode}){
+function FilterSection({title,children}:{title:string;children:ReactNode}){
   return <Box>
     <Typography variant="caption" color="text.secondary" fontWeight={800}>{title.toUpperCase()}</Typography>
     <Stack direction="row" gap={.7} flexWrap="wrap" sx={{mt:.7}}>{children}</Stack>
