@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Alert, Box, Button, ButtonBase, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, Drawer, FormControl, InputLabel,
-  MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
+  MenuItem, Select, Slider, Stack, TextField, Typography } from '@mui/material';
 import type {
   MythosDeityInput, MythosDeityRecord, MythosPantheonInput, MythosPantheonRecord,
 } from '@atlas/shared';
@@ -298,13 +298,28 @@ export function MythosPage(){
 
     {!loading&&view==='graph'&&<Box className="mythos-content">
       <Box className="mythos-history-filter">
-        <Stack direction={{xs:'column',sm:'row'}} gap={1} alignItems={{sm:'center'}}>
-          <Typography variant="caption" color="text.secondary">Историческое состояние графа:</Typography>
-          <TextField size="small" type="number" label="Абсолютный день" value={historicalDay??''}
-            inputProps={historyBounds?{min:historyBounds.min,max:historyBounds.max}:undefined}
-            onChange={e=>setHistoricalDay(e.target.value===''?null:Number(e.target.value))}/>
-          {historicalDay!==null&&<Chip size="small" label={formatChronicleDate(dayToChronicleDate(historicalDay))}/>}
-          <Button size="small" onClick={()=>setHistoricalDay(null)}>Все эпохи</Button>
+        <Stack gap={1}>
+          <Stack direction={{xs:'column',sm:'row'}} gap={1} alignItems={{sm:'center'}}>
+            <Typography variant="caption" color="text.secondary">Историческое состояние графа:</Typography>
+            {historyBounds&&historicalDay===null&&<Button size="small" variant="outlined"
+              onClick={()=>setHistoricalDay(historyBounds.min)}>Включить снимок времени</Button>}
+            {historicalDay!==null&&<>
+              <TextField size="small" type="number" label="Абсолютный день" value={historicalDay}
+                inputProps={historyBounds?{min:historyBounds.min,max:historyBounds.max}:undefined}
+                onChange={e=>setHistoricalDay(Number(e.target.value))}/>
+              <Chip size="small" label={formatChronicleDate(dayToChronicleDate(historicalDay))}/>
+              <Button size="small" onClick={()=>setHistoricalDay(null)}>Все эпохи</Button>
+            </>}
+            {!historyBounds&&<Typography variant="caption" color="text.secondary">
+              У связей пока нет дат — граф показывает все эпохи.
+            </Typography>}
+          </Stack>
+          {historyBounds&&historicalDay!==null&&<Slider size="small"
+            min={historyBounds.min} max={Math.max(historyBounds.min+1,historyBounds.max)}
+            value={Math.max(historyBounds.min,Math.min(historyBounds.max,historicalDay))}
+            onChange={(_event,value)=>setHistoricalDay(value as number)}
+            valueLabelDisplay="auto"
+            valueLabelFormat={value=>formatChronicleDate(dayToChronicleDate(value))}/>}
         </Stack>
       </Box>
       <MythosGraph deities={filteredDeities} relations={filteredRelations} pantheons={pantheons}
