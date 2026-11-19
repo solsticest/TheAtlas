@@ -210,6 +210,83 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal(location.status,201);
     const locs=await request('/api/worlds/'+worldId+'/locations');
     assert(locs.data.some(loc=>loc.id===location.data.id&&loc.name==='Тестовый город'));
+
+    // Mythos v2: relation graph, myths, subjective belief, Atlas geography,
+    // Chronicle history and cosmology must round-trip through the same database.
+    const secondDeity=await request('/api/admin/mythos/deities','POST',{
+      ...deityBase,name:'Вторая сущность',epithet:'Дитя перемен',pantheonId:mythosPantheon.data.id,
+      visibility:'public',domains:['Эволюция','Время'],primaryDomains:['Время'],
+      power:'Космическая сила',influence:73,graphX:68,graphY:34
+    });
+    assert.equal(secondDeity.status,201,JSON.stringify(secondDeity.data));
+    assert.equal(secondDeity.data.power,'Космическая сила');
+    assert.equal(secondDeity.data.influence,73);
+    assert.deepEqual(secondDeity.data.primaryDomains,['Время']);
+    assert.equal(secondDeity.data.graphX,68);
+
+    const relation=await request('/api/admin/mythos/relations','POST',{
+      sourceId:publicDeity.data.id,targetId:secondDeity.data.id,type:'создал',
+      category:'origin',label:'создатель',description:'Мифическое происхождение',
+      startDay:publicChronicle.data.startDay,endDay:null,visibility:'public'
+    });
+    assert.equal(relation.status,201,JSON.stringify(relation.data));
+    assert((await request('/api/mythos/relations','GET',undefined,false,false)).data
+      .some(item=>item.id===relation.data.id));
+
+    const myth=await request('/api/admin/mythos/myths','POST',{
+      title:'Раскол первого света',summary:'Общий миф',description:'Две сущности делят мир.',
+      visibility:'public',participants:[
+        {deityId:publicDeity.data.id,role:'создатель'},
+        {deityId:secondDeity.data.id,role:'наследник'}
+      ]
+    });
+    assert.equal(myth.status,201,JSON.stringify(myth.data));
+    assert.equal(myth.data.participants.length,2);
+    assert((await request('/api/mythos/myths','GET',undefined,false,false)).data
+      .some(item=>item.id===myth.data.id&&item.participants.length===2));
+
+    const belief=await request('/api/admin/mythos/beliefs','POST',{
+      deityId:secondDeity.data.id,worldId:'demo-world',culture:'Северяне',
+      publicName:'Часовщик',doctrine:'Они считают его создателем времени.',
+      identity:'partial',visibility:'public'
+    });
+    assert.equal(belief.status,201,JSON.stringify(belief.data));
+    assert.equal(belief.data.deity.name,'Вторая сущность');
+    assert((await request('/api/mythos/beliefs','GET',undefined,false,false)).data
+      .some(item=>item.id===belief.data.id&&item.publicName==='Часовщик'));
+
+    const site=await request('/api/admin/mythos/sites','POST',{
+      deityId:publicDeity.data.id,locationId:location.data.id,name:'Храм у тестового города',
+      description:'Культовый центр',importance:'Главный храм',visibility:'public'
+    });
+    assert.equal(site.status,201,JSON.stringify(site.data));
+    assert.equal(site.data.location.name,'Тестовый город');
+    assert.equal(site.data.location.worldName,'Demo World');
+
+    const historyLink=await request('/api/admin/mythos/history-links','POST',{
+      deityId:publicDeity.data.id,eventId:publicChronicle.data.id,role:'вмешался'
+    });
+    assert.equal(historyLink.status,201,JSON.stringify(historyLink.data));
+    assert((await request('/api/mythos/history-links','GET',undefined,false,false)).data
+      .some(item=>item.deityId===publicDeity.data.id&&item.eventId===publicChronicle.data.id));
+
+    const planeA=await request('/api/admin/mythos/cosmology/nodes','POST',{
+      name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
+      color:'#7f8da8',x:25,y:50,worldId:'demo-world',visibility:'public'
+    });
+    const planeB=await request('/api/admin/mythos/cosmology/nodes','POST',{
+      name:'Звёздное море',kind:'Межплан',description:'Путь между мирами',symbol:'✦',
+      color:'#879ac1',x:75,y:50,worldId:null,visibility:'public'
+    });
+    assert.equal(planeA.status,201,JSON.stringify(planeA.data));
+    assert.equal(planeB.status,201,JSON.stringify(planeB.data));
+    const cosmicLink=await request('/api/admin/mythos/cosmology/links','POST',{
+      sourceId:planeA.data.id,targetId:planeB.data.id,type:'Переход',
+      label:'Врата',description:'Доступен через ритуал',visibility:'public'
+    });
+    assert.equal(cosmicLink.status,201,JSON.stringify(cosmicLink.data));
+    assert((await request('/api/mythos/cosmology/links','GET',undefined,false,false)).data
+      .some(item=>item.id===cosmicLink.data.id));
     // Every change to an existing record must have a verified pre-write snapshot.
     const {createBackup,verifyBackup}=await import('../apps/api/src/backup.ts');
     const snapshotsBefore=fs.readdirSync(env.ATLAS_BACKUP_DIR).filter(name=>name.startsWith('atlas-snapshot-'));
