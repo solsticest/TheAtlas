@@ -41,8 +41,10 @@ model World {
   locations  Location[]
   timelines       Timeline[]
   chronicleEvents ChronicleEventWorld[]
-  mythosPantheons MythosPantheon[]
-  mythosDeities  MythosDeityWorld[]
+  mythosPantheons   MythosPantheon[]
+  mythosDeities     MythosDeityWorld[]
+  mythosBeliefs     MythosBelief[]
+  mythosCosmicNodes MythosCosmicNode[]
 }
 
 model MapLayer {
@@ -87,6 +89,7 @@ model Location {
   world       World      @relation(fields: [worldId], references: [id], onDelete: Restrict)
   markerType  MarkerType @relation(fields: [typeId], references: [id], onDelete: Restrict)
   events      Event[]
+  mythosSacredSites MythosSacredSite[]
 
   @@unique([worldId, sortOrder])
   @@index([worldId, typeId])
@@ -203,6 +206,7 @@ model ChronicleEvent {
   updatedAt        DateTime              @updatedAt
   worlds           ChronicleEventWorld[]
   tags             ChronicleEventTag[]
+  mythosLinks       MythosChronicleLink[]
 
   @@index([startDay, endDay])
   @@index([visibility, startDay])
@@ -256,12 +260,21 @@ model MythosDeity {
   color       String             @default("#d6b77a")
   rank        String             @default("deity")
   domains     String             @default("[]")
+  primaryDomains String          @default("[]")
+  graphX      Float              @default(50)
+  graphY      Float              @default(50)
   visibility  String             @default("gm")
   pantheonId  String?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   pantheon    MythosPantheon?    @relation(fields: [pantheonId], references: [id], onDelete: SetNull)
   worlds      MythosDeityWorld[]
+  outgoingRelations MythosRelation[] @relation("MythosRelationSource")
+  incomingRelations MythosRelation[] @relation("MythosRelationTarget")
+  myths       MythosMythParticipant[]
+  beliefs     MythosBelief[]
+  sacredSites MythosSacredSite[]
+  chronicleLinks MythosChronicleLink[]
 
   @@index([pantheonId, name])
   @@index([visibility, name])
@@ -275,4 +288,124 @@ model MythosDeityWorld {
 
   @@id([deityId, worldId])
   @@index([worldId, deityId])
+}
+
+
+model MythosRelation {
+  id          String       @id
+  sourceId    String
+  targetId    String
+  type        String
+  category    String       @default("other")
+  label       String       @default("")
+  description String       @default("")
+  startDay    Int?
+  endDay      Int?
+  visibility  String       @default("gm")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  source      MythosDeity  @relation("MythosRelationSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target      MythosDeity  @relation("MythosRelationTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, targetId])
+  @@index([category, type])
+  @@index([startDay, endDay])
+}
+
+model MythosMyth {
+  id          String       @id
+  title       String
+  summary     String       @default("")
+  description String       @default("")
+  visibility  String       @default("gm")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  participants MythosMythParticipant[]
+}
+
+model MythosMythParticipant {
+  mythId   String
+  deityId  String
+  role     String         @default("")
+  myth     MythosMyth     @relation(fields: [mythId], references: [id], onDelete: Cascade)
+  deity    MythosDeity    @relation(fields: [deityId], references: [id], onDelete: Cascade)
+
+  @@id([mythId, deityId])
+  @@index([deityId, mythId])
+}
+
+model MythosBelief {
+  id          String       @id
+  deityId     String?
+  worldId     String?
+  culture     String
+  publicName  String
+  doctrine    String       @default("")
+  identity    String       @default("unknown")
+  visibility  String       @default("gm")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deity       MythosDeity? @relation(fields: [deityId], references: [id], onDelete: SetNull)
+  world       World?       @relation(fields: [worldId], references: [id], onDelete: Restrict)
+
+  @@index([deityId, culture])
+  @@index([worldId, culture])
+}
+
+model MythosSacredSite {
+  id          String       @id
+  deityId     String
+  locationId  String
+  name        String
+  description String       @default("")
+  importance  String       @default("site")
+  visibility  String       @default("gm")
+  deity       MythosDeity  @relation(fields: [deityId], references: [id], onDelete: Cascade)
+  location    Location     @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([deityId, locationId])
+  @@index([locationId, deityId])
+}
+
+model MythosChronicleLink {
+  deityId String
+  eventId String
+  role    String         @default("")
+  deity   MythosDeity    @relation(fields: [deityId], references: [id], onDelete: Cascade)
+  event   ChronicleEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([deityId, eventId])
+  @@index([eventId, deityId])
+}
+
+model MythosCosmicNode {
+  id          String       @id
+  name        String
+  kind        String       @default("realm")
+  description String       @default("")
+  symbol      String       @default("")
+  color       String       @default("#7f8da8")
+  x           Float        @default(50)
+  y           Float        @default(50)
+  worldId     String?
+  visibility  String       @default("gm")
+  world       World?       @relation(fields: [worldId], references: [id], onDelete: Restrict)
+  outgoing    MythosCosmicLink[] @relation("CosmicSource")
+  incoming    MythosCosmicLink[] @relation("CosmicTarget")
+
+  @@index([worldId, kind])
+}
+
+model MythosCosmicLink {
+  id          String           @id
+  sourceId    String
+  targetId    String
+  type        String           @default("path")
+  label       String           @default("")
+  description String           @default("")
+  visibility  String           @default("gm")
+  source      MythosCosmicNode @relation("CosmicSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  target      MythosCosmicNode @relation("CosmicTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId, targetId])
 }
