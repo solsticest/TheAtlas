@@ -7,7 +7,7 @@ export type DeityDraft=MythosDeityInput & {domainsText:string;primaryDomainsText
 
 export const defaultDeityDraft=(worldId:string|null):DeityDraft=>({
   name:'',epithet:'',summary:'',description:'',symbol:'',color:'#d6b77a',
-  rank:'Божество',domains:[],primaryDomains:[],domainsText:'',primaryDomainsText:'',
+  rank:'Божество',power:'',influence:50,domains:[],primaryDomains:[],domainsText:'',primaryDomainsText:'',
   graphX:50,graphY:50,visibility:'gm',pantheonId:null,
   worldIds:worldId?[worldId]:[],
 });
@@ -17,7 +17,8 @@ export const defaultPantheonDraft=(worldId:string|null):MythosPantheonInput=>({
 export const deityRecordToDraft=(record:MythosDeityRecord):DeityDraft=>({
   name:record.name,epithet:record.epithet,summary:record.summary,
   description:record.description,symbol:record.symbol,color:record.color,
-  rank:record.rank,domains:record.domains,primaryDomains:record.primaryDomains,
+  rank:record.rank,power:record.power,influence:record.influence,
+  domains:record.domains,primaryDomains:record.primaryDomains,
   domainsText:record.domains.join(', '),primaryDomainsText:record.primaryDomains.join(', '),
   graphX:record.graphX,graphY:record.graphY,visibility:record.visibility,pantheonId:record.pantheonId,
   worldIds:record.worlds.map(world=>world.id),
@@ -65,6 +66,13 @@ export function DeityEditorDialog({open,editing,draft,onChange,onClose,onSave,bu
             inputProps={{maxLength:12}} onChange={event=>set({symbol:event.target.value})}/>
           <TextField type="color" label="Цвет" value={draft.color} sx={{width:{sm:110}}}
             onChange={event=>set({color:event.target.value})}/>
+        </Stack>
+        <Stack direction={{xs:'column',sm:'row'}} gap={1.5}>
+          <TextField fullWidth label="Фактическая сила / статус" placeholder="Региональная сила, космический принцип…"
+            value={draft.power} onChange={event=>set({power:event.target.value})}/>
+          <TextField type="number" label="Влияние" value={draft.influence}
+            helperText="0–100: условная мощь / вес в мире" inputProps={{min:0,max:100}}
+            onChange={event=>set({influence:Math.max(0,Math.min(100,Number(event.target.value)||0))})}/>
         </Stack>
         <TextField label="Краткая суть" multiline minRows={2}
           placeholder="Чем уникально это божество? Одна-две мысли."
