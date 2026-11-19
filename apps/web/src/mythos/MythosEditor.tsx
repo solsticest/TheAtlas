@@ -3,11 +3,12 @@ import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
 import type { MythosDeityInput, MythosDeityRecord, MythosPantheonInput,
   MythosPantheonRecord, WorldRecord } from '@atlas/shared';
 
-export type DeityDraft=MythosDeityInput & {domainsText:string};
+export type DeityDraft=MythosDeityInput & {domainsText:string;primaryDomainsText:string};
 
 export const defaultDeityDraft=(worldId:string|null):DeityDraft=>({
   name:'',epithet:'',summary:'',description:'',symbol:'',color:'#d6b77a',
-  rank:'Божество',domains:[],domainsText:'',visibility:'gm',pantheonId:null,
+  rank:'Божество',domains:[],primaryDomains:[],domainsText:'',primaryDomainsText:'',
+  graphX:50,graphY:50,visibility:'gm',pantheonId:null,
   worldIds:worldId?[worldId]:[],
 });
 export const defaultPantheonDraft=(worldId:string|null):MythosPantheonInput=>({
@@ -16,18 +17,24 @@ export const defaultPantheonDraft=(worldId:string|null):MythosPantheonInput=>({
 export const deityRecordToDraft=(record:MythosDeityRecord):DeityDraft=>({
   name:record.name,epithet:record.epithet,summary:record.summary,
   description:record.description,symbol:record.symbol,color:record.color,
-  rank:record.rank,domains:record.domains,domainsText:record.domains.join(', '),
-  visibility:record.visibility,pantheonId:record.pantheonId,
+  rank:record.rank,domains:record.domains,primaryDomains:record.primaryDomains,
+  domainsText:record.domains.join(', '),primaryDomainsText:record.primaryDomains.join(', '),
+  graphX:record.graphX,graphY:record.graphY,visibility:record.visibility,pantheonId:record.pantheonId,
   worldIds:record.worlds.map(world=>world.id),
 });
-export const deityDraftToInput=({domainsText,...draft}:DeityDraft):MythosDeityInput=>{
-  const unique=new Map<string,string>();
-  for(const raw of domainsText.split(',')){
-    const name=raw.trim();
-    const key=name.toLocaleLowerCase('ru');
-    if(name&&!unique.has(key))unique.set(key,name);
-  }
-  return {...draft,domains:[...unique.values()]};
+export const deityDraftToInput=({domainsText,primaryDomainsText,...draft}:DeityDraft):MythosDeityInput=>{
+  const parse=(text:string)=>{
+    const unique=new Map<string,string>();
+    for(const raw of text.split(',')){
+      const name=raw.trim(),key=name.toLocaleLowerCase('ru');
+      if(name&&!unique.has(key))unique.set(key,name);
+    }
+    return [...unique.values()];
+  };
+  const domains=parse(domainsText);
+  const domainKeys=new Set(domains.map(name=>name.toLocaleLowerCase('ru')));
+  const primaryDomains=parse(primaryDomainsText).filter(name=>domainKeys.has(name.toLocaleLowerCase('ru')));
+  return {...draft,domains,primaryDomains};
 };
 
 export function DeityEditorDialog({open,editing,draft,onChange,onClose,onSave,busy,error,worlds,
@@ -65,6 +72,9 @@ export function DeityEditorDialog({open,editing,draft,onChange,onClose,onSave,bu
         <TextField label="Домены" value={draft.domainsText} multiline minRows={2}
           helperText="Через запятую. Например: Эволюция, Природа, Перемены"
           onChange={event=>set({domainsText:event.target.value})}/>
+        <TextField label="Основные домены" value={draft.primaryDomainsText}
+          helperText="Подмножество доменов выше. В матрице они будут отмечены сильнее."
+          onChange={event=>set({primaryDomainsText:event.target.value})}/>
         {domainSuggestions.length>0&&<Box>
           <Typography variant="caption" color="text.secondary">Уже используемые домены (нажми, чтобы добавить):</Typography>
           <Stack direction="row" gap={.7} flexWrap="wrap" sx={{mt:1}}>
