@@ -83,3 +83,10 @@
 .mythos-mini-row{display:flex;flex-direction:column;gap:2px;padding:8px 9px;border:1px solid #343d46;border-radius:7px;background:#171e26}.mythos-mini-row>span,.mythos-mini-row>small{color:#99a2aa;font-size:11px}.mythos-mini-row>small{white-space:pre-wrap;line-height:1.5}
 @media(max-width:900px){.mythos-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mythos-graph-board,.mythos-cosmic-board{min-height:520px}.mythos-graph-node{min-width:100px;max-width:130px}.mythos-edge-label{max-width:90px}}
 @media(max-width:600px){.mythos-viewbar{overflow-x:auto;flex-wrap:nowrap}.mythos-viewbar .MuiButton-root{white-space:nowrap}.mythos-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mythos-graph-board,.mythos-cosmic-board{min-height:480px}.mythos-history-row{align-items:flex-start;flex-direction:column}}
+
+.mythos-color-field{display:flex;flex-direction:column;gap:4px;min-width:170px}
+.mythos-color-controls{display:flex;align-items:center;gap:8px}
+.mythos-native-color{width:48px;height:40px;padding:3px;border:1px solid #525a64;border-radius:7px;background:#202730;cursor:pointer}
+.mythos-native-color::-webkit-color-swatch-wrapper{padding:2px}
+.mythos-native-color::-webkit-color-swatch{border:0;border-radius:4px}
+.mythos-native-color::-moz-color-swatch{border:0;border-radius:4px}
