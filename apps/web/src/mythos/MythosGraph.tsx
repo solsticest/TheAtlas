@@ -4,9 +4,9 @@ import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
 import type {
   MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent,
 } from 'react';
-import type {
+import {
   MYTHOS_GRAPH_COORD_MAX, MYTHOS_GRAPH_COORD_MIN,
-  MythosDeityRecord, MythosPantheonRecord, MythosRelationInput, MythosRelationRecord,
+  type MythosDeityRecord, type MythosPantheonRecord, type MythosRelationInput, type MythosRelationRecord,
 } from '@atlas/shared';
 
 type GraphLayer='relations'|'origin'|'politics'|'domains'|'pantheon';
