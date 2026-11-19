@@ -114,3 +114,18 @@
 .chronicle-view-days .chronicle-event-point.chronicle-event-important{height:42px}
 .chronicle-view-days .chronicle-event-point.chronicle-event-key{height:46px}
 @media(max-width:760px){.chronicle-detail-chip{display:none}.chronicle-topbar>button:nth-of-type(3){display:none}}
+
+
+/* Chronicle filters */
+.chronicle-global-filter-button.MuiButton-contained{background:#8c7344;color:#fff7e7}
+.chronicle-filter-menu-paper{width:min(390px,calc(100vw - 24px));max-height:min(72vh,650px)!important;background:#202630!important;border:1px solid #4b4b45;box-shadow:0 16px 44px #000b!important}
+.chronicle-filter-menu{display:flex;flex-direction:column;gap:14px;padding:14px 16px 16px}
+.chronicle-filter-menu .MuiChip-root{border-color:#59616b;color:#d7d9dc;background:#1a2028}
+.chronicle-filter-menu .MuiChip-root:hover{border-color:#9f895d;background:#282e36}
+.chronicle-filter-menu .MuiChip-root.is-selected{border-color:#d6b77a;background:#665736;color:#fff5dd;box-shadow:inset 0 0 0 1px #d6b77a44}
+.chronicle-filter-menu .MuiDivider-root{border-color:#3b424c}
+.chronicle-track-label.has-filter{background:linear-gradient(90deg,rgba(214,183,122,.08),#1f252e 72%)}
+.chronicle-world-filter{flex:0 0 auto;min-width:54px;height:28px;padding:0 7px;border:1px solid #4e5660;border-radius:6px;background:#252c35;color:#aeb4ba;font:700 10px/1 system-ui,sans-serif;cursor:pointer;white-space:nowrap}
+.chronicle-world-filter:hover{border-color:#a48b58;color:#ead4a5;background:#30343a}
+.chronicle-world-filter.is-active{border-color:#c6a96c;background:#5a4d31;color:#fff0cf;box-shadow:0 0 0 1px #c6a96c22}
+@media(max-width:980px){.chronicle-global-filter-button{min-width:42px!important;padding-left:8px!important;padding-right:8px!important;font-size:0!important}.chronicle-global-filter-button::after{content:"⚲";font-size:16px}.chronicle-world-filter{min-width:30px;width:30px;font-size:0;padding:0}.chronicle-world-filter::after{content:"⚲";font-size:14px}}
