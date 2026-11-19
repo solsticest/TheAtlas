@@ -224,6 +224,27 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.deepEqual(secondDeity.data.primaryDomains,['Время']);
     assert.equal(secondDeity.data.graphX,68);
 
+    // Graph dragging uses a lightweight endpoint: moving a node must not rewrite deity lore.
+    assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
+      {graphX:42.5,graphY:61.25},false,false)).status,401);
+    assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
+      {graphX:42.5,graphY:61.25},true,false)).status,403);
+    assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
+      {graphX:101,graphY:50})).status,400);
+    const movedDeity=await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
+      {graphX:42.5,graphY:61.25});
+    assert.equal(movedDeity.status,200,JSON.stringify(movedDeity.data));
+    assert.equal(movedDeity.data.graphX,42.5);
+    assert.equal(movedDeity.data.graphY,61.25);
+    const storedMovedDeity=await db.mythosDeity.findUnique({where:{id:secondDeity.data.id}});
+    assert.equal(storedMovedDeity.name,'Вторая сущность');
+    assert.equal(storedMovedDeity.power,'Космическая сила');
+    assert.equal(storedMovedDeity.influence,73);
+    assert.equal(storedMovedDeity.pantheonId,mythosPantheon.data.id);
+    assert.equal(storedMovedDeity.domains,JSON.stringify(['Эволюция','Время']));
+    assert.equal(storedMovedDeity.graphX,42.5);
+    assert.equal(storedMovedDeity.graphY,61.25);
+
     const relation=await request('/api/admin/mythos/relations','POST',{
       sourceId:publicDeity.data.id,targetId:secondDeity.data.id,type:'создал',
       category:'origin',label:'создатель',description:'Мифическое происхождение',
