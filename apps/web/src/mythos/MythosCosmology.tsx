@@ -6,6 +6,7 @@ import type {
   MythosCosmicLinkInput, MythosCosmicLinkRecord, MythosCosmicNodeInput,
   MythosCosmicNodeRecord, WorldRecord,
 } from '@atlas/shared';
+import { BufferedColorField } from './BufferedColorField';
 
 const nodeDefault=(worldId:string|null):MythosCosmicNodeInput=>({
   name:'',kind:'План',description:'',symbol:'',color:'#7f8da8',x:50,y:50,
@@ -140,7 +141,8 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
         </Stack>
         <Stack direction={{xs:'column',sm:'row'}} gap={1}>
           <TextField label="Символ" value={nodeDraft.symbol} onChange={e=>setNodeDraft({...nodeDraft,symbol:e.target.value})}/>
-          <TextField type="color" label="Цвет" value={nodeDraft.color} onChange={e=>setNodeDraft({...nodeDraft,color:e.target.value})}/>
+          <BufferedColorField value={nodeDraft.color}
+            onCommit={color=>setNodeDraft({...nodeDraft,color})}/>
           <FormControl size="small" fullWidth><InputLabel>Мир Atlas</InputLabel>
             <Select label="Мир Atlas" value={nodeDraft.worldId??''}
               onChange={e=>setNodeDraft({...nodeDraft,worldId:e.target.value||null})}>
