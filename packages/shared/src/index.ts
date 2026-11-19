@@ -287,6 +287,15 @@ export const mythosDeitySchema=mythosDeityInputSchema.omit({worldIds:true}).exte
 export type MythosDeityInput=z.infer<typeof mythosDeityInputSchema>;
 export type MythosDeityRecord=z.infer<typeof mythosDeitySchema>;
 
+export const mythosDeityPositionInputSchema=z.object({
+  graphX:z.number().finite().min(0).max(100),
+  graphY:z.number().finite().min(0).max(100),
+}).strict();
+export const mythosDeityPositionSchema=mythosDeityPositionInputSchema.extend({id});
+export type MythosDeityPositionInput=z.infer<typeof mythosDeityPositionInputSchema>;
+export type MythosDeityPositionRecord=z.infer<typeof mythosDeityPositionSchema>;
+
+
 
 // MYTHOS v2 — typed relations and secondary knowledge layers.
 export const mythosRelationCategorySchema=z.enum([
