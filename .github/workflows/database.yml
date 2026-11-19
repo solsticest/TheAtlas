@@ -37,6 +37,8 @@ jobs:
         run: npm run test:layer-editor
       - name: Verify Chronicle calendar
         run: npm run test:chronicle-calendar
+      - name: Verify Chronicle filters
+        run: npm run test:chronicle-filters
       - name: Mount and reopen Leaflet maps in MUI dialogs
         run: npm run test:dialog-leaflet
       - name: Test admin authentication, authorization, timelines and backups
