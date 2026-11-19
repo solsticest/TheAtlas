@@ -181,6 +181,20 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
   const pos=(id:string)=>layoutPositions?.get(id)??positions[id]??{x:50,y:50};
   const sourceDeity=linkSourceId?deities.find(item=>item.id===linkSourceId)??null:null;
 
+  const screenPoint=(point:{x:number;y:number})=>({
+    left:`calc(${point.x*viewport.scale}% + ${viewport.x}px)`,
+    top:`calc(${point.y*viewport.scale}% + ${viewport.y}px)`,
+  });
+  const nodeMetrics=(scale:number)=>({
+    minWidth:128*scale,maxWidth:180*scale,minHeight:72*scale,
+    padding:`${9*scale}px ${12*scale}px`,
+    borderRadius:12*scale,gap:3*scale,
+  });
+  const edgeLabelMetrics=(scale:number)=>({
+    maxWidth:145*scale,padding:`${3*scale}px ${6*scale}px`,
+    fontSize:9*scale,
+  });
+
   function screenToWorld(clientX:number,clientY:number){
     const rect=board.current?.getBoundingClientRect();
     if(!rect)return {x:50,y:50};
@@ -394,52 +408,58 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
               markerEnd={edge.relation?'url(#mythos-arrow)':undefined}/>;
           })}
         </svg>
-        {edges.map(edge=>{
-          const a=pos(edge.sourceId),b=pos(edge.targetId);
-          const source=deities.find(item=>item.id===edge.sourceId);
-          const target=deities.find(item=>item.id===edge.targetId);
-          const edgeFocused=!pantheonFocusId||source?.pantheonId===pantheonFocusId||target?.pantheonId===pantheonFocusId;
-          return <button key={'label-'+edge.id}
-            className={'mythos-edge-label edge-'+edge.category+(edgeFocused?'':' is-pantheon-dim')}
-            style={{left:(a.x+b.x)/2+'%',top:(a.y+b.y)/2+'%'}}
-            onClick={event=>openEdit(event,edge)} title={edge.relation?.description||edge.label}>
-            {edge.label}
-          </button>;
-        })}
-        {deities.map(deity=>{
-          const p=pos(deity.id);
-          const pantheon=pantheons.find(item=>item.id===deity.pantheonId);
-          const isSource=deity.id===linkSourceId;
-          const pantheonFocusClass=!pantheonFocusId?'':deity.pantheonId===pantheonFocusId?' is-pantheon-focus':' is-pantheon-dim';
-          return <button key={deity.id}
-            className={'mythos-graph-node'+(layout==='free'&&admin?' is-draggable':'')+
-              (isSource?' is-link-source':linkSourceId?' is-link-target':'')+pantheonFocusClass}
-            style={{left:p.x+'%',top:p.y+'%','--node-color':deity.color} as React.CSSProperties}
-            title={(deity.epithet||deity.rank)+(pantheon?' · '+pantheon.name:'')}
-            onPointerDown={event=>{
-              if(!admin||layout!=='free'||event.button!==0||linkSourceId)return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              const current=pos(deity.id);
-              drag.current={
-                id:deity.id,pointer:event.pointerId,element:event.currentTarget,
-                startClientX:event.clientX,startClientY:event.clientY,x:current.x,y:current.y,moved:false,
-              };
-              event.stopPropagation();
-            }}
-            onContextMenu={event=>{event.stopPropagation();openContext(event,deity.id);}}
-            onClick={()=>{
-              const blocked=suppressClick.current;
-              if(blocked?.id===deity.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
-              suppressClick.current=null;
-              if(linkSourceId){void finishQuickRelation(deity);return;}
-              onSelectDeity(deity);
-            }}>
-            <span className="mythos-graph-node-symbol">{deity.symbol||'✧'}</span>
-            <span className="mythos-graph-node-name">{deity.name}</span>
-            <small>{deity.primaryDomains.slice(0,2).join(' · ')||deity.rank}</small>
-          </button>;
-        })}
       </Box>
+      {edges.map(edge=>{
+        const a=pos(edge.sourceId),b=pos(edge.targetId);
+        const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+        const source=deities.find(item=>item.id===edge.sourceId);
+        const target=deities.find(item=>item.id===edge.targetId);
+        const edgeFocused=!pantheonFocusId||source?.pantheonId===pantheonFocusId||target?.pantheonId===pantheonFocusId;
+        return <button key={'label-'+edge.id}
+          className={'mythos-edge-label edge-'+edge.category+(edgeFocused?'':' is-pantheon-dim')}
+          style={{...screenPoint(midpoint),...edgeLabelMetrics(viewport.scale)}}
+          onClick={event=>openEdit(event,edge)} title={edge.relation?.description||edge.label}>
+          {edge.label}
+        </button>;
+      })}
+      {deities.map(deity=>{
+        const p=pos(deity.id);
+        const pantheon=pantheons.find(item=>item.id===deity.pantheonId);
+        const isSource=deity.id===linkSourceId;
+        const pantheonFocusClass=!pantheonFocusId?'':deity.pantheonId===pantheonFocusId?' is-pantheon-focus':' is-pantheon-dim';
+        return <button key={deity.id}
+          className={'mythos-graph-node'+(layout==='free'&&admin?' is-draggable':'')+
+            (isSource?' is-link-source':linkSourceId?' is-link-target':'')+pantheonFocusClass}
+          style={{
+            ...screenPoint(p),...nodeMetrics(viewport.scale),
+            '--node-color':deity.color,
+          } as React.CSSProperties}
+          title={(deity.epithet||deity.rank)+(pantheon?' · '+pantheon.name:'')}
+          onPointerDown={event=>{
+            if(!admin||layout!=='free'||event.button!==0||linkSourceId)return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const current=pos(deity.id);
+            drag.current={
+              id:deity.id,pointer:event.pointerId,element:event.currentTarget,
+              startClientX:event.clientX,startClientY:event.clientY,x:current.x,y:current.y,moved:false,
+            };
+            event.stopPropagation();
+          }}
+          onContextMenu={event=>{event.stopPropagation();openContext(event,deity.id);}}
+          onClick={()=>{
+            const blocked=suppressClick.current;
+            if(blocked?.id===deity.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
+            suppressClick.current=null;
+            if(linkSourceId){void finishQuickRelation(deity);return;}
+            onSelectDeity(deity);
+          }}>
+          <span className="mythos-graph-node-symbol" style={{fontSize:23*viewport.scale}}>{deity.symbol||'✧'}</span>
+          <span className="mythos-graph-node-name" style={{fontSize:14*viewport.scale}}>{deity.name}</span>
+          <small style={{fontSize:9*viewport.scale,maxWidth:150*viewport.scale}}>
+            {deity.primaryDomains.slice(0,2).join(' · ')||deity.rank}
+          </small>
+        </button>;
+      })}
       {!deities.length&&<Box className="mythos-graph-empty">
         <Typography variant="h6">Граф пока пуст</Typography>
         <Typography color="text.secondary">ПКМ по полю → «Создать божество здесь».</Typography>
