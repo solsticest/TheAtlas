@@ -54,20 +54,6 @@ function syntheticDomainEdges(deities:MythosDeityRecord[]):Edge[]{
   }
   return out;
 }
-function syntheticPantheonEdges(deities:MythosDeityRecord[]):Edge[]{
-  const groups=new Map<string,MythosDeityRecord[]>();
-  for(const deity of deities)if(deity.pantheonId){
-    const list=groups.get(deity.pantheonId)??[];list.push(deity);groups.set(deity.pantheonId,list);
-  }
-  const out:Edge[]=[];
-  for(const [pantheonId,list] of groups)for(let i=1;i<list.length;i++){
-    out.push({
-      id:'pantheon:'+pantheonId+':'+i,sourceId:list[0]!.id,targetId:list[i]!.id,
-      label:list[i]!.pantheon?.name??'Пантеон',category:'pantheon',color:relationColors.pantheon!,
-    });
-  }
-  return out;
-}
 function genealogyPositions(deities:MythosDeityRecord[],relations:MythosRelationRecord[]){
   const ids=new Set(deities.map(item=>item.id));
   const parents=relations.filter(r=>r.category==='origin'&&ids.has(r.sourceId)&&ids.has(r.targetId));
@@ -99,10 +85,11 @@ function genealogyPositions(deities:MythosDeityRecord[],relations:MythosRelation
   return result;
 }
 
-export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pantheonFocusId,onSelectDeity,
+export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pantheonFocusId,onPantheonFocusChange,onSelectDeity,
   onCreateDeityAt,onSavePosition,onCreateRelation,onUpdateRelation,onDeleteRelation}:{
   deities:MythosDeityRecord[];relations:MythosRelationRecord[];pantheons:MythosPantheonRecord[];
   admin:boolean;historicalDay:number|null;pantheonFocusId:string|null;
+  onPantheonFocusChange:(pantheonId:string|null)=>void;
   onSelectDeity:(deity:MythosDeityRecord)=>void;
   onCreateDeityAt:(x:number,y:number)=>void;
   onSavePosition:(deity:MythosDeityRecord,x:number,y:number)=>Promise<void>;
@@ -177,7 +164,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
       relation:rel,
     })),[activeRelations,layer]);
   const edges=useMemo(()=>layer==='domains'?syntheticDomainEdges(deities)
-    :layer==='pantheon'?syntheticPantheonEdges(deities):actualEdges,[layer,deities,actualEdges]);
+    :layer==='pantheon'?[]:actualEdges,[layer,deities,actualEdges]);
 
   const pos=(id:string)=>layoutPositions?.get(id)??positions[id]??{x:50,y:50};
   const sourceDeity=linkSourceId?deities.find(item=>item.id===linkSourceId)??null:null;
@@ -376,6 +363,16 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
       </Stack>
     </Box>
 
+    {layer==='pantheon'&&<Box className="mythos-pantheon-focusbar">
+      <Typography variant="caption" color="text.secondary">Подсветить пантеон:</Typography>
+      <Chip size="small" clickable label="Все"
+        variant={pantheonFocusId===null?'filled':'outlined'}
+        onClick={()=>onPantheonFocusChange(null)}/>
+      {pantheons.map(item=><Chip key={item.id} size="small" clickable label={item.name}
+        variant={pantheonFocusId===item.id?'filled':'outlined'}
+        onClick={()=>onPantheonFocusChange(item.id)}/>)}
+    </Box>}
+
     {sourceDeity&&<Box className="mythos-link-mode">
       <Typography variant="body2">
         {quickLinkBusy?'Создаём связь…':<>Создаём связь от <strong>{sourceDeity.name}</strong>. Кликни по второму божеству.</>}
@@ -462,6 +459,10 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
           <small style={{fontSize:9*viewport.scale,maxWidth:150*viewport.scale}}>
             {deity.primaryDomains.slice(0,2).join(' · ')||deity.rank}
           </small>
+          {layer==='pantheon'&&deity.pantheon&&<span className="mythos-node-pantheon"
+            style={{fontSize:8*viewport.scale}}>
+            {deity.pantheon.name}
+          </span>}
         </button>;
       })}
       {!deities.length&&<Box className="mythos-graph-empty">
