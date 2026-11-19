@@ -168,6 +168,13 @@ export function MythosPage(){
     setEditorError('');setDeityEditingId(item?.id??null);
     setDeityDraft(item?deityRecordToDraft(item):defaultDeityDraft(worldFilter==='*'?null:worldFilter));
   }
+  function beginDeityAt(graphX:number,graphY:number){
+    setEditorError('');setDeityEditingId(null);
+    setDeityDraft({
+      ...defaultDeityDraft(worldFilter==='*'?null:worldFilter),
+      graphX,graphY,
+    });
+  }
   function beginPantheon(item?:MythosPantheonRecord){
     setEditorError('');setPantheonEditingId(item?.id??null);
     setPantheonDraft(item?{
@@ -319,6 +326,7 @@ export function MythosPage(){
       <MythosGraph deities={filteredDeities} relations={filteredRelations} pantheons={pantheons}
         admin={session.authenticated} historicalDay={historicalDay}
         onSelectDeity={d=>setSelectedDeityId(d.id)}
+        onCreateDeityAt={beginDeityAt}
         onSavePosition={async(d,x,y)=>{
           if(!session.csrfToken)throw Error('Сначала войди как администратор.');
           const saved=await perform(updateDeityPosition({
