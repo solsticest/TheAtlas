@@ -392,12 +392,12 @@ export function MythosPage(){
         onDeleteHistory={async(deityId,eventId)=>{await perform(deleteHistory({deityId,eventId,csrf:requireCsrf()}).unwrap());}}/>
     </Box>}
 
-    {!loading&&view==='cosmology'&&<Box className="mythos-content">
+    {!loading&&view==='cosmology'&&<Box className="mythos-content mythos-graph-content">
       <MythosCosmology nodes={cosmicNodes} links={cosmicLinks} worlds={worlds} admin={session.authenticated}
         onCreateNode={async input=>{await perform(createCosmicNode({input,csrf:requireCsrf()}).unwrap());}}
         onUpdateNode={async(id,input)=>{await perform(updateCosmicNode({id,input,csrf:requireCsrf()}).unwrap());}}
         onDeleteNode={async id=>{await perform(deleteCosmicNode({id,csrf:requireCsrf()}).unwrap());}}
-        onCreateLink={async input=>{await perform(createCosmicLink({input,csrf:requireCsrf()}).unwrap());}}
+        onCreateLink={async input=>await perform(createCosmicLink({input,csrf:requireCsrf()}).unwrap())}
         onUpdateLink={async(id,input)=>{await perform(updateCosmicLink({id,input,csrf:requireCsrf()}).unwrap());}}
         onDeleteLink={async id=>{await perform(deleteCosmicLink({id,csrf:requireCsrf()}).unwrap());}}/>
     </Box>}
