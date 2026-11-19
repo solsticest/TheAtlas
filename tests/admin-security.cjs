@@ -251,6 +251,20 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
       startDay:publicChronicle.data.startDay,endDay:null,visibility:'public'
     });
     assert.equal(relation.status,201,JSON.stringify(relation.data));
+    assert.equal(relation.data.createdAt,undefined,'Relation create response must not leak Prisma timestamps');
+    assert.equal(relation.data.updatedAt,undefined,'Relation create response must match strict client schema');
+    assert.deepEqual(Object.keys(relation.data).sort(),[
+      'category','description','endDay','id','label','sourceId','startDay','targetId','type','visibility'
+    ]);
+    const editedRelation=await request('/api/admin/mythos/relations/'+relation.data.id,'PATCH',{
+      sourceId:publicDeity.data.id,targetId:secondDeity.data.id,type:'создал',
+      category:'origin',label:'создатель и наставник',description:'Мифическое происхождение',
+      startDay:publicChronicle.data.startDay,endDay:null,visibility:'public'
+    });
+    assert.equal(editedRelation.status,200,JSON.stringify(editedRelation.data));
+    assert.equal(editedRelation.data.createdAt,undefined);
+    assert.equal(editedRelation.data.updatedAt,undefined);
+    assert.equal(editedRelation.data.label,'создатель и наставник');
     assert((await request('/api/mythos/relations','GET',undefined,false,false)).data
       .some(item=>item.id===relation.data.id));
 
