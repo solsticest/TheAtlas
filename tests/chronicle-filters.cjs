@@ -44,7 +44,7 @@ test('Chronicle global world and text filters match event metadata',async()=>{
     worlds:[{id:'zenith',name:'Zenith'}],tags:[]});
   const filters=f.emptyChronicleFilters();
   filters.worldIds=['estara'];
-  filters.query='полит';
+  filters.query='battle';
   assert.deepEqual(f.filterChronicleEvents([estara,other],filters).map(x=>x.id),[estara.id]);
 });
 
