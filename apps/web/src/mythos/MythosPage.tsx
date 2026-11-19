@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDispatch } from 'react-redux';
 import type { ReactNode } from 'react';
 import { Alert, Box, Button, ButtonBase, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, Drawer, FormControl, InputLabel,
@@ -12,7 +13,8 @@ import {
   useMythosMythsQuery, useMythosBeliefsQuery, useMythosSitesQuery,
   useMythosHistoryLinksQuery, useMythosCosmicNodesQuery, useMythosCosmicLinksQuery,
   useMythosLocationsQuery,
-  useCreateMythosDeityMutation, useUpdateMythosDeityMutation, useDeleteMythosDeityMutation,
+  useCreateMythosDeityMutation, useUpdateMythosDeityMutation, useUpdateMythosDeityPositionMutation,
+  useDeleteMythosDeityMutation,
   useCreateMythosPantheonMutation, useUpdateMythosPantheonMutation, useDeleteMythosPantheonMutation,
   useCreateMythosRelationMutation, useUpdateMythosRelationMutation, useDeleteMythosRelationMutation,
   useCreateMythosMythMutation, useUpdateMythosMythMutation, useDeleteMythosMythMutation,
@@ -22,6 +24,8 @@ import {
   useCreateMythosCosmicNodeMutation, useUpdateMythosCosmicNodeMutation, useDeleteMythosCosmicNodeMutation,
   useCreateMythosCosmicLinkMutation, useUpdateMythosCosmicLinkMutation, useDeleteMythosCosmicLinkMutation,
 } from '../atlas/api';
+import { atlasApi } from '../atlas/api';
+import type { AppDispatch } from '../atlas/store';
 import { dayToChronicleDate, formatChronicleDate } from '../chronicle/calendar';
 import {
   DeityEditorDialog, PantheonEditorDialog, defaultDeityDraft, defaultPantheonDraft,
@@ -54,6 +58,7 @@ function deityInput(record:MythosDeityRecord,patch:Partial<MythosDeityInput>={})
 }
 
 export function MythosPage(){
+  const dispatch=useDispatch<AppDispatch>();
   const worldsQuery=useWorldsQuery();
   const deitiesQuery=useMythosDeitiesQuery();
   const pantheonsQuery=useMythosPantheonsQuery();
@@ -82,6 +87,7 @@ export function MythosPage(){
 
   const [createDeity,{isLoading:creatingDeity}]=useCreateMythosDeityMutation();
   const [updateDeity,{isLoading:updatingDeity}]=useUpdateMythosDeityMutation();
+  const [updateDeityPosition]=useUpdateMythosDeityPositionMutation();
   const [deleteDeity,{isLoading:deletingDeity}]=useDeleteMythosDeityMutation();
   const [createPantheon,{isLoading:creatingPantheon}]=useCreateMythosPantheonMutation();
   const [updatePantheon,{isLoading:updatingPantheon}]=useUpdateMythosPantheonMutation();
@@ -325,9 +331,16 @@ export function MythosPage(){
       <MythosGraph deities={filteredDeities} relations={filteredRelations} pantheons={pantheons}
         admin={session.authenticated} historicalDay={historicalDay}
         onSelectDeity={d=>setSelectedDeityId(d.id)}
-        onSavePosition={async(d,x,y)=>{if(!session.csrfToken)return;await perform(updateDeity({
-          id:d.id,input:deityInput(d,{graphX:x,graphY:y}),csrf:session.csrfToken,
-        }).unwrap());}}
+        onSavePosition={async(d,x,y)=>{
+          if(!session.csrfToken)throw Error('Сначала войди как администратор.');
+          const saved=await perform(updateDeityPosition({
+            id:d.id,graphX:x,graphY:y,csrf:session.csrfToken,
+          }).unwrap());
+          dispatch(atlasApi.util.updateQueryData('mythosDeities',undefined,draft=>{
+            const target=draft.find(item=>item.id===saved.id);
+            if(target){target.graphX=saved.graphX;target.graphY=saved.graphY;}
+          }));
+        }}
         onCreateRelation={async input=>{await perform(createRelation({input,csrf:requireCsrf()}).unwrap());}}
         onUpdateRelation={async(id,input)=>{await perform(updateRelation({id,input,csrf:requireCsrf()}).unwrap());}}
         onDeleteRelation={async id=>{await perform(deleteRelation({id,csrf:requireCsrf()}).unwrap());}}/>
