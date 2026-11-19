@@ -2,12 +2,13 @@ import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import {
   worldSchema, layerSchema, locationSchema, markerTypeSchema, searchItemSchema,
   timelineRecordSchema, eraRecordSchema, eventRecordSchema, chronicleEventSchema,
-  mythosPantheonSchema, mythosDeitySchema, mythosRelationSchema, mythosMythSchema,
+  mythosPantheonSchema, mythosDeitySchema, mythosDeityPositionSchema, mythosRelationSchema, mythosMythSchema,
   mythosBeliefSchema, mythosSacredSiteSchema, mythosChronicleLinkSchema,
   mythosCosmicNodeSchema, mythosCosmicLinkSchema, mythosLocationRefSchema,
   type WorldRecord, type LayerRecord, type LocationRecord, type MarkerTypeRecord, type SearchItem,
   type TimelineRecord, type EraRecord, type EventRecord, type ChronicleEventRecord, type ChronicleEventInput,
   type MythosPantheonRecord, type MythosPantheonInput, type MythosDeityRecord, type MythosDeityInput,
+  type MythosDeityPositionRecord,
   type MythosRelationRecord, type MythosRelationInput, type MythosMythRecord, type MythosMythInput,
   type MythosBeliefRecord, type MythosBeliefInput, type MythosSacredSiteRecord, type MythosSacredSiteInput,
   type MythosChronicleLinkRecord, type MythosChronicleLinkInput,
@@ -113,6 +114,13 @@ export const atlasApi = createApi({
         method:'PATCH',body:input,headers:{'x-csrf-token':csrf}}),
       transformResponse:(value:unknown)=>mythosDeitySchema.parse(value),
       invalidatesTags:['MythosDeity'],
+    }),
+    updateMythosDeityPosition: build.mutation<MythosDeityPositionRecord,{id:string;graphX:number;graphY:number;csrf:string}>({
+      query:({id,graphX,graphY,csrf})=>({
+        url:'admin/mythos/deities/'+encodeURIComponent(id)+'/position',
+        method:'PATCH',body:{graphX,graphY},headers:{'x-csrf-token':csrf},
+      }),
+      transformResponse:(value:unknown)=>mythosDeityPositionSchema.parse(value),
     }),
     deleteMythosDeity: build.mutation<{ok:true},{id:string;csrf:string}>({
       query:({id,csrf})=>({url:'admin/mythos/deities/'+encodeURIComponent(id),
@@ -265,7 +273,8 @@ export const {
   useUpdateChronicleEventMutation, useDeleteChronicleEventMutation,
   useMythosPantheonsQuery, useMythosDeitiesQuery,
   useCreateMythosPantheonMutation, useUpdateMythosPantheonMutation, useDeleteMythosPantheonMutation,
-  useCreateMythosDeityMutation, useUpdateMythosDeityMutation, useDeleteMythosDeityMutation,
+  useCreateMythosDeityMutation, useUpdateMythosDeityMutation, useUpdateMythosDeityPositionMutation,
+  useDeleteMythosDeityMutation,
   useMythosRelationsQuery, useMythosMythsQuery, useMythosBeliefsQuery, useMythosSitesQuery,
   useMythosHistoryLinksQuery, useMythosCosmicNodesQuery, useMythosCosmicLinksQuery, useMythosLocationsQuery,
   useCreateMythosRelationMutation, useUpdateMythosRelationMutation, useDeleteMythosRelationMutation,
