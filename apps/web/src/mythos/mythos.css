@@ -122,3 +122,15 @@
 @media(max-width:600px){
   .mythos-graph-board{height:68vh;min-height:500px}
 }
+
+
+/* Cosmology viewport mirrors the deity graph */
+.mythos-cosmic-board{height:clamp(720px,78vh,980px);min-height:720px;cursor:grab;touch-action:none;user-select:none;overscroll-behavior:contain}
+.mythos-cosmic-board.is-panning{cursor:grabbing}
+.mythos-cosmic-world{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
+.mythos-cosmic-node{--cosmic-node-size:1;transform:translate(-50%,-50%) scale(var(--cosmic-node-size));transform-origin:center}
+.mythos-cosmic-node.is-link-source{z-index:8;box-shadow:0 0 0 3px #9ab1d2,0 10px 34px #000b}
+.mythos-cosmic-node.is-link-target{cursor:crosshair}
+.mythos-cosmic-node.is-link-target:hover{box-shadow:0 0 0 2px #b6c8e2,0 10px 30px #000b}
+@media(max-width:900px){.mythos-cosmic-board{height:72vh;min-height:560px}}
+@media(max-width:600px){.mythos-cosmic-board{height:68vh;min-height:500px}}
