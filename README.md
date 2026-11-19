@@ -1,0 +1,142 @@
+# The Atlas — React, TypeScript, SQLite
+
+Стабильная ветка: **main**. React/TypeScript/SQLite-версия является основной. Исходная версия v4.1 сохранена в репозитории: index.html, js/, css/, data/atlas.json и maps/ не удаляются. Работа с базой SQLite не изменяет оригинальный JSON.
+
+## Windows / диск D:
+
+Требуется Windows, Git, Node.js версии 22 или новее. VS Code необязателен; Python нужен лишь для некоторых legacy-тестов.
+
+Обновить уже склонированный проект из PowerShell:
+
+~~~powershell
+cd D:\Projects\TheAtlas
+git switch feat/react-atlas-migration
+git pull --ff-only
+npm.cmd install
+npm.cmd run db:setup
+npm.cmd run import:atlas -- --verify
+~~~
+
+Если база ещё **не** импортировалась, вместо последней команды:
+
+~~~powershell
+npm.cmd run import:atlas -- --dry-run
+New-Item -ItemType Directory -Force -Path "D:\Projects\TheAtlas-Backups"
+npm.cmd run import:atlas -- --apply --backup-dir "D:\Projects\TheAtlas-Backups"
+npm.cmd run import:atlas -- --verify
+~~~
+
+Повторять --apply после успешного импорта НЕ нужно. Позднейшие правки в SQLite не синхронизируются обратно в data/atlas.json.
+
+Настроить пароль администратора (один раз, минимум 12 символов):
+
+~~~powershell
+npm.cmd run admin:setup
+~~~
+
+Скрипт скрывает ввод пароля, пишет только bcrypt-хеш и секрет сессии в .env. Файл .env исключён из Git. Никому его не пересылай.
+
+Запустить:
+
+~~~powershell
+npm.cmd run dev
+~~~
+
+Открыть http://localhost:5173 — это одновременно основной просмотрщик и основной контекстный редактор. После входа администратора верхняя панель и контекстные меню позволяют создавать и редактировать объекты без ухода с карты. http://localhost:5173/admin остаётся техническим табличным fallback. Проверка API: http://localhost:3001/api/health. Остановить — Ctrl+C.
+
+## Контент
+
+Публичная карта доступна без входа. После входа администратора основная страница показывает командную панель и контекстные действия. Маркер создаётся кликом по карте, регион — через загрузку изображения и визуальный drag/resize, событие — в текущей эпохе. ПКМ по карте/маркеру/событию/региону открывает соответствующие действия. ЛКМ по маркеру показывает только короткую сводку; «Подробнее» открывает статью. Маркер и статья редактируются отдельными действиями.
+
+Типы маркеров создаются прямо с карты и имеют собственный цвет и один вид значка: эмодзи/символ либо безопасный SVG-файл. SVG сохраняется в `storage/assets/icons` и проходит серверную проверку.
+
+События могут ссылаться на существующие локации, иметь собственные X/Y либо вообще не иметь геопозиции. В последнем случае они появляются только в списке. Даты подписываются текстом; земной календарь не навязывается.
+
+## Тестирование
+
+~~~powershell
+npm.cmd run db:validate
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run test:migration
+npm.cmd run test:database
+npm.cmd run test:geometry
+npm.cmd run test:api
+npm.cmd run test:admin
+npm.cmd run build
+~~~
+
+Для оригинального кода — npm.cmd run test:legacy (требует Python). В GitHub Actions проверки проходят автоматически. Тесты не заменяют ручное сравнение Leaflet в браузере.
+
+## Бэкап и восстановление
+
+Обычные изменения через API автоматически создают **DB-only snapshot** перед записью. Они маленькие и автоматически ротируются: хранится до 30 последних.
+
+Полный ручной backup:
+
+~~~powershell
+npm.cmd run backup:atlas
+~~~
+
+Полный snapshot содержит SQLite и assets с manifest/SHA-256. Assets дедуплицируются через `storage/backups/.asset-store`: одинаковый файл хранится физически один раз, а snapshots используют hard links. Полных snapshots по умолчанию хранится до 2.
+
+Очистить старые backups, включая старый формат v1, и собрать неиспользуемые blobs:
+
+~~~powershell
+npm.cmd run backup:prune
+~~~
+
+Можно переопределить retention:
+
+~~~powershell
+npm.cmd run backup:prune -- --keep-db 30 --keep-full 2
+~~~
+
+Проверка произвольной сохранённой копии:
+
+~~~powershell
+npm.cmd run backup:atlas -- --verify --from "D:\Projects\TheAtlas\storage\backups\atlas-snapshot-ИМЯ"
+~~~
+
+Безопасное пробное восстановление только в **новую, несуществующую папку**, не поверх рабочей БД:
+
+~~~powershell
+npm.cmd run backup:atlas -- --restore --from "D:\Projects\TheAtlas\storage\backups\atlas-snapshot-ИМЯ" --into "D:\Projects\Atlas-Restore-Test"
+~~~
+
+DB-only snapshot восстановит только SQLite; полный snapshot — SQLite и assets. Для внешнего архива копируй весь `storage/backups` вместе с `.asset-store`, либо конкретную полную snapshot-папку (hard links при обычном копировании материализуются как файлы).
+
+Git не содержит пользовательскую SQLite и приватные медиа.
+
+## Архитектура и ограничения
+
+Подробности: docs/admin-guide.md, docs/architecture.md, docs/features.md, docs/migration-report.md, docs/viewer-runbook.md.
+
+Для размещения в интернете нужны HTTPS, правильно настроенные cookie и **постоянный диск**. Serverless с эфемерной ФС не подходит для SQLite и файлов без дополнительной архитектуры; для него потребуется PostgreSQL и объектное хранилище.
+
+В контекстном редакторе есть live-preview, явное перемещение маркера, drag/resize региона непосредственно на основной карте, совмещение по двум точкам, создание/дублирование через черновик, Ctrl+S/Esc и Undo/Redo до 100 снимков **текущей несохранённой операции**. После Save включается отдельная постоянная LIFO-история сохранённых действий для маркеров, регионов, событий и типов маркеров: при закрытом drawer Ctrl+Z/Ctrl+Y и кнопки ↶/↷ откатывают/повторяют уже записанные CRUD-операции. Перед Undo/Redo сервер делает полный backup. Таймлайны/эпохи пока не входят в эту глобальную историю из-за составного поведения default timeline. Оригинальные legacy-данные сохраняются как страховочная база для регрессионных проверок.
+
+
+## Render / production
+
+В корне репозитория есть `render.yaml`: один Node Web Service, persistent disk в `/opt/render/project/src/storage`, health check `/api/health`, автоматический deploy после успешных GitHub checks. Для первого запуска нужно задать `ADMIN_PASSWORD_HASH`; `SESSION_SECRET` Render генерирует автоматически.
+
+SQLite, загруженные assets и локальные backups должны находиться на persistent disk. Render build не имеет доступа к этому диску, поэтому Prisma migrations выполняются в `startCommand`, а не во время build.
+
+Для первого переноса существующего локального Atlas создай архив только из `storage/atlas.db` и `storage/assets`, загрузи его на persistent disk как `storage/render-storage.tgz` и перезапусти сервис. `startCommand` проверит архив, распакует его до запуска Prisma, удалит архив и применит migrations.
+
+## Production build (локально, только после настройки HTTPS)
+
+~~~powershell
+cd D:\Projects\TheAtlas
+npm.cmd run build
+$env:NODE_ENV="production"
+$env:HOST="127.0.0.1"
+npm.cmd start
+~~~
+
+Express отдаёт собранный React и /admin по http://localhost:3001, а также все /api маршруты. Для публичного домена HTTPS terminates в reverse proxy; нельзя просто открыть порт без HTTPS и ожидать безопасной admin-сессии.
+
+## Локальный релиз-кандидат RC1 — 2026-11-06
+
+Основные пользовательские сценарии проверены на Windows: по ответам тестировщика 38 проверок успешны, один длительный нагрузочный тест пропущен. Локальное использование допускается с сохранением legacy и резервных копий. **В main не сливать**, полноту parity и публичную production-готовность не заявлять. См. `docs/acceptance-windows-2026-11-06.md`. Частые изменения создают DB-only snapshots с автоматической ротацией; полные assets-снимки дедуплицируются и ограничены retention-политикой.

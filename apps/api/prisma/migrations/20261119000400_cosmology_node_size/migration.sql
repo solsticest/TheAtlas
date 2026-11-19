@@ -1,0 +1,1 @@
+ALTER TABLE "MythosCosmicNode" ADD COLUMN "size" REAL NOT NULL DEFAULT 1;

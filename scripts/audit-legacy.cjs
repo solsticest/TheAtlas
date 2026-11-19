@@ -1,0 +1,259 @@
+'use strict';
+// Atlas v4 preflight: read-only, with no database or output writes.
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const root = path.resolve(__dirname, '..');
+const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
+const object = x => x !== null && typeof x === 'object' && !Array.isArray(x);
+const number = x => typeof x === 'number' && Number.isFinite(x);
+const safe = name => typeof name === 'string' && name.length > 0 &&
+  name !== '.' && name !== '..' && !/[\\\/:\x00-\x1f\x7f]/.test(name) && !path.isAbsolute(name);
+const fields = {
+  root:['version','types','worlds'],
+  type:['id','name','symbol','color'],
+  world:['id','name','image','width','height','locations','layers','kmPerPixel'],
+  layer:['id','name','image','width','height','parentId','bounds','rotation','enabled','showAtZoom','fadeRange'],
+  bounds:['x1','y1','x2','y2'],
+  location:['id','name','x','y','type','color','minZoom','description','article','tags']
+};
+function extra(value, type, at, r) {
+  if (!object(value)) return;
+  const unknown = Object.keys(value).filter(key => !fields[type].includes(key));
+  if (unknown.length) r.unknownFields.push({path:at,keys:unknown});
+}
+function attr(tag, name) {
+  const regex = new RegExp('\\b'+name+'\\s*=\\s*(?:"([^"]*)"|\\x27([^\\x27]*)\\x27)','i');
+  const match = tag.match(regex);
+  return match ? match[1] ?? match[2] : null;
+}
+function articleRefs(html) {
+  const images = [], links = [];
+  for (const tag of (html.match(/<img\b[^>]*>/gi) || [])) {
+    const asset=attr(tag,'data-asset');
+    if (asset !== null) images.push(asset);
+  }
+  for (const tag of (html.match(/<a\b[^>]*>/gi) || [])) {
+    const world=attr(tag,'data-world'), location=attr(tag,'data-location');
+    if (world!==null || location!==null) links.push({world,location});
+  }
+  return {images,links};
+}
+function shape(file, header) {
+  const suffix=path.extname(file).toLowerCase();
+  if (suffix==='.png' && header.length>=24 && header.subarray(0,8).toString('hex')==='89504e470d0a1a0a')
+    return [header.readUInt32BE(16),header.readUInt32BE(20)];
+  if (suffix==='.webp' && header.length>=30 && header.toString('ascii',0,4)==='RIFF' && header.toString('ascii',8,12)==='WEBP') {
+    const format=header.toString('ascii',12,16);
+    if (format==='VP8X') return [1+header.readUIntLE(24,3),1+header.readUIntLE(27,3)];
+    if (format==='VP8L') {
+      const a=header[21],b=header[22],c=header[23],d=header[24];
+      return [1+(a|((b&63)<<8)),1+(((b&192)>>6)|(c<<2)|((d&15)<<10))];
+    }
+    if (format==='VP8 ' && header[23]===157 && header[24]===1 && header[25]===42)
+      return [header.readUInt16LE(26)&16383,header.readUInt16LE(28)&16383];
+  }
+  if (suffix==='.svg') {
+    const tag=header.toString('utf8').match(/<svg\b[^>]*>/i)?.[0];
+    if (tag) {
+      const w=Number(attr(tag,'width')),h=Number(attr(tag,'height'));
+      if (w>0 && h>0) return [w,h];
+      const vb=attr(tag,'viewBox')?.trim().split(/[\s,]+/).map(Number);
+      if (vb?.length===4 && vb.every(Number.isFinite)) return [vb[2],vb[3]];
+    }
+  }
+  return null;
+}
+function checkText(item,key,at,r) {
+  if (typeof item[key]!=='string' || !item[key].trim()) r.errors.push(at+'.'+key+': отсутствует непустая строка');
+}
+function checkNumber(item,key,at,r,positive=false) {
+  if (!number(item[key]) || (positive && item[key]<=0)) r.errors.push(at+'.'+key+': требуется конечное '+(positive?'положительное ':'')+'число');
+}
+function walk(data,r) {
+  const refs=new Map(),links=[];
+  function asset(folder,name,dimensions) {
+    if (name==null || name==='') return;
+    if (!safe(name)) {r.errors.push('Недопустимый путь к '+folder+' asset: '+String(name));return;}
+    const key=folder+'/'+name;
+    if (refs.has(key)) {
+      const other=refs.get(key).dimensions;
+      if (other && dimensions && JSON.stringify(other)!==JSON.stringify(dimensions))
+        r.errors.push(key+': разные размеры для одного файла');
+      return;
+    }
+    refs.set(key,{folder,name,dimensions});
+  }
+  if (!object(data) || data.version!==4 || !Array.isArray(data.types) || !Array.isArray(data.worlds)) {
+    r.errors.push('Ожидается объект atlas.json версии 4 с массивами worlds и types');
+    return refs;
+  }
+  extra(data,'root','$',r);
+  const types=new Set(),worlds=new Map();
+  r.counts.types=data.types.length;
+  for (const [i,t] of data.types.entries()) {
+    const at='types['+i+']';
+    if (!object(t)) {r.errors.push(at+': не объект');continue;}
+    extra(t,'type',at,r);
+    checkText(t,'id',at,r);checkText(t,'name',at,r);checkText(t,'symbol',at,r);
+    if (types.has(t.id)) r.errors.push(at+': повтор ID '+t.id);
+    types.add(t.id);
+  }
+  r.counts.worlds=data.worlds.length;
+  for (const [i,w] of data.worlds.entries()) {
+    const at='worlds['+i+']';
+    if (!object(w)) {r.errors.push(at+': не объект');continue;}
+    extra(w,'world',at,r);
+    checkText(w,'id',at,r);checkText(w,'name',at,r);
+    checkNumber(w,'width',at,r,true);checkNumber(w,'height',at,r,true);
+    if (w.kmPerPixel!==undefined && (!number(w.kmPerPixel)||w.kmPerPixel<=0)) r.errors.push(at+': неверный kmPerPixel');
+    if (!Array.isArray(w.layers)||!Array.isArray(w.locations)) {r.errors.push(at+': layers/locations не массивы');continue;}
+    if (worlds.has(w.id)) r.errors.push(at+': повтор ID мира '+w.id);
+    const locations=new Set();
+    worlds.set(w.id,locations);
+    const summary={id:w.id,name:w.name,image:w.image??null,layers:[],locations:[]};
+    r.worlds.push(summary);
+    asset('maps',w.image,[w.width,w.height]);
+    const byLayer=new Map();
+    for (const [j,l] of w.layers.entries()) {
+      const p=at+'.layers['+j+']';
+      if (!object(l)) {r.errors.push(p+': не объект');continue;}
+      extra(l,'layer',p,r);
+      checkText(l,'id',p,r);checkText(l,'name',p,r);
+      checkNumber(l,'width',p,r,true);checkNumber(l,'height',p,r,true);
+      if (byLayer.has(l.id)) r.errors.push(p+': повтор ID слоя '+l.id);
+      byLayer.set(l.id,l);
+      if (!object(l.bounds)) r.errors.push(p+': нет bounds');
+      else {
+        extra(l.bounds,'bounds',p+'.bounds',r);
+        for (const k of ['x1','x2','y1','y2']) checkNumber(l.bounds,k,p+'.bounds',r);
+        if (number(l.bounds.x1)&&number(l.bounds.x2)&&l.bounds.x2<=l.bounds.x1) r.errors.push(p+': x2 <= x1');
+        if (number(l.bounds.y1)&&number(l.bounds.y2)&&l.bounds.y2<=l.bounds.y1) r.errors.push(p+': y2 <= y1');
+      }
+      for (const key of ['rotation','showAtZoom','fadeRange'])
+        if (l[key]!==undefined && !number(l[key])) r.errors.push(p+': неверный '+key);
+      if (l.fadeRange!==undefined && l.fadeRange<0) r.errors.push(p+': fadeRange < 0');
+      if (l.enabled!==undefined && typeof l.enabled!=='boolean') r.errors.push(p+': enabled не boolean');
+      summary.layers.push({id:l.id,name:l.name,parentId:l.parentId??null,bounds:l.bounds,rotation:l.rotation??0,showAtZoom:l.showAtZoom??null,fadeRange:l.fadeRange??null,image:l.image??null});
+      asset('maps',l.image,[l.width,l.height]);
+      r.counts.layers++;
+    }
+    for (const l of w.layers.filter(object)) {
+      const seen=new Set([l.id]);let p=l.parentId;
+      while (p!=null) {
+        if (!byLayer.has(p)) {r.errors.push('Слой '+l.id+': не найден parentId '+p);break;}
+        if (seen.has(p)) {r.errors.push('Слой '+l.id+': цикл parentId');break;}
+        seen.add(p);p=byLayer.get(p).parentId;
+      }
+    }
+    for (const [j,loc] of w.locations.entries()) {
+      const p=at+'.locations['+j+']';
+      if (!object(loc)) {r.errors.push(p+': не объект');continue;}
+      extra(loc,'location',p,r);
+      checkText(loc,'id',p,r);checkText(loc,'name',p,r);checkText(loc,'type',p,r);
+      checkNumber(loc,'x',p,r);checkNumber(loc,'y',p,r);
+      if (loc.minZoom!==undefined && !number(loc.minZoom)) r.errors.push(p+': неверный minZoom');
+      if (!types.has(loc.type)) r.errors.push(p+': неизвестный тип '+loc.type);
+      if (locations.has(loc.id)) r.errors.push(p+': повтор ID локации '+loc.id);
+      if (loc.article!==undefined && typeof loc.article!=='string') r.errors.push(p+': article не строка');
+      if (loc.tags!==undefined && (!Array.isArray(loc.tags)||loc.tags.some(x=>typeof x!=='string'))) r.errors.push(p+': tags не массив строк');
+      locations.add(loc.id);
+      summary.locations.push({id:loc.id,name:loc.name,x:loc.x,y:loc.y,type:loc.type,tags:loc.tags??[],article:!!loc.article});
+      if (typeof loc.article==='string' && loc.article) {
+        r.counts.articles++;
+        const refs=articleRefs(loc.article);
+        for (const file of refs.images) asset('media',file,null);
+        for (const link of refs.links) links.push({...link,from:p});
+      }
+      r.counts.locations++;
+    }
+  }
+  for (const link of links) if (!link.world || !link.location || !worlds.get(link.world)?.has(link.location))
+    r.warnings.push(link.from+': внутренняя ссылка не разрешена ('+link.world+'/'+link.location+')');
+  r.counts.maps=[...refs.values()].filter(a=>a.folder==='maps').length;
+  r.counts.media=[...refs.values()].filter(a=>a.folder==='media').length;
+  return refs;
+}
+async function audit(options={}) {
+  const input=path.resolve(options.input||path.join(root,'data','atlas.json'));
+  const base=path.dirname(path.dirname(input));
+  const folders={
+    maps:path.resolve(options.mapsDir||path.join(base,'maps')),
+    media:path.resolve(options.mediaDir||path.join(base,'media'))
+  };
+  const r={mode:'dry-run',source:input,sourceSha256:null,
+    counts:{worlds:0,types:0,layers:0,locations:0,articles:0,maps:0,media:0},
+    worlds:[],assets:[],unknownFields:[],warnings:[],errors:[]};
+  let raw,data;
+  try {raw=await fs.promises.readFile(input,'utf8');r.sourceSha256=crypto.createHash('sha256').update(raw).digest('hex');data=JSON.parse(raw);}
+  catch(e) {r.errors.push('Не удалось прочитать/распарсить JSON: '+e.message);return r;}
+  const refs=walk(data,r);
+  for (const [relative,entry] of refs) {
+    const baseDir=folders[entry.folder];
+    try {
+      const realBase=await fs.promises.realpath(baseDir);
+      const realFile=await fs.promises.realpath(path.join(baseDir,entry.name));
+      if (!realFile.startsWith(realBase+path.sep)) throw Error('путь за пределами '+baseDir);
+      const stat=await fs.promises.stat(realFile);
+      if (!stat.isFile()) throw Error('не файл');
+      const handle=await fs.promises.open(realFile,'r');
+      const header=Buffer.alloc(4096);
+      let bytes;
+      try {bytes=(await handle.read(header,0,4096,0)).bytesRead;}
+      finally {await handle.close();}
+      const dimensions=shape(entry.name,header.subarray(0,bytes));
+      const hash=crypto.createHash('sha256');
+      for await (const chunk of fs.createReadStream(realFile)) hash.update(chunk);
+      r.assets.push({path:relative,bytes:stat.size,sha256:hash.digest('hex'),dimensions});
+      if (entry.dimensions && dimensions && JSON.stringify(entry.dimensions)!==JSON.stringify(dimensions))
+        r.errors.push(relative+': размеры в файле '+dimensions.join('x')+' не совпадают с JSON '+entry.dimensions.join('x'));
+      if (entry.folder==='maps' && !dimensions) r.warnings.push(relative+': не удалось определить размеры');
+    } catch(e) {r.errors.push(relative+': '+(e.code==='ENOENT'?'файл не найден':e.message));}
+  }
+  r.assets.sort((a,b)=>a.path.localeCompare(b.path));
+  return r;
+}
+function args(argv) {
+  const result={};
+  const valueFlags={'--input':'input','--assets-dir':'mapsDir','--media-dir':'mediaDir'};
+  for (let i=0;i<argv.length;i++) {
+    const a=argv[i];
+    if (a==='--dry-run') continue;
+    if (a==='--apply') throw Error('Режим записи не поддерживается: только dry-run');
+    if (a==='--json') {result.json=true;continue;}
+    if (a==='--help') {result.help=true;continue;}
+    if (!own(valueFlags,a) || !argv[i+1]) throw Error('Неизвестный/неполный аргумент '+a);
+    result[valueFlags[a]]=argv[++i];
+  }
+  return result;
+}
+function printable(r) {
+  const lines=['THE ATLAS — READ-ONLY PREFLIGHT','Источник: '+r.source,'SHA-256 JSON: '+r.sourceSha256,
+    'Миры: '+r.counts.worlds+', типы: '+r.counts.types+', слои: '+r.counts.layers+', локации: '+r.counts.locations+', статьи: '+r.counts.articles,
+    'Карты: '+r.counts.maps+', медиа: '+r.counts.media];
+  for (const w of r.worlds) {
+    lines.push('\nМир '+w.name+' ('+w.id+')');
+    for (const l of w.layers) lines.push('  Слой '+l.name+'; ID='+l.id+'; parentId='+l.parentId+'; rotation='+l.rotation);
+    for (const l of w.locations) lines.push('  Локация '+l.name+'; ID='+l.id+'; x='+l.x+'; y='+l.y);
+  }
+  lines.push('\nФайлы (SHA-256):');
+  for (const a of r.assets) lines.push('  '+a.path+' | '+a.bytes+' байт | '+a.sha256+' | '+(a.dimensions?.join('x')??'размер неизвестен'));
+  lines.push('\nНеизвестные поля: '+r.unknownFields.length);
+  for (const a of r.unknownFields) lines.push('  '+a.path+': '+a.keys.join(', '));
+  lines.push('Предупреждения: '+r.warnings.length);
+  for (const w of r.warnings) lines.push('  ! '+w);
+  lines.push('Ошибки: '+r.errors.length);
+  for (const e of r.errors) lines.push('  X '+e);
+  lines.push('\nИтог: '+(r.errors.length?'НАЙДЕНЫ ОШИБКИ':'ПРОВЕРКА ПРОЙДЕНА')+'; файлы не изменялись.');
+  return lines.join('\n');
+}
+if (require.main===module) (async()=>{
+  try {
+    const o=args(process.argv.slice(2));
+    if (o.help) {console.log('node scripts/audit-legacy.cjs [--dry-run] [--json] [--input file] [--assets-dir maps] [--media-dir media]');return;}
+    const report=await audit(o);
+    console.log(o.json?JSON.stringify(report,null,2):printable(report));
+    if (report.errors.length) process.exitCode=1;
+  } catch(e) {console.error(e.message);process.exitCode=2;}
+})();
+module.exports={audit,walk,safe,articleRefs,shape,args};

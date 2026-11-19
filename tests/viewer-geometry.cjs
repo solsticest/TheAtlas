@@ -1,0 +1,36 @@
+'use strict';
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const original=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../data/atlas.json'),'utf8'));
+test('world geometry retains parent-relative nested bounds and fractional values',async()=>{
+  const {worldBox,depthOf,opacityAtZoom}=await import('../apps/web/src/atlas/geometry.ts');
+  const w=original.worlds[1];
+  const world={id:w.id,name:w.name,image:w.image,width:w.width,height:w.height,kmPerPixel:null};
+  const layers=w.layers.map(r=>({...r,worldId:w.id,parentId:r.parentId??null}));
+  const parent=layers[0],child=layers[1];
+  assert(parent&&child);
+  const p=worldBox(world,layers,parent.id);
+  const b=worldBox(world,layers,child.id);
+  assert(p&&b);
+  const x1=p.x1+child.bounds.x1*(p.x2-p.x1)/parent.width;
+  const y1=p.y1+child.bounds.y1*(p.y2-p.y1)/parent.height;
+  assert(Math.abs(b.x1-x1)<1e-10);
+  assert(Math.abs(b.y1-y1)<1e-10);
+  assert.equal(depthOf(parent,layers),0);
+  assert.equal(depthOf(child,layers),1);
+  assert.equal(child.rotation,333.875676895683);
+  assert.equal(opacityAtZoom(child,child.showAtZoom-0.01),0);
+  assert(opacityAtZoom(child,child.showAtZoom+0.1)>0);
+  assert.equal(opacityAtZoom(child,child.showAtZoom+child.fadeRange+0.2),1);
+  assert.deepEqual(worldBox(world,layers,null),{x1:0,y1:0,x2:w.width,y2:w.height});
+});
+test('broken parent and cycle do not cause infinite recursion',async()=>{
+  const {worldBox}=await import('../apps/web/src/atlas/geometry.ts');
+  const world={id:'w',name:'W',image:null,width:100,height:100,kmPerPixel:null};
+  const a={id:'a',name:'A',worldId:'w',image:null,parentId:'b',width:100,height:100,bounds:{x1:1,y1:1,x2:10,y2:10},rotation:0,showAtZoom:1,fadeRange:0,enabled:true};
+  const b={...a,id:'b',parentId:'a'};
+  assert.equal(worldBox(world,[a,b],'a'),null);
+  assert.equal(worldBox(world,[{...a,parentId:'absent'}],'a'),null);
+});

@@ -1,0 +1,53 @@
+name: New stack and database schema
+
+on:
+  push:
+    branches:
+      - feat/react-atlas-migration
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Validate Prisma schema
+        run: npm run db:validate
+      - name: Create database and generate client
+        run: npm run db:setup
+      - name: Import and round-trip integration test (isolated SQLite)
+        run: npm run test:database
+      - name: Typecheck new stack
+        run: npm run typecheck
+      - name: Verify read-only API endpoints against isolated imported data
+        run: npm run test:api
+      - name: Verify nested Leaflet geometry
+        run: npm run test:geometry
+      - name: Verify two-point alignment against original Atlas v4
+        run: npm run test:alignment
+      - name: Verify parent-relative drag resize
+        run: npm run test:layer-editor
+      - name: Verify Chronicle calendar
+        run: npm run test:chronicle-calendar
+      - name: Verify Chronicle filters
+        run: npm run test:chronicle-filters
+      - name: Mount and reopen Leaflet maps in MUI dialogs
+        run: npm run test:dialog-leaflet
+      - name: Test admin authentication, authorization, timelines and backups
+        run: npm run test:admin
+      - name: ESLint
+        run: npm run lint
+      - name: Build new stack
+        run: npm run build
+      - name: Test workspace-root paths with source and built API
+        run: npm run test:workspace-paths
+      - name: Smoke test production / and /admin routes
+        run: npm run test:production

@@ -1,0 +1,140 @@
+.mythos-shell{
+  min-height:100vh;padding:38px clamp(18px,5vw,76px) 90px;
+  padding-left:clamp(66px,6vw,98px);color:#eee8dc;
+  background:radial-gradient(circle at 85% 0%,rgba(151,118,63,.18),transparent 32%),
+    radial-gradient(circle at 2% 55%,rgba(70,88,116,.12),transparent 40%),#151a21;
+}
+.mythos-header{display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap;max-width:1460px;margin:auto}
+.mythos-eyebrow{font-size:10px!important;font-weight:800!important;letter-spacing:.24em!important;color:#b99b65!important}
+.mythos-title{font:700 clamp(46px,6vw,74px)/1.06 Georgia,serif!important;letter-spacing:-.035em;color:#ead4a4;margin:6px 0 4px!important}
+.mythos-subtitle{font-size:14px!important}
+.mythos-metrics{max-width:1460px;margin:30px auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.mythos-metrics>div{min-height:92px;padding:18px 20px;border:1px solid #45433a;border-radius:10px;background:linear-gradient(145deg,rgba(214,183,122,.055),rgba(34,41,52,.6))}
+.mythos-metric-value{font:700 29px/1.1 Georgia,serif!important;color:#e1c58c}
+.mythos-toolbar{max-width:1460px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding:20px 0;border-top:1px solid #49473e;border-bottom:1px solid #333c46}
+.mythos-filters{display:flex;gap:12px;flex-wrap:wrap}
+.mythos-content{max-width:1460px;margin:24px auto 0}
+.mythos-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:16px;margin-top:20px}
+.mythos-deity-card,.mythos-pantheon-card{color:#eee8dc!important;display:flex!important;align-items:flex-start!important;text-align:left!important;justify-content:flex-start!important;border:1px solid #414852!important;border-radius:12px!important;background:linear-gradient(140deg,#252b34,#1c222b)!important;min-height:220px;padding:22px!important;transition:background .2s,border-color .2s,transform .2s!important}
+.mythos-deity-card:hover,.mythos-pantheon-card:hover{transform:translateY(-3px);border-color:#998257!important;background:linear-gradient(140deg,#2c333e,#202832)!important}
+.mythos-deity-card{gap:16px}
+.mythos-deity-symbol{display:flex;align-items:center;justify-content:center;flex:0 0 54px;height:54px;border:1px solid;border-radius:12px;font-size:30px;color:#fff}
+.mythos-card-body{display:flex;flex-direction:column;align-items:flex-start;min-height:175px;width:100%;min-width:0}
+.mythos-card-title{font:700 25px/1.2 Georgia,serif!important;color:#f0e3cb;overflow-wrap:anywhere}
+.mythos-card-epithet{color:#d0b780;font:600 12px/1.4 "Segoe UI",sans-serif!important;margin-top:5px!important}
+.mythos-card-summary{color:#c7c8c9;font-size:13px!important;margin-top:15px!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.mythos-card-meta{color:#909ba5;font-size:10px!important;line-height:1.5!important;margin-top:auto!important;padding-top:18px;overflow-wrap:anywhere}
+.mythos-pantheon-card{flex-direction:column;gap:8px;min-height:240px}
+.mythos-pantheon-rune{font-size:27px!important;color:#d6b77a;line-height:1!important}
+.mythos-pantheon-excerpt{font-size:13px!important;line-height:1.6!important;color:#c8c6bf;margin-top:10px!important;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.mythos-status,.mythos-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;max-width:1460px;margin:35px auto;border:1px dashed #50555c;border-radius:12px;padding:60px 20px;text-align:center}
+.mythos-empty-icon{font-size:44px!important;color:#d6b77a}
+.mythos-detail-drawer{width:min(510px,100vw)!important;background:radial-gradient(circle at 0% 0%,rgba(214,183,122,.11),transparent 30%),#1b212a!important;border-left:1px solid #554c3c}
+.mythos-detail{padding:44px 30px 36px;min-height:100%;display:flex;flex-direction:column}
+.mythos-detail-symbol{font:700 75px/1.3 Georgia,serif!important;text-shadow:0 10px 30px #0008;margin:20px 0}
+.mythos-detail-title{font:700 38px/1.15 Georgia,serif!important;color:#f1dfb9;overflow-wrap:anywhere}
+.mythos-detail-section{margin-top:30px;padding-top:20px;border-top:1px solid #40444b}
+.mythos-detail-label{font-size:10px!important;font-weight:800!important;letter-spacing:.16em!important;color:#b69d6d;margin-bottom:12px!important}
+.mythos-notice{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:8px;border:1px solid #64583e;background:#28313c;color:#f0dfbd;box-shadow:0 10px 32px #000b;cursor:pointer;z-index:5100}
+@media(max-width:700px){
+  .mythos-shell{padding:70px 14px 50px}
+  .mythos-header{align-items:flex-start}
+  .mythos-metrics{gap:6px;margin:20px auto}.mythos-metrics>div{padding:12px 9px;min-height:72px}
+  .mythos-metric-value{font-size:23px!important}
+  .mythos-card-grid{grid-template-columns:minmax(0,1fr)}
+  .mythos-detail{padding:28px 20px}
+}
+@media(prefers-reduced-motion:reduce){.mythos-deity-card,.mythos-pantheon-card{transition:none!important}}
+
+
+/* Mythos v2 workspace */
+.mythos-viewbar{max-width:1460px;margin:0 auto 12px;display:flex;gap:8px;flex-wrap:wrap;padding:10px 0}
+.mythos-history-filter{margin-bottom:14px;padding:10px 12px;border:1px solid #38414c;border-radius:9px;background:#1a2028}
+.mythos-graph-shell,.mythos-table-shell,.mythos-lore-shell,.mythos-cosmology-shell{display:flex;flex-direction:column;gap:12px}
+.mythos-graph-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.mythos-graph-board,.mythos-cosmic-board{position:relative;min-height:620px;overflow:hidden;border:1px solid #3c4550;border-radius:14px;background:
+ radial-gradient(circle at 50% 50%,rgba(214,183,122,.04),transparent 50%),
+ linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+ linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px),#141a21;background-size:auto,42px 42px,42px 42px}
+.mythos-graph-edges{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.mythos-graph-node,.mythos-cosmic-node{--node-color:#d6b77a;position:absolute;transform:translate(-50%,-50%);z-index:3;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:128px;max-width:180px;min-height:72px;padding:9px 12px;border:1px solid color-mix(in srgb,var(--node-color) 70%,#fff 10%);border-radius:12px;background:color-mix(in srgb,var(--node-color) 18%,#202833);color:#f4eee4;box-shadow:0 8px 24px #0008,0 0 0 2px color-mix(in srgb,var(--node-color) 9%,transparent);cursor:pointer;text-align:center}
+.mythos-graph-node:hover,.mythos-cosmic-node:hover{z-index:6;border-color:var(--node-color);background:color-mix(in srgb,var(--node-color) 28%,#26313d)}
+.mythos-graph-node.is-draggable,.mythos-cosmic-node.is-draggable{cursor:grab}.mythos-graph-node.is-draggable:active,.mythos-cosmic-node.is-draggable:active{cursor:grabbing}
+.mythos-graph-node-symbol{font-size:23px;line-height:1}.mythos-graph-node-name{font:700 14px/1.15 Georgia,serif}.mythos-graph-node small,.mythos-cosmic-node small{max-width:150px;color:#aab2ba;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mythos-edge-label{position:absolute;z-index:2;transform:translate(-50%,-50%);max-width:145px;padding:3px 6px;border:1px solid #515b66;border-radius:999px;background:#182029e8;color:#cfd5d9;font-size:9px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.mythos-edge-label.edge-origin{border-color:#657f9f;color:#acc7e4}.mythos-edge-label.edge-alliance{border-color:#5c8768;color:#a7d3b0}.mythos-edge-label.edge-conflict{border-color:#9b5553;color:#e6aaa7}.mythos-edge-label.edge-service{border-color:#91794f;color:#e1c48d}.mythos-edge-label.edge-domain{border-color:#557d89;color:#aad0dc}.mythos-edge-label.edge-pantheon{border-color:#836d4c;color:#d4ba8a}.mythos-edge-label.edge-cosmic{border-color:#687b96;color:#b9cae0;cursor:pointer}
+.mythos-graph-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.mythos-cosmic-node{min-width:120px;min-height:78px;border-radius:50% 50% 44% 44%;--node-color:#7f8da8}.mythos-cosmic-node>span{font-size:24px}.mythos-cosmic-node>strong{font:700 13px Georgia,serif}
+.mythos-table-scroll{overflow:auto;max-width:100%;border:1px solid #39424d;border-radius:10px}
+.mythos-data-table,.mythos-domain-matrix{width:100%;border-collapse:collapse;font-size:12px;background:#171d24}
+.mythos-data-table th,.mythos-data-table td,.mythos-domain-matrix th,.mythos-domain-matrix td{padding:10px 12px;border-right:1px solid #303842;border-bottom:1px solid #303842;text-align:left;vertical-align:top}
+.mythos-data-table th,.mythos-domain-matrix th{position:sticky;top:0;z-index:3;background:#242b34;color:#d8c292;font-size:10px;letter-spacing:.07em;text-transform:uppercase}
+.mythos-data-table tbody tr,.mythos-domain-matrix tbody tr{cursor:pointer}.mythos-data-table tbody tr:hover,.mythos-domain-matrix tbody tr:hover{background:#232b35}
+.mythos-data-table td:first-child{min-width:190px}.mythos-data-table td small{display:block;margin-top:3px;color:#8f969d}.mythos-table-symbol{display:inline-block;width:24px;font-size:18px}
+.mythos-domain-matrix th:not(:first-child){min-width:68px;max-width:100px;writing-mode:vertical-rl;transform:rotate(180deg);height:120px;text-align:left}
+.mythos-domain-matrix td:not(:first-child){text-align:center;font-size:15px;color:#4c535a}.mythos-domain-matrix td.is-secondary{color:#9bacb7}.mythos-domain-matrix td.is-primary{color:#e2c583;background:rgba(214,183,122,.08)}
+.mythos-domain-matrix .is-sticky{position:sticky;left:0;z-index:2;min-width:160px;background:#202730}.mythos-domain-matrix thead .is-sticky{z-index:4;background:#242b34}
+.mythos-lore-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:18px}
+.mythos-lore-card{min-height:250px;display:flex;flex-direction:column;padding:18px;border:1px solid #3d4651;border-radius:11px;background:linear-gradient(145deg,#222a33,#1a2028)}
+.mythos-lore-title{font:700 21px/1.2 Georgia,serif!important;color:#ead7b0}.mythos-lore-kicker{font-size:9px!important;font-weight:800!important;letter-spacing:.13em!important;color:#9d875f;text-transform:uppercase}
+.mythos-lore-text{margin:16px 0!important;white-space:pre-wrap;color:#c5c7c8;font-size:12px!important;line-height:1.65!important;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:6;overflow:hidden}
+.mythos-lore-empty{grid-column:1/-1;padding:55px 20px;border:1px dashed #4a525b;border-radius:10px;text-align:center}
+.mythos-history-list{display:grid;gap:8px;margin-top:18px}.mythos-history-row{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:12px 15px;border:1px solid #39424c;border-radius:9px;background:#1b222a}
+.mythos-mini-row{display:flex;flex-direction:column;gap:2px;padding:8px 9px;border:1px solid #343d46;border-radius:7px;background:#171e26}.mythos-mini-row>span,.mythos-mini-row>small{color:#99a2aa;font-size:11px}.mythos-mini-row>small{white-space:pre-wrap;line-height:1.5}
+@media(max-width:900px){.mythos-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mythos-graph-board,.mythos-cosmic-board{min-height:520px}.mythos-graph-node{min-width:100px;max-width:130px}.mythos-edge-label{max-width:90px}}
+@media(max-width:600px){.mythos-viewbar{overflow-x:auto;flex-wrap:nowrap}.mythos-viewbar .MuiButton-root{white-space:nowrap}.mythos-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.mythos-graph-board,.mythos-cosmic-board{min-height:480px}.mythos-history-row{align-items:flex-start;flex-direction:column}}
+
+.mythos-color-field{display:flex;flex-direction:column;gap:4px;min-width:170px}
+.mythos-color-controls{display:flex;align-items:center;gap:8px}
+.mythos-native-color{width:48px;height:40px;padding:3px;border:1px solid #525a64;border-radius:7px;background:#202730;cursor:pointer}
+.mythos-native-color::-webkit-color-swatch-wrapper{padding:2px}
+.mythos-native-color::-webkit-color-swatch{border:0;border-radius:4px}
+.mythos-native-color::-moz-color-swatch{border:0;border-radius:4px}
+
+.mythos-graph-board{cursor:grab;touch-action:none;user-select:none}
+.mythos-graph-board.is-panning{cursor:grabbing}
+.mythos-graph-world{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
+.mythos-link-mode{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 13px;border:1px solid #8d7345;border-radius:9px;background:#2c261b;color:#ead8af}
+.mythos-graph-node.is-link-source{z-index:8;box-shadow:0 0 0 3px #d6b77a,0 10px 32px #000a}
+.mythos-graph-node.is-link-target{cursor:crosshair}
+.mythos-graph-node.is-link-target:hover{box-shadow:0 0 0 2px #8eb8d8,0 10px 30px #000a}
+
+
+/* Mythos graph focus / larger workspace */
+.mythos-graph-content{max-width:none;width:100%;margin-top:16px}
+.mythos-graph-board{height:clamp(720px,78vh,980px);min-height:720px;overscroll-behavior:contain}
+.mythos-graph-node.is-pantheon-dim{opacity:.2;filter:saturate(.3) brightness(.72)}
+.mythos-graph-node.is-pantheon-focus{z-index:7;opacity:1;filter:none;box-shadow:
+  0 0 0 2px color-mix(in srgb,var(--node-color) 86%,#fff 14%),
+  0 0 26px color-mix(in srgb,var(--node-color) 42%,transparent),
+  0 12px 30px #000b}
+.mythos-edge-label.is-pantheon-dim{opacity:.2}
+.mythos-deity-card.is-pantheon-dim{opacity:.28;filter:saturate(.35)}
+.mythos-deity-card.is-pantheon-focus{opacity:1;box-shadow:0 0 0 1px #b99b65,0 12px 34px #0008}
+.mythos-data-table tr.is-pantheon-dim,.mythos-domain-matrix tr.is-pantheon-dim{opacity:.28}
+.mythos-data-table tr.is-pantheon-focus,.mythos-domain-matrix tr.is-pantheon-focus{background:rgba(214,183,122,.11)}
+.mythos-data-table tr.is-pantheon-focus td:first-child,.mythos-domain-matrix tr.is-pantheon-focus .is-sticky{
+  box-shadow:inset 3px 0 0 #d6b77a
+}
+@media(max-width:900px){
+  .mythos-graph-board{height:72vh;min-height:560px}
+}
+@media(max-width:600px){
+  .mythos-graph-board{height:68vh;min-height:500px}
+}
+
+
+/* Cosmology viewport mirrors the deity graph */
+.mythos-cosmic-board{height:clamp(720px,78vh,980px);min-height:720px;cursor:grab;touch-action:none;user-select:none;overscroll-behavior:contain}
+.mythos-cosmic-board.is-panning{cursor:grabbing}
+.mythos-cosmic-world{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
+.mythos-cosmic-node{transform:translate(-50%,-50%);transform-origin:center}
+.mythos-cosmic-node.is-link-source{z-index:8;box-shadow:0 0 0 3px #9ab1d2,0 10px 34px #000b}
+.mythos-cosmic-node.is-link-target{cursor:crosshair}
+.mythos-cosmic-node.is-link-target:hover{box-shadow:0 0 0 2px #b6c8e2,0 10px 30px #000b}
+@media(max-width:900px){.mythos-cosmic-board{height:72vh;min-height:560px}}
+@media(max-width:600px){.mythos-cosmic-board{height:68vh;min-height:500px}}
+
+
+.mythos-pantheon-focusbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 11px;border:1px solid #3d4650;border-radius:9px;background:#1a2028}
+.mythos-node-pantheon{display:block;margin-top:2px;padding:1px 5px;border:1px solid color-mix(in srgb,var(--node-color) 48%,#6d7379);border-radius:999px;color:#d4c9b4;line-height:1.35;white-space:nowrap}

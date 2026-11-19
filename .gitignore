@@ -12,3 +12,14 @@ Thumbs.db
 Desktop.ini
 *.tmp
 *.log
+
+# New API database, uploads and local configuration.
+.env
+.env.*
+!.env.example
+storage/
+**/dist/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
