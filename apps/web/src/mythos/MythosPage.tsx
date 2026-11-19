@@ -131,14 +131,13 @@ export function MythosPage(){
     .map(domain=>[normalize(domain),domain])).values()].sort((a,b)=>a.localeCompare(b,'ru')),[deities]);
   const filteredDeities=useMemo(()=>deities.filter(deity=>{
     if(worldFilter!=='*'&&deity.worlds.length&&!deity.worlds.some(world=>world.id===worldFilter))return false;
-    if(pantheonFilter!=='*'&&deity.pantheonId!==pantheonFilter)return false;
     if(domainFilter!=='*'&&!deity.domains.some(domain=>normalize(domain)===normalize(domainFilter)))return false;
     const q=normalize(query);
     return !q||normalize([
       deity.name,deity.epithet,deity.summary,deity.description,deity.rank,deity.power,
       deity.pantheon?.name??'',...deity.domains,...deity.worlds.map(world=>world.name),
     ].join(' ')).includes(q);
-  }),[deities,worldFilter,pantheonFilter,domainFilter,query]);
+  }),[deities,worldFilter,domainFilter,query]);
   const filteredPantheons=useMemo(()=>pantheons.filter(item=>{
     if(worldFilter!=='*'&&item.worldId&&item.worldId!==worldFilter)return false;
     const q=normalize(query);
@@ -282,9 +281,9 @@ export function MythosPage(){
             <MenuItem value="*">Все миры</MenuItem>{worlds.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
           </Select></FormControl>
         {view!=='pantheons'&&<>
-          <FormControl size="small" sx={{minWidth:150,flex:'1 1 160px'}}><InputLabel>Пантеон</InputLabel>
-            <Select label="Пантеон" value={pantheonFilter} onChange={event=>setPantheonFilter(event.target.value)}>
-              <MenuItem value="*">Все пантеоны</MenuItem>{pantheons.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+          <FormControl size="small" sx={{minWidth:170,flex:'1 1 180px'}}><InputLabel>Акцент пантеона</InputLabel>
+            <Select label="Акцент пантеона" value={pantheonFilter} onChange={event=>setPantheonFilter(event.target.value)}>
+              <MenuItem value="*">Без акцента</MenuItem>{pantheons.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
             </Select></FormControl>
           <FormControl size="small" sx={{minWidth:145,flex:'1 1 155px'}}><InputLabel>Домен</InputLabel>
             <Select label="Домен" value={domainFilter} onChange={event=>setDomainFilter(event.target.value)}>
@@ -297,7 +296,7 @@ export function MythosPage(){
     {loading&&<Box className="mythos-status"><CircularProgress size={24}/><Typography>Открываем Mythos…</Typography></Box>}
     {failed&&<Alert severity="error" sx={{my:2}}>Часть Mythos не загрузилась. Проверь, применена ли новая миграция базы.</Alert>}
 
-    {!loading&&view==='graph'&&<Box className="mythos-content">
+    {!loading&&view==='graph'&&<Box className="mythos-content mythos-graph-content">
       <Box className="mythos-history-filter">
         <Stack gap={1}>
           <Stack direction={{xs:'column',sm:'row'}} gap={1} alignItems={{sm:'center'}}>
@@ -325,6 +324,7 @@ export function MythosPage(){
       </Box>
       <MythosGraph deities={filteredDeities} relations={filteredRelations} pantheons={pantheons}
         admin={session.authenticated} historicalDay={historicalDay}
+        pantheonFocusId={pantheonFilter==='*'?null:pantheonFilter}
         onSelectDeity={d=>setSelectedDeityId(d.id)}
         onCreateDeityAt={beginDeityAt}
         onSavePosition={async(d,x,y)=>{
@@ -346,12 +346,14 @@ export function MythosPage(){
       <Typography variant="body2" color="text.secondary" sx={{mb:2}}>
         Отфильтровано {filteredDeities.length} из {deities.length}. Матрица показывает покрытие доменов и дублирование ролей.
       </Typography>
-      <MythosTable deities={filteredDeities} onSelect={d=>setSelectedDeityId(d.id)}/>
+      <MythosTable deities={filteredDeities} pantheonFocusId={pantheonFilter==='*'?null:pantheonFilter}
+        onSelect={d=>setSelectedDeityId(d.id)}/>
     </Box>}
 
     {!loading&&view==='encyclopedia'&&<Box className="mythos-content">
       <Box className="mythos-card-grid">
-        {filteredDeities.map(item=><ButtonBase key={item.id} className="mythos-deity-card"
+        {filteredDeities.map(item=><ButtonBase key={item.id}
+          className={'mythos-deity-card'+(pantheonFilter==='*'?'':item.pantheonId===pantheonFilter?' is-pantheon-focus':' is-pantheon-dim')}
           onClick={()=>setSelectedDeityId(item.id)}>
           <Box className="mythos-deity-symbol" sx={{background:item.color+'24',borderColor:item.color}}>
             {item.symbol||'✧'}
