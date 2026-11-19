@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, Menu, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
-import type {
+import {
   MYTHOS_GRAPH_COORD_MAX, MYTHOS_GRAPH_COORD_MIN,
-  MythosCosmicLinkInput, MythosCosmicLinkRecord, MythosCosmicNodeInput,
-  MythosCosmicNodeRecord, WorldRecord,
+  type MythosCosmicLinkInput, type MythosCosmicLinkRecord, MythosCosmicNodeInput,
+  type MythosCosmicNodeRecord, type WorldRecord,
 } from '@atlas/shared';
 import { BufferedColorField } from './BufferedColorField';
 
