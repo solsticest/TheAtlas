@@ -130,6 +130,12 @@ async function isAdminRequest(req:Request,db:PrismaClient){
 export function registerMythos(app:Express,db:PrismaClient){
   const admin=requireAdmin(db);
   const markModified=()=>db.atlasDocument.updateMany({data:{isModified:true}});
+  let deityPositionWriteQueue:Promise<void>=Promise.resolve();
+  const queueDeityPositionWrite=<T>(task:()=>Promise<T>)=>{
+    const run=deityPositionWriteQueue.then(task,task);
+    deityPositionWriteQueue=run.then(()=>undefined,()=>undefined);
+    return run;
+  };
 
   app.get('/api/mythos/pantheons',route(async(req,res)=>{
     res.setHeader('Cache-Control','no-store');
@@ -291,12 +297,17 @@ export function registerMythos(app:Express,db:PrismaClient){
     if(!await db.mythosDeity.findUnique({where:{id},select:{id:true}})){
       fail(res,404,'NOT_FOUND','Божество не найдено');return;
     }
-    await createBackup(db);
-    const row=await db.mythosDeity.update({
-      where:{id},data:{graphX:parsed.data.graphX,graphY:parsed.data.graphY},
-      select:{id:true,graphX:true,graphY:true},
+    // Graph coordinates are workspace layout state, not lore/content. A full
+    // database+asset snapshot on every drag is both wasteful and prone to
+    // overlapping SQLite VACUUM/write operations during rapid node movement.
+    const row=await queueDeityPositionWrite(async()=>{
+      const updated=await db.mythosDeity.update({
+        where:{id},data:{graphX:parsed.data.graphX,graphY:parsed.data.graphY},
+        select:{id:true,graphX:true,graphY:true},
+      });
+      await markModified();
+      return updated;
     });
-    await markModified();
     res.json(row);
   }));
 
