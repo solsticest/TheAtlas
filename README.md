@@ -70,11 +70,27 @@ npm.cmd run build
 
 ## Бэкап и восстановление
 
+Обычные изменения через API автоматически создают **DB-only snapshot** перед записью. Они маленькие и автоматически ротируются: хранится до 30 последних.
+
+Полный ручной backup:
+
 ~~~powershell
 npm.cmd run backup:atlas
 ~~~
 
-Полный SQLite snapshot и копия всех assets с manifest/SHA-256 создаются в storage/backups/atlas-snapshot-...
+Полный snapshot содержит SQLite и assets с manifest/SHA-256. Assets дедуплицируются через `storage/backups/.asset-store`: одинаковый файл хранится физически один раз, а snapshots используют hard links. Полных snapshots по умолчанию хранится до 2.
+
+Очистить старые backups, включая старый формат v1, и собрать неиспользуемые blobs:
+
+~~~powershell
+npm.cmd run backup:prune
+~~~
+
+Можно переопределить retention:
+
+~~~powershell
+npm.cmd run backup:prune -- --keep-db 30 --keep-full 2
+~~~
 
 Проверка произвольной сохранённой копии:
 
@@ -88,7 +104,9 @@ npm.cmd run backup:atlas -- --verify --from "D:\Projects\TheAtlas\storage\backup
 npm.cmd run backup:atlas -- --restore --from "D:\Projects\TheAtlas\storage\backups\atlas-snapshot-ИМЯ" --into "D:\Projects\Atlas-Restore-Test"
 ~~~
 
-Отдельно копируй внешнюю TheAtlas-Backups и storage/backups на другой диск. Git не содержит пользовательскую SQLite и приватные медиа.
+DB-only snapshot восстановит только SQLite; полный snapshot — SQLite и assets. Для внешнего архива копируй весь `storage/backups` вместе с `.asset-store`, либо конкретную полную snapshot-папку (hard links при обычном копировании материализуются как файлы).
+
+Git не содержит пользовательскую SQLite и приватные медиа.
 
 ## Архитектура и ограничения
 
@@ -113,4 +131,4 @@ Express отдаёт собранный React и /admin по http://localhost:30
 
 ## Локальный релиз-кандидат RC1 — 2026-11-06
 
-Основные пользовательские сценарии проверены на Windows: по ответам тестировщика 38 проверок успешны, один длительный нагрузочный тест пропущен. Локальное использование допускается с сохранением legacy и резервных копий. **В main не сливать**, полноту parity и публичную production-готовность не заявлять. См. `docs/acceptance-windows-2026-11-06.md`. Частые изменения создают новые snapshots, следи за объёмом `storage/backups`.
+Основные пользовательские сценарии проверены на Windows: по ответам тестировщика 38 проверок успешны, один длительный нагрузочный тест пропущен. Локальное использование допускается с сохранением legacy и резервных копий. **В main не сливать**, полноту parity и публичную production-готовность не заявлять. См. `docs/acceptance-windows-2026-11-06.md`. Частые изменения создают DB-only snapshots с автоматической ротацией; полные assets-снимки дедуплицируются и ограничены retention-политикой.
