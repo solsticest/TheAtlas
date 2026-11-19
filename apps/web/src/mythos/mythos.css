@@ -134,3 +134,7 @@
 .mythos-cosmic-node.is-link-target:hover{box-shadow:0 0 0 2px #b6c8e2,0 10px 30px #000b}
 @media(max-width:900px){.mythos-cosmic-board{height:72vh;min-height:560px}}
 @media(max-width:600px){.mythos-cosmic-board{height:68vh;min-height:500px}}
+
+
+.mythos-pantheon-focusbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:9px 11px;border:1px solid #3d4650;border-radius:9px;background:#1a2028}
+.mythos-node-pantheon{display:block;margin-top:2px;padding:1px 5px;border:1px solid color-mix(in srgb,var(--node-color) 48%,#6d7379);border-radius:999px;color:#d4c9b4;line-height:1.35;white-space:nowrap}
