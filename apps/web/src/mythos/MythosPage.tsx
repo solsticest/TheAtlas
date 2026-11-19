@@ -342,6 +342,7 @@ export function MythosPage(){
       <MythosGraph deities={filteredDeities} relations={filteredRelations} pantheons={pantheons}
         admin={session.authenticated} historicalDay={historicalDay}
         pantheonFocusId={pantheonFilter==='*'?null:pantheonFilter}
+        onPantheonFocusChange={id=>setPantheonFilter(id??'*')}
         onSelectDeity={d=>setSelectedDeityId(d.id)}
         onCreateDeityAt={beginDeityAt}
         onSavePosition={async(d,x,y)=>{
