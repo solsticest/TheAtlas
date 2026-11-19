@@ -20,10 +20,15 @@ export const deityRecordToDraft=(record:MythosDeityRecord):DeityDraft=>({
   visibility:record.visibility,pantheonId:record.pantheonId,
   worldIds:record.worlds.map(world=>world.id),
 });
-export const deityDraftToInput=({domainsText,...draft}:DeityDraft):MythosDeityInput=>({
-  ...draft,domains:[...new Map(domainsText.split(',').map(item=>item.trim()).filter(Boolean)
-    .map(name=>[name.toLocaleLowerCase('ru'),name])).values()],
-});
+export const deityDraftToInput=({domainsText,...draft}:DeityDraft):MythosDeityInput=>{
+  const unique=new Map<string,string>();
+  for(const raw of domainsText.split(',')){
+    const name=raw.trim();
+    const key=name.toLocaleLowerCase('ru');
+    if(name&&!unique.has(key))unique.set(key,name);
+  }
+  return {...draft,domains:[...unique.values()]};
+};
 
 export function DeityEditorDialog({open,editing,draft,onChange,onClose,onSave,busy,error,worlds,
   pantheons,domainSuggestions}:{
