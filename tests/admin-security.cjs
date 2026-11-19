@@ -224,7 +224,10 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.deepEqual(secondDeity.data.primaryDomains,['Время']);
     assert.equal(secondDeity.data.graphX,68);
 
-    // Graph dragging uses a lightweight endpoint: moving a node must not rewrite deity lore.
+    // Graph dragging uses a lightweight endpoint: moving a node must not rewrite deity lore
+    // and must not create heavyweight database+asset snapshots.
+    const snapshotsBeforeGraphMove=fs.readdirSync(env.ATLAS_BACKUP_DIR)
+      .filter(name=>name.startsWith('atlas-snapshot-')).length;
     assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
       {graphX:42.5,graphY:61.25},false,false)).status,401);
     assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
@@ -244,6 +247,18 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal(storedMovedDeity.domains,JSON.stringify(['Эволюция','Время']));
     assert.equal(storedMovedDeity.graphX,142.5);
     assert.equal(storedMovedDeity.graphY,-61.25);
+
+    const concurrentMoves=await Promise.all([
+      request('/api/admin/mythos/deities/'+publicDeity.data.id+'/position','PATCH',{graphX:11,graphY:22}),
+      request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',{graphX:33,graphY:44}),
+      request('/api/admin/mythos/deities/'+publicDeity.data.id+'/position','PATCH',{graphX:55,graphY:66}),
+      request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',{graphX:77,graphY:88}),
+    ]);
+    assert(concurrentMoves.every(move=>move.status===200),JSON.stringify(concurrentMoves));
+    const snapshotsAfterGraphMove=fs.readdirSync(env.ATLAS_BACKUP_DIR)
+      .filter(name=>name.startsWith('atlas-snapshot-')).length;
+    assert.equal(snapshotsAfterGraphMove,snapshotsBeforeGraphMove,
+      'graph layout moves must not create full Atlas snapshots');
 
     const relation=await request('/api/admin/mythos/relations','POST',{
       sourceId:publicDeity.data.id,targetId:secondDeity.data.id,type:'создал',
