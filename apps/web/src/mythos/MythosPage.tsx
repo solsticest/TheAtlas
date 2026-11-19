@@ -1,56 +1,125 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Alert, Box, Button, ButtonBase, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, Drawer, FormControl, InputLabel,
   MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
-import type { MythosDeityRecord, MythosPantheonRecord, MythosDeityInput,
-  MythosPantheonInput } from '@atlas/shared';
+import type {
+  MythosDeityInput, MythosDeityRecord, MythosPantheonInput, MythosPantheonRecord,
+} from '@atlas/shared';
 import {
-  useWorldsQuery, useMythosDeitiesQuery, useMythosPantheonsQuery,
+  useWorldsQuery, useChronicleEventsQuery,
+  useMythosDeitiesQuery, useMythosPantheonsQuery, useMythosRelationsQuery,
+  useMythosMythsQuery, useMythosBeliefsQuery, useMythosSitesQuery,
+  useMythosHistoryLinksQuery, useMythosCosmicNodesQuery, useMythosCosmicLinksQuery,
+  useMythosLocationsQuery,
   useCreateMythosDeityMutation, useUpdateMythosDeityMutation, useDeleteMythosDeityMutation,
-  useCreateMythosPantheonMutation, useUpdateMythosPantheonMutation,
-  useDeleteMythosPantheonMutation,
+  useCreateMythosPantheonMutation, useUpdateMythosPantheonMutation, useDeleteMythosPantheonMutation,
+  useCreateMythosRelationMutation, useUpdateMythosRelationMutation, useDeleteMythosRelationMutation,
+  useCreateMythosMythMutation, useUpdateMythosMythMutation, useDeleteMythosMythMutation,
+  useCreateMythosBeliefMutation, useUpdateMythosBeliefMutation, useDeleteMythosBeliefMutation,
+  useCreateMythosSiteMutation, useUpdateMythosSiteMutation, useDeleteMythosSiteMutation,
+  useUpsertMythosHistoryLinkMutation, useDeleteMythosHistoryLinkMutation,
+  useCreateMythosCosmicNodeMutation, useUpdateMythosCosmicNodeMutation, useDeleteMythosCosmicNodeMutation,
+  useCreateMythosCosmicLinkMutation, useUpdateMythosCosmicLinkMutation, useDeleteMythosCosmicLinkMutation,
 } from '../atlas/api';
+import { dayToChronicleDate, formatChronicleDate } from '../chronicle/calendar';
 import {
   DeityEditorDialog, PantheonEditorDialog, defaultDeityDraft, defaultPantheonDraft,
   deityRecordToDraft, deityDraftToInput, type DeityDraft,
 } from './MythosEditor';
+import { MythosGraph } from './MythosGraph';
+import { MythosTable } from './MythosTable';
+import { MythosLore } from './MythosLore';
+import { MythosCosmology } from './MythosCosmology';
 import './mythos.css';
 
 type Session={authenticated:boolean;csrfToken?:string};
-type Selection={kind:'deity'|'pantheon';id:string};
-const visibilityLabel=(value:string)=>value==='public'?'Публично':value==='draft'?'Черновик':'Мастер';
+type View='graph'|'table'|'encyclopedia'|'lore'|'cosmology'|'pantheons';
 const normalize=(value:string)=>value.trim().toLocaleLowerCase('ru');
-function errorMessage(error:unknown){
-  const payload=error as {data?:{error?:{message?:string}}};
-  return payload.data?.error?.message??'Не удалось выполнить действие. Проверь подключение и повтори.';
+const visibilityLabel=(value:string)=>value==='public'?'Публично':value==='draft'?'Черновик':'Мастер';
+
+function apiError(error:unknown){
+  const payload=error as {data?:{error?:{message?:string}};message?:string};
+  return payload.data?.error?.message??payload.message??'Не удалось выполнить действие.';
+}
+function deityInput(record:MythosDeityRecord,patch:Partial<MythosDeityInput>={}):MythosDeityInput{
+  return {
+    name:record.name,epithet:record.epithet,summary:record.summary,description:record.description,
+    symbol:record.symbol,color:record.color,rank:record.rank,domains:record.domains,
+    primaryDomains:record.primaryDomains,graphX:record.graphX,graphY:record.graphY,
+    visibility:record.visibility,pantheonId:record.pantheonId,
+    worldIds:record.worlds.map(world=>world.id),...patch,
+  };
 }
 
 export function MythosPage(){
   const worldsQuery=useWorldsQuery();
-  const pantheonsQuery=useMythosPantheonsQuery();
   const deitiesQuery=useMythosDeitiesQuery();
+  const pantheonsQuery=useMythosPantheonsQuery();
+  const relationsQuery=useMythosRelationsQuery();
+  const mythsQuery=useMythosMythsQuery();
+  const beliefsQuery=useMythosBeliefsQuery();
+  const sitesQuery=useMythosSitesQuery();
+  const historyQuery=useMythosHistoryLinksQuery();
+  const cosmicNodesQuery=useMythosCosmicNodesQuery();
+  const cosmicLinksQuery=useMythosCosmicLinksQuery();
+  const locationsQuery=useMythosLocationsQuery();
+  const chronicleQuery=useChronicleEventsQuery();
+
   const worlds=worldsQuery.currentData??[];
-  const pantheons=pantheonsQuery.currentData??[];
   const deities=deitiesQuery.currentData??[];
+  const pantheons=pantheonsQuery.currentData??[];
+  const relations=relationsQuery.currentData??[];
+  const myths=mythsQuery.currentData??[];
+  const beliefs=beliefsQuery.currentData??[];
+  const sites=sitesQuery.currentData??[];
+  const history=historyQuery.currentData??[];
+  const cosmicNodes=cosmicNodesQuery.currentData??[];
+  const cosmicLinks=cosmicLinksQuery.currentData??[];
+  const locations=locationsQuery.currentData??[];
+  const chronicleEvents=chronicleQuery.currentData??[];
+
   const [createDeity,{isLoading:creatingDeity}]=useCreateMythosDeityMutation();
   const [updateDeity,{isLoading:updatingDeity}]=useUpdateMythosDeityMutation();
   const [deleteDeity,{isLoading:deletingDeity}]=useDeleteMythosDeityMutation();
   const [createPantheon,{isLoading:creatingPantheon}]=useCreateMythosPantheonMutation();
   const [updatePantheon,{isLoading:updatingPantheon}]=useUpdateMythosPantheonMutation();
   const [deletePantheon,{isLoading:deletingPantheon}]=useDeleteMythosPantheonMutation();
+  const [createRelation]=useCreateMythosRelationMutation();
+  const [updateRelation]=useUpdateMythosRelationMutation();
+  const [deleteRelation]=useDeleteMythosRelationMutation();
+  const [createMyth]=useCreateMythosMythMutation();
+  const [updateMyth]=useUpdateMythosMythMutation();
+  const [deleteMyth]=useDeleteMythosMythMutation();
+  const [createBelief]=useCreateMythosBeliefMutation();
+  const [updateBelief]=useUpdateMythosBeliefMutation();
+  const [deleteBelief]=useDeleteMythosBeliefMutation();
+  const [createSite]=useCreateMythosSiteMutation();
+  const [updateSite]=useUpdateMythosSiteMutation();
+  const [deleteSite]=useDeleteMythosSiteMutation();
+  const [upsertHistory]=useUpsertMythosHistoryLinkMutation();
+  const [deleteHistory]=useDeleteMythosHistoryLinkMutation();
+  const [createCosmicNode]=useCreateMythosCosmicNodeMutation();
+  const [updateCosmicNode]=useUpdateMythosCosmicNodeMutation();
+  const [deleteCosmicNode]=useDeleteMythosCosmicNodeMutation();
+  const [createCosmicLink]=useCreateMythosCosmicLinkMutation();
+  const [updateCosmicLink]=useUpdateMythosCosmicLinkMutation();
+  const [deleteCosmicLink]=useDeleteMythosCosmicLinkMutation();
 
   const [session,setSession]=useState<Session>({authenticated:false});
-  const [tab,setTab]=useState<'deities'|'pantheons'>('deities');
+  const [view,setView]=useState<View>('graph');
   const [query,setQuery]=useState('');
   const [worldFilter,setWorldFilter]=useState('*');
   const [pantheonFilter,setPantheonFilter]=useState('*');
   const [domainFilter,setDomainFilter]=useState('*');
-  const [selection,setSelection]=useState<Selection|null>(null);
+  const [historicalDay,setHistoricalDay]=useState<number|null>(null);
+  const [selectedDeityId,setSelectedDeityId]=useState<string|null>(null);
+  const [selectedPantheonId,setSelectedPantheonId]=useState<string|null>(null);
   const [deityDraft,setDeityDraft]=useState<DeityDraft|null>(null);
   const [deityEditingId,setDeityEditingId]=useState<string|null>(null);
   const [pantheonDraft,setPantheonDraft]=useState<MythosPantheonInput|null>(null);
   const [pantheonEditingId,setPantheonEditingId]=useState<string|null>(null);
-  const [deleteTarget,setDeleteTarget]=useState<Selection|null>(null);
+  const [deleteTarget,setDeleteTarget]=useState<{kind:'deity'|'pantheon';id:string}|null>(null);
   const [loginOpen,setLoginOpen]=useState(false);
   const [password,setPassword]=useState('');
   const [loginError,setLoginError]=useState('');
@@ -66,8 +135,7 @@ export function MythosPage(){
   const domainOptions=useMemo(()=>[...new Map(deities.flatMap(item=>item.domains)
     .map(domain=>[normalize(domain),domain])).values()].sort((a,b)=>a.localeCompare(b,'ru')),[deities]);
   const filteredDeities=useMemo(()=>deities.filter(deity=>{
-    if(worldFilter!=='*'&&deity.worlds.length&&
-      !deity.worlds.some(world=>world.id===worldFilter))return false;
+    if(worldFilter!=='*'&&deity.worlds.length&&!deity.worlds.some(world=>world.id===worldFilter))return false;
     if(pantheonFilter!=='*'&&deity.pantheonId!==pantheonFilter)return false;
     if(domainFilter!=='*'&&!deity.domains.some(domain=>normalize(domain)===normalize(domainFilter)))return false;
     const q=normalize(query);
@@ -81,103 +149,107 @@ export function MythosPage(){
     const q=normalize(query);
     return !q||normalize(item.name+' '+item.description).includes(q);
   }),[pantheons,worldFilter,query]);
+  const visibleIds=useMemo(()=>new Set(filteredDeities.map(d=>d.id)),[filteredDeities]);
+  const filteredRelations=useMemo(()=>relations.filter(r=>visibleIds.has(r.sourceId)&&visibleIds.has(r.targetId)),
+    [relations,visibleIds]);
+  const selectedDeity=deities.find(item=>item.id===selectedDeityId)??null;
+  const selectedPantheon=pantheons.find(item=>item.id===selectedPantheonId)??null;
 
-  const selectedDeity=selection?.kind==='deity'
-    ?deities.find(item=>item.id===selection.id)??null:null;
-  const selectedPantheon=selection?.kind==='pantheon'
-    ?pantheons.find(item=>item.id===selection.id)??null:null;
-  const deleteName=deleteTarget?.kind==='deity'
-    ?deities.find(item=>item.id===deleteTarget.id)?.name
-    :pantheons.find(item=>item.id===deleteTarget?.id)?.name;
+  const historyBounds=useMemo(()=>{
+    const values=relations.flatMap(r=>[r.startDay,r.endDay]).filter((v):v is number=>v!==null);
+    return values.length?{min:Math.min(...values),max:Math.max(...values)}:null;
+  },[relations]);
 
+  const loading=[worldsQuery,deitiesQuery,pantheonsQuery,relationsQuery,mythsQuery,beliefsQuery,
+    sitesQuery,historyQuery,cosmicNodesQuery,cosmicLinksQuery].some(item=>item.isLoading);
+  const failed=[worldsQuery,deitiesQuery,pantheonsQuery,relationsQuery,mythsQuery,beliefsQuery,
+    sitesQuery,historyQuery,cosmicNodesQuery,cosmicLinksQuery].some(item=>item.isError);
+
+  function requireCsrf(){
+    if(!session.csrfToken)throw Error('Сначала войди как администратор.');
+    return session.csrfToken;
+  }
   function beginDeity(item?:MythosDeityRecord){
-    setEditorError('');
-    setDeityEditingId(item?.id??null);
+    setEditorError('');setDeityEditingId(item?.id??null);
     setDeityDraft(item?deityRecordToDraft(item):defaultDeityDraft(worldFilter==='*'?null:worldFilter));
   }
   function beginPantheon(item?:MythosPantheonRecord){
-    setEditorError('');
-    setPantheonEditingId(item?.id??null);
+    setEditorError('');setPantheonEditingId(item?.id??null);
     setPantheonDraft(item?{
       name:item.name,description:item.description,visibility:item.visibility,worldId:item.worldId,
     }:defaultPantheonDraft(worldFilter==='*'?null:worldFilter));
   }
   async function saveDeity(){
-    if(!deityDraft||!session.csrfToken)return;
+    if(!deityDraft)return;
     setEditorError('');
-    const input:MythosDeityInput=deityDraftToInput(deityDraft);
     try{
+      const csrf=requireCsrf(),input=deityDraftToInput(deityDraft);
       const saved=deityEditingId
-        ?await updateDeity({id:deityEditingId,input,csrf:session.csrfToken}).unwrap()
-        :await createDeity({input,csrf:session.csrfToken}).unwrap();
-      setDeityDraft(null);
-      setDeityEditingId(null);
-      setSelection({kind:'deity',id:saved.id});
-      setNotice('Божество сохранено');
-    }catch(error){setEditorError(errorMessage(error));}
+        ?await updateDeity({id:deityEditingId,input,csrf}).unwrap()
+        :await createDeity({input,csrf}).unwrap();
+      setDeityDraft(null);setDeityEditingId(null);setSelectedDeityId(saved.id);setNotice('Божество сохранено');
+    }catch(error){setEditorError(apiError(error));}
   }
   async function savePantheon(){
-    if(!pantheonDraft||!session.csrfToken)return;
+    if(!pantheonDraft)return;
     setEditorError('');
     try{
+      const csrf=requireCsrf();
       const saved=pantheonEditingId
-        ?await updatePantheon({id:pantheonEditingId,input:pantheonDraft,csrf:session.csrfToken}).unwrap()
-        :await createPantheon({input:pantheonDraft,csrf:session.csrfToken}).unwrap();
-      setPantheonDraft(null);
-      setPantheonEditingId(null);
-      setSelection({kind:'pantheon',id:saved.id});
-      setNotice('Пантеон сохранён');
-    }catch(error){setEditorError(errorMessage(error));}
-  }
-  async function confirmDelete(){
-    if(!deleteTarget||!session.csrfToken)return;
-    const target=deleteTarget;
-    try{
-      if(target.kind==='deity')await deleteDeity({id:target.id,csrf:session.csrfToken}).unwrap();
-      else await deletePantheon({id:target.id,csrf:session.csrfToken}).unwrap();
-      setDeleteTarget(null);
-      setSelection(null);
-      setNotice(target.kind==='deity'?'Божество удалено':'Пантеон удалён');
-    }catch(error){setDeleteTarget(null);setNotice(errorMessage(error));}
+        ?await updatePantheon({id:pantheonEditingId,input:pantheonDraft,csrf}).unwrap()
+        :await createPantheon({input:pantheonDraft,csrf}).unwrap();
+      setPantheonDraft(null);setPantheonEditingId(null);setSelectedPantheonId(saved.id);setNotice('Пантеон сохранён');
+    }catch(error){setEditorError(apiError(error));}
   }
   async function login(){
     setLoginError('');
     try{
-      const response=await fetch('/api/auth/login',{
-        method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',
-        body:JSON.stringify({password}),
-      });
+      const response=await fetch('/api/auth/login',{method:'POST',credentials:'same-origin',
+        headers:{'content-type':'application/json'},body:JSON.stringify({password})});
       const data=await response.json() as Session&{error?:{message?:string}};
       if(!response.ok)throw Error(data.error?.message??'Не удалось войти');
       setSession(data);setPassword('');setLoginOpen(false);
-      await Promise.all([deitiesQuery.refetch(),pantheonsQuery.refetch()]);
+      await Promise.all([
+        deitiesQuery.refetch(),pantheonsQuery.refetch(),relationsQuery.refetch(),mythsQuery.refetch(),
+        beliefsQuery.refetch(),sitesQuery.refetch(),historyQuery.refetch(),cosmicNodesQuery.refetch(),
+        cosmicLinksQuery.refetch(),chronicleQuery.refetch(),
+      ]);
     }catch(error){setLoginError(error instanceof Error?error.message:String(error));}
   }
   async function logout(){
     if(!session.csrfToken)return;
-    try{
-      await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',
-        headers:{'x-csrf-token':session.csrfToken}});
-      setSession({authenticated:false});
-      setSelection(null);
-      await Promise.all([deitiesQuery.refetch(),pantheonsQuery.refetch()]);
-    }catch{setNotice('Не удалось выйти из учётной записи');}
+    await fetch('/api/auth/logout',{method:'POST',credentials:'same-origin',
+      headers:{'x-csrf-token':session.csrfToken}});
+    setSession({authenticated:false});setSelectedDeityId(null);setSelectedPantheonId(null);
+    await Promise.all([deitiesQuery.refetch(),pantheonsQuery.refetch(),relationsQuery.refetch(),
+      mythsQuery.refetch(),beliefsQuery.refetch(),sitesQuery.refetch(),historyQuery.refetch(),
+      cosmicNodesQuery.refetch(),cosmicLinksQuery.refetch(),chronicleQuery.refetch()]);
   }
+  async function removeSelected(){
+    if(!deleteTarget)return;
+    try{
+      const csrf=requireCsrf();
+      if(deleteTarget.kind==='deity')await deleteDeity({id:deleteTarget.id,csrf}).unwrap();
+      else await deletePantheon({id:deleteTarget.id,csrf}).unwrap();
+      setDeleteTarget(null);setSelectedDeityId(null);setSelectedPantheonId(null);setNotice('Запись удалена');
+    }catch(error){setNotice(apiError(error));setDeleteTarget(null);}
+  }
+
+  const perform=async<T,>(promise:Promise<T>)=>{
+    try{return await promise;}catch(error){throw Error(apiError(error));}
+  };
 
   return <Box className="mythos-shell">
     <header className="mythos-header">
       <Box>
-        <Typography className="mythos-eyebrow">WORLD ARCHIVE / DIVINITY</Typography>
+        <Typography className="mythos-eyebrow">WORLD ARCHIVE / METAPHYSICS</Typography>
         <Typography component="h1" className="mythos-title">Mythos</Typography>
         <Typography color="text.secondary" className="mythos-subtitle">
-          Боги, пантеоны, домены и мифология твоих миров.
+          Рабочее название · божества, связи, верования и устройство мироздания.
         </Typography>
       </Box>
       <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap" justifyContent="flex-end">
-        {session.authenticated&&<Button variant="contained"
-          onClick={()=>tab==='deities'?beginDeity():beginPantheon()}>
-          + {tab==='deities'?'Божество':'Пантеон'}
-        </Button>}
+        {session.authenticated&&<Button variant="contained" onClick={()=>beginDeity()}>+ Божество</Button>}
         <Button variant="outlined" onClick={()=>session.authenticated?void logout():setLoginOpen(true)}>
           {session.authenticated?'Выйти':'Войти'}
         </Button>
@@ -185,66 +257,77 @@ export function MythosPage(){
     </header>
 
     <Box className="mythos-metrics">
-      <Box><Typography className="mythos-metric-value">{deities.length}</Typography>
-        <Typography variant="caption" color="text.secondary">Божеств</Typography></Box>
-      <Box><Typography className="mythos-metric-value">{pantheons.length}</Typography>
-        <Typography variant="caption" color="text.secondary">Пантеонов</Typography></Box>
-      <Box><Typography className="mythos-metric-value">{domainOptions.length}</Typography>
-        <Typography variant="caption" color="text.secondary">Уникальных доменов</Typography></Box>
+      <Box><Typography className="mythos-metric-value">{deities.length}</Typography><Typography variant="caption" color="text.secondary">Сущностей</Typography></Box>
+      <Box><Typography className="mythos-metric-value">{relations.length}</Typography><Typography variant="caption" color="text.secondary">Связей</Typography></Box>
+      <Box><Typography className="mythos-metric-value">{domainOptions.length}</Typography><Typography variant="caption" color="text.secondary">Доменов</Typography></Box>
+      <Box><Typography className="mythos-metric-value">{myths.length}</Typography><Typography variant="caption" color="text.secondary">Мифов</Typography></Box>
     </Box>
 
-    <Box className="mythos-toolbar">
-      <Stack direction="row" gap={1}>
-        <Button variant={tab==='deities'?'contained':'outlined'}
-          onClick={()=>setTab('deities')}>Божества</Button>
-        <Button variant={tab==='pantheons'?'contained':'outlined'}
-          onClick={()=>setTab('pantheons')}>Пантеоны</Button>
-      </Stack>
+    <Box className="mythos-viewbar">
+      {([
+        ['graph','Связи'],['table','Таблица'],['encyclopedia','Энциклопедия'],
+        ['lore','Предания'],['cosmology','Космология'],['pantheons','Пантеоны'],
+      ] as const).map(([id,label])=><Button key={id} size="small"
+        variant={view===id?'contained':'outlined'} onClick={()=>setView(id)}>{label}</Button>)}
+    </Box>
+
+    {['graph','table','encyclopedia','pantheons'].includes(view)&&<Box className="mythos-toolbar">
       <Box className="mythos-filters">
-        <TextField size="small" label="Поиск по мифологии" value={query}
-          onChange={event=>setQuery(event.target.value)}
-          sx={{minWidth:180,flex:'2 1 220px'}}/>
-        <FormControl size="small" sx={{minWidth:150,flex:'1 1 160px'}}>
-          <InputLabel>Мир</InputLabel>
+        <TextField size="small" label="Поиск" value={query} onChange={event=>setQuery(event.target.value)}
+          sx={{minWidth:190,flex:'2 1 250px'}}/>
+        <FormControl size="small" sx={{minWidth:150,flex:'1 1 160px'}}><InputLabel>Мир</InputLabel>
           <Select label="Мир" value={worldFilter} onChange={event=>setWorldFilter(event.target.value)}>
-            <MenuItem value="*">Все миры</MenuItem>
-            {worlds.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
-          </Select>
-        </FormControl>
-        {tab==='deities'&&<>
-          <FormControl size="small" sx={{minWidth:145,flex:'1 1 150px'}}>
-            <InputLabel>Пантеон</InputLabel>
-            <Select label="Пантеон" value={pantheonFilter}
-              onChange={event=>setPantheonFilter(event.target.value)}>
-              <MenuItem value="*">Все пантеоны</MenuItem>
-              {pantheons.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{minWidth:140,flex:'1 1 145px'}}>
-            <InputLabel>Домен</InputLabel>
-            <Select label="Домен" value={domainFilter}
-              onChange={event=>setDomainFilter(event.target.value)}>
-              <MenuItem value="*">Все домены</MenuItem>
-              {domainOptions.map(item=><MenuItem key={item} value={item}>{item}</MenuItem>)}
-            </Select>
-          </FormControl>
+            <MenuItem value="*">Все миры</MenuItem>{worlds.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+          </Select></FormControl>
+        {view!=='pantheons'&&<>
+          <FormControl size="small" sx={{minWidth:150,flex:'1 1 160px'}}><InputLabel>Пантеон</InputLabel>
+            <Select label="Пантеон" value={pantheonFilter} onChange={event=>setPantheonFilter(event.target.value)}>
+              <MenuItem value="*">Все пантеоны</MenuItem>{pantheons.map(item=><MenuItem key={item.id} value={item.id}>{item.name}</MenuItem>)}
+            </Select></FormControl>
+          <FormControl size="small" sx={{minWidth:145,flex:'1 1 155px'}}><InputLabel>Домен</InputLabel>
+            <Select label="Домен" value={domainFilter} onChange={event=>setDomainFilter(event.target.value)}>
+              <MenuItem value="*">Все домены</MenuItem>{domainOptions.map(item=><MenuItem key={item} value={item}>{item}</MenuItem>)}
+            </Select></FormControl>
         </>}
       </Box>
-    </Box>
-
-    {(deitiesQuery.isLoading||pantheonsQuery.isLoading)&&<Box className="mythos-status">
-      <CircularProgress size={24}/><Typography>Открываем архив…</Typography>
     </Box>}
-    {(deitiesQuery.isError||pantheonsQuery.isError||worldsQuery.isError)&&
-      <Alert severity="error" sx={{my:2}}>Не удалось загрузить Mythos. Проверь, выполнена ли миграция базы.</Alert>}
 
-    {tab==='deities'&&<Box className="mythos-content">
-      <Typography color="text.secondary" variant="body2">
-        Показано {filteredDeities.length} из {deities.length}. Нажми на карточку, чтобы прочитать предание.
+    {loading&&<Box className="mythos-status"><CircularProgress size={24}/><Typography>Открываем Mythos…</Typography></Box>}
+    {failed&&<Alert severity="error" sx={{my:2}}>Часть Mythos не загрузилась. Проверь, применена ли новая миграция базы.</Alert>}
+
+    {!loading&&view==='graph'&&<Box className="mythos-content">
+      <Box className="mythos-history-filter">
+        <Stack direction={{xs:'column',sm:'row'}} gap={1} alignItems={{sm:'center'}}>
+          <Typography variant="caption" color="text.secondary">Историческое состояние графа:</Typography>
+          <TextField size="small" type="number" label="Абсолютный день" value={historicalDay??''}
+            inputProps={historyBounds?{min:historyBounds.min,max:historyBounds.max}:undefined}
+            onChange={e=>setHistoricalDay(e.target.value===''?null:Number(e.target.value))}/>
+          {historicalDay!==null&&<Chip size="small" label={formatChronicleDate(dayToChronicleDate(historicalDay))}/>}
+          <Button size="small" onClick={()=>setHistoricalDay(null)}>Все эпохи</Button>
+        </Stack>
+      </Box>
+      <MythosGraph deities={filteredDeities} relations={filteredRelations} pantheons={pantheons}
+        admin={session.authenticated} historicalDay={historicalDay}
+        onSelectDeity={d=>setSelectedDeityId(d.id)}
+        onSavePosition={async(d,x,y)=>{if(!session.csrfToken)return;await perform(updateDeity({
+          id:d.id,input:deityInput(d,{graphX:x,graphY:y}),csrf:session.csrfToken,
+        }).unwrap());}}
+        onCreateRelation={async input=>{await perform(createRelation({input,csrf:requireCsrf()}).unwrap());}}
+        onUpdateRelation={async(id,input)=>{await perform(updateRelation({id,input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteRelation={async id=>{await perform(deleteRelation({id,csrf:requireCsrf()}).unwrap());}}/>
+    </Box>}
+
+    {!loading&&view==='table'&&<Box className="mythos-content">
+      <Typography variant="body2" color="text.secondary" sx={{mb:2}}>
+        Отфильтровано {filteredDeities.length} из {deities.length}. Матрица показывает покрытие доменов и дублирование ролей.
       </Typography>
+      <MythosTable deities={filteredDeities} onSelect={d=>setSelectedDeityId(d.id)}/>
+    </Box>}
+
+    {!loading&&view==='encyclopedia'&&<Box className="mythos-content">
       <Box className="mythos-card-grid">
         {filteredDeities.map(item=><ButtonBase key={item.id} className="mythos-deity-card"
-          onClick={()=>setSelection({kind:'deity',id:item.id})}>
+          onClick={()=>setSelectedDeityId(item.id)}>
           <Box className="mythos-deity-symbol" sx={{background:item.color+'24',borderColor:item.color}}>
             {item.symbol||'✧'}
           </Box>
@@ -253,33 +336,53 @@ export function MythosPage(){
             <Typography className="mythos-card-epithet">{item.epithet||item.rank}</Typography>
             {item.summary&&<Typography className="mythos-card-summary">{item.summary}</Typography>}
             <Stack direction="row" flexWrap="wrap" gap={.7} sx={{mt:1.5}}>
-              {item.domains.slice(0,4).map(domain=><Chip size="small" key={domain}
-                label={domain} sx={{borderColor:item.color+'77'}} variant="outlined"/>)}
-              {item.domains.length>4&&<Chip size="small" label={'+'+(item.domains.length-4)}/>}
+              {item.domains.slice(0,5).map(domain=><Chip size="small" key={domain}
+                label={(item.primaryDomains.some(p=>normalize(p)===normalize(domain))?'● ':'')+domain}
+                sx={{borderColor:item.color+'77'}} variant="outlined"/>)}
             </Stack>
             <Typography className="mythos-card-meta">
-              {item.pantheon?.name??'Без пантеона'} · {item.worlds.length
-                ?item.worlds.map(world=>world.name).join(', '):'Мультивселенная'}
-              {session.authenticated?' · '+visibilityLabel(item.visibility):''}
+              {item.pantheon?.name??'Без пантеона'} · {item.worlds.length?item.worlds.map(w=>w.name).join(', '):'Мультивселенная'}
             </Typography>
           </Box>
         </ButtonBase>)}
       </Box>
-      {!deitiesQuery.isLoading&&!filteredDeities.length&&<Box className="mythos-empty">
-        <Typography className="mythos-empty-icon">✧</Typography>
-        <Typography variant="h6">Божеств не найдено</Typography>
-        <Typography color="text.secondary">Сними фильтры или начни создавать историю своего пантеона.</Typography>
-        {session.authenticated&&<Button onClick={()=>beginDeity()} variant="outlined">+ Создать божество</Button>}
-      </Box>}
+      {!filteredDeities.length&&<Empty text="По текущим фильтрам сущностей нет."/>}
     </Box>}
 
-    {tab==='pantheons'&&<Box className="mythos-content">
-      <Typography color="text.secondary" variant="body2">
-        Пантеоны группируют божеств, но не ограничивают их связь с другими мирами.
-      </Typography>
+    {!loading&&view==='lore'&&<Box className="mythos-content">
+      <MythosLore admin={session.authenticated} deities={deities} worlds={worlds} locations={locations}
+        events={chronicleEvents} myths={myths} beliefs={beliefs} sites={sites} history={history}
+        onCreateMyth={async input=>{await perform(createMyth({input,csrf:requireCsrf()}).unwrap());}}
+        onUpdateMyth={async(id,input)=>{await perform(updateMyth({id,input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteMyth={async id=>{await perform(deleteMyth({id,csrf:requireCsrf()}).unwrap());}}
+        onCreateBelief={async input=>{await perform(createBelief({input,csrf:requireCsrf()}).unwrap());}}
+        onUpdateBelief={async(id,input)=>{await perform(updateBelief({id,input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteBelief={async id=>{await perform(deleteBelief({id,csrf:requireCsrf()}).unwrap());}}
+        onCreateSite={async input=>{await perform(createSite({input,csrf:requireCsrf()}).unwrap());}}
+        onUpdateSite={async(id,input)=>{await perform(updateSite({id,input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteSite={async id=>{await perform(deleteSite({id,csrf:requireCsrf()}).unwrap());}}
+        onUpsertHistory={async input=>{await perform(upsertHistory({input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteHistory={async(deityId,eventId)=>{await perform(deleteHistory({deityId,eventId,csrf:requireCsrf()}).unwrap());}}/>
+    </Box>}
+
+    {!loading&&view==='cosmology'&&<Box className="mythos-content">
+      <MythosCosmology nodes={cosmicNodes} links={cosmicLinks} worlds={worlds} admin={session.authenticated}
+        onCreateNode={async input=>{await perform(createCosmicNode({input,csrf:requireCsrf()}).unwrap());}}
+        onUpdateNode={async(id,input)=>{await perform(updateCosmicNode({id,input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteNode={async id=>{await perform(deleteCosmicNode({id,csrf:requireCsrf()}).unwrap());}}
+        onCreateLink={async input=>{await perform(createCosmicLink({input,csrf:requireCsrf()}).unwrap());}}
+        onUpdateLink={async(id,input)=>{await perform(updateCosmicLink({id,input,csrf:requireCsrf()}).unwrap());}}
+        onDeleteLink={async id=>{await perform(deleteCosmicLink({id,csrf:requireCsrf()}).unwrap());}}/>
+    </Box>}
+
+    {!loading&&view==='pantheons'&&<Box className="mythos-content">
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{mb:2}}>
+        <Typography color="text.secondary">Пантеон — организационная группа; связи между богами хранятся отдельно.</Typography>
+        {session.authenticated&&<Button variant="contained" onClick={()=>beginPantheon()}>+ Пантеон</Button>}
+      </Stack>
       <Box className="mythos-card-grid">
         {filteredPantheons.map(item=><ButtonBase key={item.id} className="mythos-pantheon-card"
-          onClick={()=>setSelection({kind:'pantheon',id:item.id})}>
+          onClick={()=>setSelectedPantheonId(item.id)}>
           <Typography className="mythos-pantheon-rune">✦</Typography>
           <Typography className="mythos-card-title">{item.name}</Typography>
           <Typography color="text.secondary" variant="body2">
@@ -287,120 +390,72 @@ export function MythosPage(){
           </Typography>
           <Typography className="mythos-pantheon-excerpt">{item.description||'История ещё не написана.'}</Typography>
           <Typography className="mythos-card-meta">
-            {deities.filter(deity=>deity.pantheonId===item.id).length} божеств
+            {deities.filter(deity=>deity.pantheonId===item.id).length} сущностей
             {session.authenticated?' · '+visibilityLabel(item.visibility):''}
           </Typography>
         </ButtonBase>)}
       </Box>
-      {!pantheonsQuery.isLoading&&!filteredPantheons.length&&<Box className="mythos-empty">
-        <Typography className="mythos-empty-icon">✦</Typography>
-        <Typography variant="h6">Пантеонов не найдено</Typography>
-        <Typography color="text.secondary">Создай первый пантеон или измени фильтры.</Typography>
-        {session.authenticated&&<Button variant="outlined" onClick={()=>beginPantheon()}>
-          + Создать пантеон
-        </Button>}
-      </Box>}
     </Box>}
 
-    <Drawer anchor="right" open={Boolean(selectedDeity||selectedPantheon)}
-      onClose={()=>setSelection(null)} PaperProps={{className:'mythos-detail-drawer'}}>
-      {selectedDeity&&<Box className="mythos-detail">
-        <Typography className="mythos-eyebrow">MYTHOS / БОЖЕСТВО</Typography>
-        <Box className="mythos-detail-symbol" sx={{color:selectedDeity.color}}>
-          {selectedDeity.symbol||'✧'}
-        </Box>
-        <Typography component="h2" className="mythos-detail-title">{selectedDeity.name}</Typography>
-        <Typography color="text.secondary">{selectedDeity.epithet||selectedDeity.rank}</Typography>
-        <Stack direction="row" flexWrap="wrap" gap={.7} sx={{mt:2}}>
-          <Chip size="small" label={selectedDeity.rank}/>
-          {selectedDeity.domains.map(domain=><Chip key={domain} size="small" variant="outlined" label={domain}/>)}
-        </Stack>
-        <Box className="mythos-detail-section">
-          <Typography className="mythos-detail-label">ПАНТЕОН И МИРЫ</Typography>
-          <Typography>{selectedDeity.pantheon?.name??'Вне пантеона'}</Typography>
-          <Typography color="text.secondary" variant="body2">
-            {selectedDeity.worlds.length?selectedDeity.worlds.map(world=>world.name).join(', '):'Мультивселенная'}
-          </Typography>
-        </Box>
-        {selectedDeity.summary&&<Box className="mythos-detail-section">
-          <Typography className="mythos-detail-label">СУТЬ</Typography>
-          <Typography sx={{whiteSpace:'pre-wrap'}}>{selectedDeity.summary}</Typography>
-        </Box>}
-        <Box className="mythos-detail-section">
-          <Typography className="mythos-detail-label">ПРЕДАНИЕ</Typography>
-          <Typography sx={{whiteSpace:'pre-wrap',lineHeight:1.75}}>
-            {selectedDeity.description||'Предание пока не написано.'}
-          </Typography>
-        </Box>
-        {session.authenticated&&<Stack direction="row" gap={1} sx={{mt:'auto',pt:3}}>
-          <Button variant="contained" onClick={()=>beginDeity(selectedDeity)}>Редактировать</Button>
-          <Button color="error" variant="outlined"
-            onClick={()=>setDeleteTarget({kind:'deity',id:selectedDeity.id})}>Удалить</Button>
-        </Stack>}
-      </Box>}
+    <Drawer anchor="right" open={Boolean(selectedDeity)} onClose={()=>setSelectedDeityId(null)}
+      PaperProps={{className:'mythos-detail-drawer'}}>
+      {selectedDeity&&<DeityDetail deity={selectedDeity}
+        relations={relations.filter(r=>r.sourceId===selectedDeity.id||r.targetId===selectedDeity.id)}
+        deities={deities} myths={myths.filter(m=>m.participants.some(p=>p.deityId===selectedDeity.id))}
+        beliefs={beliefs.filter(b=>b.deityId===selectedDeity.id)}
+        sites={sites.filter(s=>s.deityId===selectedDeity.id)}
+        history={history.filter(h=>h.deityId===selectedDeity.id)}
+        admin={session.authenticated} onEdit={()=>beginDeity(selectedDeity)}
+        onDelete={()=>setDeleteTarget({kind:'deity',id:selectedDeity.id})}/>}
+    </Drawer>
+
+    <Drawer anchor="right" open={Boolean(selectedPantheon)} onClose={()=>setSelectedPantheonId(null)}
+      PaperProps={{className:'mythos-detail-drawer'}}>
       {selectedPantheon&&<Box className="mythos-detail">
         <Typography className="mythos-eyebrow">MYTHOS / ПАНТЕОН</Typography>
         <Typography className="mythos-detail-symbol">✦</Typography>
         <Typography component="h2" className="mythos-detail-title">{selectedPantheon.name}</Typography>
         <Typography color="text.secondary">{selectedPantheon.worldId
-          ?worlds.find(world=>world.id===selectedPantheon.worldId)?.name??'Мир'
-          :'Мультивселенная'}</Typography>
-        <Box className="mythos-detail-section">
-          <Typography className="mythos-detail-label">ПРЕДАНИЕ</Typography>
-          <Typography sx={{whiteSpace:'pre-wrap',lineHeight:1.75}}>
-            {selectedPantheon.description||'История пантеона пока не написана.'}
-          </Typography>
+          ?worlds.find(w=>w.id===selectedPantheon.worldId)?.name??'Мир':'Мультивселенная'}</Typography>
+        <Box className="mythos-detail-section"><Typography className="mythos-detail-label">ПРЕДАНИЕ</Typography>
+          <Typography sx={{whiteSpace:'pre-wrap',lineHeight:1.75}}>{selectedPantheon.description||'История пока не написана.'}</Typography>
         </Box>
-        <Box className="mythos-detail-section">
-          <Typography className="mythos-detail-label">БОЖЕСТВА ПАНТЕОНА</Typography>
-          <Stack gap={1}>
-            {deities.filter(deity=>deity.pantheonId===selectedPantheon.id)
-              .map(deity=><Button key={deity.id} variant="outlined" size="small" fullWidth
-                onClick={()=>setSelection({kind:'deity',id:deity.id})}>
-                {deity.symbol||'✧'} {deity.name}
-              </Button>)}
-            {!deities.some(deity=>deity.pantheonId===selectedPantheon.id)&&
-              <Typography color="text.secondary" variant="body2">Пока никого нет.</Typography>}
-          </Stack>
+        <Box className="mythos-detail-section"><Typography className="mythos-detail-label">СУЩНОСТИ</Typography>
+          <Stack gap={1}>{deities.filter(d=>d.pantheonId===selectedPantheon.id).map(d=><Button key={d.id}
+            variant="outlined" onClick={()=>{setSelectedPantheonId(null);setSelectedDeityId(d.id);}}>{d.symbol||'✧'} {d.name}</Button>)}</Stack>
         </Box>
         {session.authenticated&&<Stack direction="row" gap={1} sx={{mt:'auto',pt:3}}>
           <Button variant="contained" onClick={()=>beginPantheon(selectedPantheon)}>Редактировать</Button>
-          <Button color="error" variant="outlined"
-            onClick={()=>setDeleteTarget({kind:'pantheon',id:selectedPantheon.id})}>Удалить</Button>
+          <Button color="error" variant="outlined" onClick={()=>setDeleteTarget({kind:'pantheon',id:selectedPantheon.id})}>Удалить</Button>
         </Stack>}
       </Box>}
     </Drawer>
 
-    <DeityEditorDialog open={Boolean(deityDraft)} editing={Boolean(deityEditingId)}
-      draft={deityDraft} onChange={setDeityDraft} onClose={()=>setDeityDraft(null)}
-      onSave={()=>void saveDeity()} busy={creatingDeity||updatingDeity} error={editorError}
-      worlds={worlds} pantheons={pantheons} domainSuggestions={domainOptions}/>
+    <DeityEditorDialog open={Boolean(deityDraft)} editing={Boolean(deityEditingId)} draft={deityDraft}
+      onChange={setDeityDraft} onClose={()=>setDeityDraft(null)} onSave={()=>void saveDeity()}
+      busy={creatingDeity||updatingDeity} error={editorError} worlds={worlds} pantheons={pantheons}
+      domainSuggestions={domainOptions}/>
     <PantheonEditorDialog open={Boolean(pantheonDraft)} editing={Boolean(pantheonEditingId)}
       draft={pantheonDraft} onChange={setPantheonDraft} onClose={()=>setPantheonDraft(null)}
-      onSave={()=>void savePantheon()} busy={creatingPantheon||updatingPantheon} error={editorError}
-      worlds={worlds}/>
+      onSave={()=>void savePantheon()} busy={creatingPantheon||updatingPantheon} error={editorError} worlds={worlds}/>
 
     <Dialog open={Boolean(deleteTarget)} onClose={()=>setDeleteTarget(null)} fullWidth maxWidth="xs">
-      <DialogTitle>Удалить запись?</DialogTitle>
-      <DialogContent>
-        <Typography>«{deleteName}» будет удалено. Перед этим автоматически создастся резервная копия.</Typography>
-      </DialogContent>
-      <DialogActions>
+      <DialogTitle>Удалить запись?</DialogTitle><DialogContent>
+        <Typography>Перед удалением сервер создаст резервную копию базы.</Typography>
+      </DialogContent><DialogActions>
         <Button onClick={()=>setDeleteTarget(null)}>Отмена</Button>
-        <Button color="error" variant="contained" onClick={()=>void confirmDelete()}
-          disabled={deletingDeity||deletingPantheon}>Удалить</Button>
+        <Button color="error" variant="contained" disabled={deletingDeity||deletingPantheon}
+          onClick={()=>void removeSelected()}>Удалить</Button>
       </DialogActions>
     </Dialog>
 
     <Dialog open={loginOpen} onClose={()=>setLoginOpen(false)} fullWidth maxWidth="xs">
-      <DialogTitle>Вход администратора</DialogTitle>
-      <DialogContent>
+      <DialogTitle>Вход администратора</DialogTitle><DialogContent>
         {loginError&&<Alert severity="error" sx={{mb:2}}>{loginError}</Alert>}
         <TextField autoFocus fullWidth type="password" label="Пароль" value={password}
           onChange={event=>setPassword(event.target.value)}
           onKeyDown={event=>{if(event.key==='Enter')void login();}}/>
-      </DialogContent>
-      <DialogActions>
+      </DialogContent><DialogActions>
         <Button onClick={()=>setLoginOpen(false)}>Отмена</Button>
         <Button variant="contained" onClick={()=>void login()}>Войти</Button>
       </DialogActions>
@@ -408,4 +463,67 @@ export function MythosPage(){
 
     {notice&&<Box className="mythos-notice" role="status" onClick={()=>setNotice('')}>{notice}</Box>}
   </Box>;
+}
+
+function DeityDetail({deity,relations,deities,myths,beliefs,sites,history,admin,onEdit,onDelete}:{
+  deity:MythosDeityRecord;
+  relations:{id:string;sourceId:string;targetId:string;type:string;label:string;description:string}[];
+  deities:MythosDeityRecord[];myths:{id:string;title:string;participants:{deityId:string}[]}[];
+  beliefs:{id:string;culture:string;publicName:string;doctrine:string}[];
+  sites:{id:string;name:string;location:{name:string;worldName:string}|null}[];
+  history:{deityId:string;eventId:string;role:string;event:{title:string;startDay:number|null}}[];
+  admin:boolean;onEdit:()=>void;onDelete:()=>void;
+}){
+  return <Box className="mythos-detail">
+    <Typography className="mythos-eyebrow">MYTHOS / СУЩНОСТЬ</Typography>
+    <Box className="mythos-detail-symbol" sx={{color:deity.color}}>{deity.symbol||'✧'}</Box>
+    <Typography component="h2" className="mythos-detail-title">{deity.name}</Typography>
+    <Typography color="text.secondary">{deity.epithet||deity.rank}</Typography>
+    <Stack direction="row" flexWrap="wrap" gap={.7} sx={{mt:2}}>
+      <Chip size="small" label={deity.rank}/>
+      {deity.domains.map(domain=><Chip key={domain} size="small"
+        variant={deity.primaryDomains.some(p=>normalize(p)===normalize(domain))?'filled':'outlined'}
+        label={(deity.primaryDomains.some(p=>normalize(p)===normalize(domain))?'● ':'')+domain}/>)}
+    </Stack>
+    {deity.summary&&<DetailSection label="СУТЬ"><Typography sx={{whiteSpace:'pre-wrap'}}>{deity.summary}</Typography></DetailSection>}
+    <DetailSection label="ОБЪЕКТИВНОЕ ПРЕДАНИЕ">
+      <Typography sx={{whiteSpace:'pre-wrap',lineHeight:1.75}}>{deity.description||'Предание пока не написано.'}</Typography>
+    </DetailSection>
+    <DetailSection label={'СВЯЗИ · '+relations.length}>
+      <Stack gap={.8}>{relations.map(r=>{
+        const other=deities.find(d=>d.id===(r.sourceId===deity.id?r.targetId:r.sourceId));
+        return <Box key={r.id} className="mythos-mini-row"><strong>{r.sourceId===deity.id?'→':'←'} {other?.name??'?'}</strong>
+          <span>{r.label||r.type}</span>{r.description&&<small>{r.description}</small>}</Box>;
+      })}{!relations.length&&<Typography color="text.secondary" variant="body2">Связей пока нет.</Typography>}</Stack>
+    </DetailSection>
+    <DetailSection label={'МИФЫ · '+myths.length}>
+      {myths.map(m=><Chip key={m.id} label={m.title} size="small" sx={{mr:.6,mb:.6}}/>)}
+      {!myths.length&&<Typography color="text.secondary" variant="body2">Не участвует в записанных мифах.</Typography>}
+    </DetailSection>
+    <DetailSection label={'ВЕРОВАНИЯ · '+beliefs.length}>
+      {beliefs.map(b=><Box key={b.id} className="mythos-mini-row"><strong>{b.culture}: {b.publicName}</strong><small>{b.doctrine}</small></Box>)}
+      {!beliefs.length&&<Typography color="text.secondary" variant="body2">Культурных интерпретаций пока нет.</Typography>}
+    </DetailSection>
+    <DetailSection label={'СВЯТЫНИ · '+sites.length}>
+      {sites.map(s=><Box key={s.id} className="mythos-mini-row"><strong>{s.name}</strong>
+        <span>{s.location?s.location.worldName+' · '+s.location.name:''}</span></Box>)}
+      {!sites.length&&<Typography color="text.secondary" variant="body2">Нет привязанных мест Atlas.</Typography>}
+    </DetailSection>
+    <DetailSection label={'ИСТОРИЯ · '+history.length}>
+      {[...history].sort((a,b)=>(a.event.startDay??Infinity)-(b.event.startDay??Infinity)).map(h=><Box key={h.eventId} className="mythos-mini-row">
+        <strong>{h.event.title}</strong><span>{h.event.startDay===null?'Дата неизвестна':formatChronicleDate(dayToChronicleDate(h.event.startDay))}{h.role?' · '+h.role:''}</span>
+      </Box>)}
+      {!history.length&&<Typography color="text.secondary" variant="body2">Нет связей с Chronicle.</Typography>}
+    </DetailSection>
+    {admin&&<Stack direction="row" gap={1} sx={{mt:'auto',pt:3}}>
+      <Button variant="contained" onClick={onEdit}>Редактировать</Button>
+      <Button color="error" variant="outlined" onClick={onDelete}>Удалить</Button>
+    </Stack>}
+  </Box>;
+}
+function DetailSection({label,children}:{label:string;children:ReactNode}){
+  return <Box className="mythos-detail-section"><Typography className="mythos-detail-label">{label}</Typography>{children}</Box>;
+}
+function Empty({text}:{text:string}){
+  return <Box className="mythos-empty"><Typography color="text.secondary">{text}</Typography></Box>;
 }
