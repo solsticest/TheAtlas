@@ -5,6 +5,7 @@ import type {
   MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent,
 } from 'react';
 import type {
+  MYTHOS_GRAPH_COORD_MAX, MYTHOS_GRAPH_COORD_MIN,
   MythosDeityRecord, MythosPantheonRecord, MythosRelationInput, MythosRelationRecord,
 } from '@atlas/shared';
 
@@ -200,7 +201,10 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
     if(!rect)return {x:50,y:50};
     const x=(clientX-rect.left-viewport.x)/viewport.scale/rect.width*100;
     const y=(clientY-rect.top-viewport.y)/viewport.scale/rect.height*100;
-    return {x:clamp(x,4,96),y:clamp(y,7,93)};
+    return {
+      x:clamp(x,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX),
+      y:clamp(y,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX),
+    };
   }
   function zoomAt(clientX:number,clientY:number,factor:number){
     const rect=board.current?.getBoundingClientRect();
@@ -236,8 +240,8 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,pan
       const rect=event.currentTarget.getBoundingClientRect();
       const worldPixelX=(event.clientX-rect.left-viewport.x)/viewport.scale;
       const worldPixelY=(event.clientY-rect.top-viewport.y)/viewport.scale;
-      const x=clamp(worldPixelX/rect.width*100,4,96);
-      const y=clamp(worldPixelY/rect.height*100,7,93);
+      const x=clamp(worldPixelX/rect.width*100,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX);
+      const y=clamp(worldPixelY/rect.height*100,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX);
       activeDrag.x=x;activeDrag.y=y;
       if(Math.hypot(event.clientX-activeDrag.startClientX,event.clientY-activeDrag.startClientY)>4)activeDrag.moved=true;
       setPositions(current=>({...current,[activeDrag.id]:{x,y}}));
