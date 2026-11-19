@@ -337,7 +337,7 @@ export function MythosPage(){
             if(target){target.graphX=saved.graphX;target.graphY=saved.graphY;}
           }));
         }}
-        onCreateRelation={async input=>{await perform(createRelation({input,csrf:requireCsrf()}).unwrap());}}
+        onCreateRelation={async input=>await perform(createRelation({input,csrf:requireCsrf()}).unwrap())}
         onUpdateRelation={async(id,input)=>{await perform(updateRelation({id,input,csrf:requireCsrf()}).unwrap());}}
         onDeleteRelation={async id=>{await perform(deleteRelation({id,csrf:requireCsrf()}).unwrap());}}/>
     </Box>}
