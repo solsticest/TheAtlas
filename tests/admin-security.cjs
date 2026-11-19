@@ -309,14 +309,26 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
 
     const planeA=await request('/api/admin/mythos/cosmology/nodes','POST',{
       name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
-      color:'#7f8da8',x:25,y:50,worldId:'demo-world',visibility:'public'
+      color:'#7f8da8',x:25,y:50,size:1.6,worldId:'demo-world',visibility:'public'
     });
     const planeB=await request('/api/admin/mythos/cosmology/nodes','POST',{
       name:'Звёздное море',kind:'Межплан',description:'Путь между мирами',symbol:'✦',
       color:'#879ac1',x:75,y:50,worldId:null,visibility:'public'
     });
     assert.equal(planeA.status,201,JSON.stringify(planeA.data));
+    assert.equal(planeA.data.size,1.6);
     assert.equal(planeB.status,201,JSON.stringify(planeB.data));
+    assert.equal(planeB.data.size,1);
+    const resizedPlane=await request('/api/admin/mythos/cosmology/nodes/'+planeA.data.id,'PATCH',{
+      name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
+      color:'#7f8da8',x:25,y:50,size:2.2,worldId:'demo-world',visibility:'public'
+    });
+    assert.equal(resizedPlane.status,200,JSON.stringify(resizedPlane.data));
+    assert.equal(resizedPlane.data.size,2.2);
+    assert.equal((await request('/api/admin/mythos/cosmology/nodes/'+planeA.data.id,'PATCH',{
+      name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
+      color:'#7f8da8',x:25,y:50,size:4,worldId:'demo-world',visibility:'public'
+    })).status,400);
     const cosmicLink=await request('/api/admin/mythos/cosmology/links','POST',{
       sourceId:planeA.data.id,targetId:planeB.data.id,type:'Переход',
       label:'Врата',description:'Доступен через ритуал',visibility:'public'
