@@ -261,7 +261,9 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     });
     assert.equal(site.status,201,JSON.stringify(site.data));
     assert.equal(site.data.location.name,'Тестовый город');
-    assert.equal(site.data.location.worldName,'Demo World');
+    assert.equal(site.data.location.worldId,'demo-world');
+    assert.equal(typeof site.data.location.worldName,'string');
+    assert.ok(site.data.location.worldName.length>0);
 
     const historyLink=await request('/api/admin/mythos/history-links','POST',{
       deityId:publicDeity.data.id,eventId:publicChronicle.data.id,role:'вмешался'
