@@ -1,15 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Box, ButtonBase, Snackbar, Typography } from '@mui/material';
+import { Box, ButtonBase, Typography } from '@mui/material';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './siteMenu.css';
 
-type Destination='atlas'|'chronicle'|'bible';
+type Destination='atlas'|'chronicle'|'mythos';
 
 export function SiteMenu(){
   const navigate=useNavigate();
   const location=useLocation();
   const [open,setOpen]=useState(false);
-  const [notice,setNotice]=useState(false);
 
   useEffect(()=>{
     if(!open)return;
@@ -22,17 +21,12 @@ export function SiteMenu(){
 
   const active:Destination=location.pathname.startsWith('/chronicle')
     ?'chronicle'
-    :location.pathname.startsWith('/bible')
-      ?'bible'
+    :(location.pathname.startsWith('/mythos')||location.pathname.startsWith('/bible'))
+      ?'mythos'
       :'atlas';
 
   function go(destination:Destination){
-    if(destination==='bible'){
-      setOpen(false);
-      setNotice(true);
-      return;
-    }
-    navigate(destination==='atlas'?'/':'/chronicle');
+    navigate(destination==='atlas'?'/':destination==='chronicle'?'/chronicle':'/mythos');
     setOpen(false);
   }
 
@@ -76,24 +70,16 @@ export function SiteMenu(){
             <small>История и временные шкалы</small>
           </span>
         </ButtonBase>
-        <ButtonBase className="site-menu-link" onClick={()=>go('bible')}>
+        <ButtonBase className={'site-menu-link'+(active==='mythos'?' is-active':'')} onClick={()=>go('mythos')}>
           <span className="site-menu-index">03</span>
           <span>
-            <strong>Bible</strong>
-            <small>Боги и космология</small>
+            <strong>Mythos</strong>
+            <small>Божества, пантеоны и космология</small>
           </span>
-          <span className="site-menu-soon">SOON</span>
         </ButtonBase>
       </Box>
       <Typography className="site-menu-footer">Atlas & Chronicle</Typography>
     </Box>
 
-    <Snackbar
-      open={notice}
-      autoHideDuration={2600}
-      onClose={()=>setNotice(false)}
-      message="В разработке!"
-      anchorOrigin={{vertical:'bottom',horizontal:'center'}}
-    />
   </>;
 }
