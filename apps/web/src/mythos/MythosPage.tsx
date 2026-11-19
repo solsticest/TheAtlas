@@ -8,7 +8,7 @@ import type {
   MythosDeityRecord, MythosPantheonInput, MythosPantheonRecord,
 } from '@atlas/shared';
 import {
-  useWorldsQuery, useChronicleEventsQuery,
+  atlasApi, useWorldsQuery, useChronicleEventsQuery,
   useMythosDeitiesQuery, useMythosPantheonsQuery, useMythosRelationsQuery,
   useMythosMythsQuery, useMythosBeliefsQuery, useMythosSitesQuery,
   useMythosHistoryLinksQuery, useMythosCosmicNodesQuery, useMythosCosmicLinksQuery,
@@ -24,7 +24,6 @@ import {
   useCreateMythosCosmicNodeMutation, useUpdateMythosCosmicNodeMutation, useDeleteMythosCosmicNodeMutation,
   useCreateMythosCosmicLinkMutation, useUpdateMythosCosmicLinkMutation, useDeleteMythosCosmicLinkMutation,
 } from '../atlas/api';
-import { atlasApi } from '../atlas/api';
 import type { AppDispatch } from '../atlas/store';
 import { dayToChronicleDate, formatChronicleDate } from '../chronicle/calendar';
 import {
