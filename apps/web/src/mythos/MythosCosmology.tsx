@@ -98,7 +98,7 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
   const cosmicMetrics=(scale:number)=>({
     minWidth:120*scale,minHeight:78*scale,
     padding:`${9*scale}px ${12*scale}px`,
-    borderRadius:`${50*scale}% ${50*scale}% ${44*scale}% ${44*scale}%`,
+    borderRadius:'50% 50% 44% 44%',
     gap:3*scale,
   });
   const edgeLabelMetrics=(scale:number)=>({
