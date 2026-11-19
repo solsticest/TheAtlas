@@ -91,6 +91,21 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
   const nodeSize=(id:string)=>sizes[id]??1;
   const sourceNode=linkSourceId?nodes.find(node=>node.id===linkSourceId)??null:null;
 
+  const screenPoint=(point:{x:number;y:number})=>({
+    left:`calc(${point.x*viewport.scale}% + ${viewport.x}px)`,
+    top:`calc(${point.y*viewport.scale}% + ${viewport.y}px)`,
+  });
+  const cosmicMetrics=(scale:number)=>({
+    minWidth:120*scale,minHeight:78*scale,
+    padding:`${9*scale}px ${12*scale}px`,
+    borderRadius:`${50*scale}% ${50*scale}% ${44*scale}% ${44*scale}%`,
+    gap:3*scale,
+  });
+  const edgeLabelMetrics=(scale:number)=>({
+    maxWidth:145*scale,padding:`${3*scale}px ${6*scale}px`,
+    fontSize:9*scale,
+  });
+
   function screenToWorld(clientX:number,clientY:number){
     const rect=board.current?.getBoundingClientRect();
     if(!rect)return {x:50,y:50};
@@ -286,44 +301,48 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
               stroke="#8394ac" strokeWidth=".35" markerEnd="url(#cosmic-arrow)"/>;
           })}
         </svg>
-        {links.map(link=>{
-          const a=pos(link.sourceId),b=pos(link.targetId);
-          return <button key={'label-'+link.id} className="mythos-edge-label edge-cosmic"
-            style={{left:(a.x+b.x)/2+'%',top:(a.y+b.y)/2+'%'}}
-            onClick={()=>admin&&editLink(link)}>{link.label||link.type}</button>;
-        })}
-        {nodes.map(node=>{
-          const p=pos(node.id),isSource=node.id===linkSourceId;
-          return <button key={node.id}
-            className={'mythos-cosmic-node'+(admin?' is-draggable':'')+
-              (isSource?' is-link-source':linkSourceId?' is-link-target':'')}
-            style={{
-              left:p.x+'%',top:p.y+'%','--node-color':node.color,
-              '--cosmic-node-size':nodeSize(node.id),
-            } as CSSProperties}
-            onPointerDown={event=>{
-              if(!admin||event.button!==0||linkSourceId)return;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              const current=pos(node.id);
-              drag.current={
-                id:node.id,pointer:event.pointerId,element:event.currentTarget,
-                startClientX:event.clientX,startClientY:event.clientY,x:current.x,y:current.y,moved:false,
-              };
-              event.stopPropagation();
-            }}
-            onContextMenu={event=>{event.stopPropagation();openContext(event,node.id);}}
-            onDoubleClick={()=>admin&&editNode(node)}
-            onClick={()=>{
-              const blocked=suppressClick.current;
-              if(blocked?.id===node.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
-              suppressClick.current=null;
-              if(linkSourceId){void finishQuickLink(node);}
-            }}
-            title={node.description||node.kind}>
-            <span>{node.symbol||'◈'}</span><strong>{node.name}</strong><small>{node.kind}</small>
-          </button>;
-        })}
       </Box>
+      {links.map(link=>{
+        const a=pos(link.sourceId),b=pos(link.targetId);
+        const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+        return <button key={'label-'+link.id} className="mythos-edge-label edge-cosmic"
+          style={{...screenPoint(midpoint),...edgeLabelMetrics(viewport.scale)}}
+          onClick={()=>admin&&editLink(link)}>{link.label||link.type}</button>;
+      })}
+      {nodes.map(node=>{
+        const p=pos(node.id),isSource=node.id===linkSourceId;
+        const visualScale=viewport.scale*nodeSize(node.id);
+        return <button key={node.id}
+          className={'mythos-cosmic-node'+(admin?' is-draggable':'')+
+            (isSource?' is-link-source':linkSourceId?' is-link-target':'')}
+          style={{
+            ...screenPoint(p),...cosmicMetrics(visualScale),
+            '--node-color':node.color,
+          } as CSSProperties}
+          onPointerDown={event=>{
+            if(!admin||event.button!==0||linkSourceId)return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const current=pos(node.id);
+            drag.current={
+              id:node.id,pointer:event.pointerId,element:event.currentTarget,
+              startClientX:event.clientX,startClientY:event.clientY,x:current.x,y:current.y,moved:false,
+            };
+            event.stopPropagation();
+          }}
+          onContextMenu={event=>{event.stopPropagation();openContext(event,node.id);}}
+          onDoubleClick={()=>admin&&editNode(node)}
+          onClick={()=>{
+            const blocked=suppressClick.current;
+            if(blocked?.id===node.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
+            suppressClick.current=null;
+            if(linkSourceId){void finishQuickLink(node);}
+          }}
+          title={node.description||node.kind}>
+          <span style={{fontSize:24*visualScale}}>{node.symbol||'◈'}</span>
+          <strong style={{fontSize:13*visualScale}}>{node.name}</strong>
+          <small style={{fontSize:9*visualScale,maxWidth:150*visualScale}}>{node.kind}</small>
+        </button>;
+      })}
       {!nodes.length&&<Box className="mythos-graph-empty">
         <Typography variant="h6">Космология пока пуста</Typography>
         <Typography color="text.secondary">ПКМ по полю → «Создать узел здесь».</Typography>
