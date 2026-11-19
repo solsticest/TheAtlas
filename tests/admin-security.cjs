@@ -106,6 +106,63 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     const publicChronicleList=await request('/api/chronicle/events','GET',undefined,false,false);
     assert.equal(publicChronicleList.data.some(item=>item.id===publicChronicle.data.id),true);
 
+    // Mythos: panthеons and gods are separate entities; private knowledge must not leak.
+    const mythosPantheonBase={name:'Старший круг',description:'Забытые первосущности',
+      worldId:'demo-world',visibility:'gm'};
+    assert.equal((await request('/api/admin/mythos/pantheons','POST',mythosPantheonBase,
+      false,false)).status,401);
+    assert.equal((await request('/api/admin/mythos/pantheons','POST',mythosPantheonBase,
+      true,false)).status,403);
+    const mythosPantheon=await request('/api/admin/mythos/pantheons','POST',mythosPantheonBase);
+    assert.equal(mythosPantheon.status,201,JSON.stringify(mythosPantheon.data));
+    const publicPantheon=await request('/api/admin/mythos/pantheons','POST',{
+      name:'Боги-покровители',description:'Известный культ',worldId:'demo-world',visibility:'public'
+    });
+    assert.equal(publicPantheon.status,201);
+    const deityBase={
+      name:'Омнат',epithet:'Хранитель перемен',summary:'Дух природы',
+      description:'Легенда о <первых> превращениях',symbol:'🌿',color:'#69a66f',
+      rank:'Первосущность',domains:['Эволюция','эволюция','Природа'],
+      worldIds:['demo-world'],pantheonId:mythosPantheon.data.id,visibility:'gm'
+    };
+    const deity=await request('/api/admin/mythos/deities','POST',deityBase);
+    assert.equal(deity.status,201,JSON.stringify(deity.data));
+    assert.deepEqual(deity.data.domains,['Эволюция','Природа']);
+    assert.equal(deity.data.worlds[0].id,'demo-world');
+    assert.equal(deity.data.pantheon.id,mythosPantheon.data.id);
+    const anonymousDeities=await request('/api/mythos/deities','GET',undefined,false,false);
+    assert.equal(anonymousDeities.status,200);
+    assert.equal(anonymousDeities.data.some(item=>item.id===deity.data.id),false);
+    const anonymousPantheons=await request('/api/mythos/pantheons','GET',undefined,false,false);
+    assert.equal(anonymousPantheons.data.some(item=>item.id===mythosPantheon.data.id),false);
+    assert.equal(anonymousPantheons.data.some(item=>item.id===publicPantheon.data.id),true);
+    const publicDeity=await request('/api/admin/mythos/deities','POST',{
+      ...deityBase,name:'Видимый бог',visibility:'public',domains:['Свет']
+    });
+    assert.equal(publicDeity.status,201);
+    const guestPublic=await request('/api/mythos/deities','GET',undefined,false,false);
+    const guestGod=guestPublic.data.find(item=>item.id===publicDeity.data.id);
+    assert.ok(guestGod,'Public deity must remain visible');
+    assert.equal(guestGod.pantheonId,null,'Private pantheon id must not leak');
+    assert.equal(guestGod.pantheon,null,'Private pantheon name must not leak');
+    const badDeity=await request('/api/admin/mythos/deities','POST',{
+      ...deityBase,worldIds:['not-a-world']
+    });
+    assert.equal(badDeity.status,400);
+    const changedDeity=await request('/api/admin/mythos/deities/'+deity.data.id,'PATCH',{
+      ...deityBase,name:'Омнат изменённый',pantheonId:publicPantheon.data.id,
+      visibility:'public',domains:['Природа','Перемены']
+    });
+    assert.equal(changedDeity.status,200,JSON.stringify(changedDeity.data));
+    assert.equal(changedDeity.data.id,deity.data.id);
+    assert.equal(await db.mythosDeity.count({where:{id:deity.data.id}}),1);
+    assert.deepEqual(changedDeity.data.domains,['Природа','Перемены']);
+    assert.equal((await request('/api/admin/mythos/pantheons/'+publicPantheon.data.id,
+      'DELETE')).status,409,'Cannot remove a pantheon with assigned deities');
+    assert.equal((await request('/api/admin/mythos/deities/'+deity.data.id,'DELETE')).status,200);
+    assert.equal((await request('/api/admin/mythos/pantheons/'+publicPantheon.data.id,
+      'DELETE')).status,200);
+
     // Development must allow Vite on any loopback port, but still reject external origins.
     const loopbackOrigin=await fetch(base+'/api/admin/history/state',{headers:{
       cookie,'x-csrf-token':csrf,origin:'http://localhost:5179'
