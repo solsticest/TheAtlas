@@ -132,18 +132,6 @@ export function MythosPage(){
       .catch(()=>setSession({authenticated:false}));
   },[]);
 
-  useEffect(()=>{
-    if(previousViewRef.current===view||loading)return;
-    const target=view==='graph'?graphSectionRef.current:view==='cosmology'?viewbarRef.current:null;
-    previousViewRef.current=view;
-    if(!target)return;
-    const frame=requestAnimationFrame(()=>{
-      const top=window.scrollY+target.getBoundingClientRect().top-(view==='graph'?34:28);
-      window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
-    });
-    return()=>cancelAnimationFrame(frame);
-  },[view,loading]);
-
   const domainOptions=useMemo(()=>[...new Map(deities.flatMap(item=>item.domains)
     .map(domain=>[normalize(domain),domain])).values()].sort((a,b)=>a.localeCompare(b,'ru')),[deities]);
   const filteredDeities=useMemo(()=>deities.filter(deity=>{
@@ -175,6 +163,18 @@ export function MythosPage(){
     sitesQuery,historyQuery,cosmicNodesQuery,cosmicLinksQuery].some(item=>item.isLoading);
   const failed=[worldsQuery,deitiesQuery,pantheonsQuery,relationsQuery,mythsQuery,beliefsQuery,
     sitesQuery,historyQuery,cosmicNodesQuery,cosmicLinksQuery].some(item=>item.isError);
+
+  useEffect(()=>{
+    if(previousViewRef.current===view||loading)return;
+    const target=view==='graph'?graphSectionRef.current:view==='cosmology'?viewbarRef.current:null;
+    previousViewRef.current=view;
+    if(!target)return;
+    const frame=requestAnimationFrame(()=>{
+      const top=window.scrollY+target.getBoundingClientRect().top-(view==='graph'?34:28);
+      window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
+    });
+    return()=>cancelAnimationFrame(frame);
+  },[view,loading]);
 
   function requireCsrf(){
     if(!session.csrfToken)throw Error('Сначала войди как администратор.');
