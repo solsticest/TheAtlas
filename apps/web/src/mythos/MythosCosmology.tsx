@@ -4,7 +4,7 @@ import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import {
   MYTHOS_GRAPH_COORD_MAX, MYTHOS_GRAPH_COORD_MIN,
-  type MythosCosmicLinkInput, type MythosCosmicLinkRecord, MythosCosmicNodeInput,
+  type MythosCosmicLinkInput, type MythosCosmicLinkRecord, type MythosCosmicNodeInput,
   type MythosCosmicNodeRecord, type WorldRecord,
 } from '@atlas/shared';
 import { BufferedColorField } from './BufferedColorField';
