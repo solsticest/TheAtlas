@@ -1,0 +1,47 @@
+.mythos-shell{
+  min-height:100vh;padding:38px clamp(18px,5vw,76px) 90px;
+  padding-left:clamp(66px,6vw,98px);color:#eee8dc;
+  background:radial-gradient(circle at 85% 0%,rgba(151,118,63,.18),transparent 32%),
+    radial-gradient(circle at 2% 55%,rgba(70,88,116,.12),transparent 40%),#151a21;
+}
+.mythos-header{display:flex;align-items:center;justify-content:space-between;gap:26px;flex-wrap:wrap;max-width:1460px;margin:auto}
+.mythos-eyebrow{font-size:10px!important;font-weight:800!important;letter-spacing:.24em!important;color:#b99b65!important}
+.mythos-title{font:700 clamp(46px,6vw,74px)/1.06 Georgia,serif!important;letter-spacing:-.035em;color:#ead4a4;margin:6px 0 4px!important}
+.mythos-subtitle{font-size:14px!important}
+.mythos-metrics{max-width:1460px;margin:30px auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.mythos-metrics>div{min-height:92px;padding:18px 20px;border:1px solid #45433a;border-radius:10px;background:linear-gradient(145deg,rgba(214,183,122,.055),rgba(34,41,52,.6))}
+.mythos-metric-value{font:700 29px/1.1 Georgia,serif!important;color:#e1c58c}
+.mythos-toolbar{max-width:1460px;margin:0 auto;display:flex;flex-direction:column;gap:18px;padding:20px 0;border-top:1px solid #49473e;border-bottom:1px solid #333c46}
+.mythos-filters{display:flex;gap:12px;flex-wrap:wrap}
+.mythos-content{max-width:1460px;margin:24px auto 0}
+.mythos-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(285px,1fr));gap:16px;margin-top:20px}
+.mythos-deity-card,.mythos-pantheon-card{color:#eee8dc!important;display:flex!important;align-items:flex-start!important;text-align:left!important;justify-content:flex-start!important;border:1px solid #414852!important;border-radius:12px!important;background:linear-gradient(140deg,#252b34,#1c222b)!important;min-height:220px;padding:22px!important;transition:background .2s,border-color .2s,transform .2s!important}
+.mythos-deity-card:hover,.mythos-pantheon-card:hover{transform:translateY(-3px);border-color:#998257!important;background:linear-gradient(140deg,#2c333e,#202832)!important}
+.mythos-deity-card{gap:16px}
+.mythos-deity-symbol{display:flex;align-items:center;justify-content:center;flex:0 0 54px;height:54px;border:1px solid;border-radius:12px;font-size:30px;color:#fff}
+.mythos-card-body{display:flex;flex-direction:column;align-items:flex-start;min-height:175px;width:100%;min-width:0}
+.mythos-card-title{font:700 25px/1.2 Georgia,serif!important;color:#f0e3cb;overflow-wrap:anywhere}
+.mythos-card-epithet{color:#d0b780;font:600 12px/1.4 "Segoe UI",sans-serif!important;margin-top:5px!important}
+.mythos-card-summary{color:#c7c8c9;font-size:13px!important;margin-top:15px!important;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.mythos-card-meta{color:#909ba5;font-size:10px!important;line-height:1.5!important;margin-top:auto!important;padding-top:18px;overflow-wrap:anywhere}
+.mythos-pantheon-card{flex-direction:column;gap:8px;min-height:240px}
+.mythos-pantheon-rune{font-size:27px!important;color:#d6b77a;line-height:1!important}
+.mythos-pantheon-excerpt{font-size:13px!important;line-height:1.6!important;color:#c8c6bf;margin-top:10px!important;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-line}
+.mythos-status,.mythos-empty{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;max-width:1460px;margin:35px auto;border:1px dashed #50555c;border-radius:12px;padding:60px 20px;text-align:center}
+.mythos-empty-icon{font-size:44px!important;color:#d6b77a}
+.mythos-detail-drawer{width:min(510px,100vw)!important;background:radial-gradient(circle at 0% 0%,rgba(214,183,122,.11),transparent 30%),#1b212a!important;border-left:1px solid #554c3c}
+.mythos-detail{padding:44px 30px 36px;min-height:100%;display:flex;flex-direction:column}
+.mythos-detail-symbol{font:700 75px/1.3 Georgia,serif!important;text-shadow:0 10px 30px #0008;margin:20px 0}
+.mythos-detail-title{font:700 38px/1.15 Georgia,serif!important;color:#f1dfb9;overflow-wrap:anywhere}
+.mythos-detail-section{margin-top:30px;padding-top:20px;border-top:1px solid #40444b}
+.mythos-detail-label{font-size:10px!important;font-weight:800!important;letter-spacing:.16em!important;color:#b69d6d;margin-bottom:12px!important}
+.mythos-notice{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:8px;border:1px solid #64583e;background:#28313c;color:#f0dfbd;box-shadow:0 10px 32px #000b;cursor:pointer;z-index:5100}
+@media(max-width:700px){
+  .mythos-shell{padding:70px 14px 50px}
+  .mythos-header{align-items:flex-start}
+  .mythos-metrics{gap:6px;margin:20px auto}.mythos-metrics>div{padding:12px 9px;min-height:72px}
+  .mythos-metric-value{font-size:23px!important}
+  .mythos-card-grid{grid-template-columns:minmax(0,1fr)}
+  .mythos-detail{padding:28px 20px}
+}
+@media(prefers-reduced-motion:reduce){.mythos-deity-card,.mythos-pantheon-card{transition:none!important}}
