@@ -48,7 +48,7 @@ function deityDTO(row:DeityRow,admin:boolean){
   return {
     id:row.id,name:row.name,epithet:row.epithet,summary:row.summary,
     description:row.description,symbol:row.symbol,color:row.color,rank:row.rank,
-    domains:JSON.parse(row.domains) as string[],
+    power:row.power,influence:row.influence,domains:JSON.parse(row.domains) as string[],
     primaryDomains:JSON.parse(row.primaryDomains) as string[],
     graphX:row.graphX,graphY:row.graphY,visibility:row.visibility,
     pantheonId:pantheon?.id??null,
@@ -244,7 +244,7 @@ export function registerMythos(app:Express,db:PrismaClient){
       data:{
         id:randomUUID(),name:input.name,epithet:input.epithet,summary:input.summary,
         description:input.description,symbol:input.symbol,color:input.color,rank:input.rank,
-        domains:JSON.stringify(domains),primaryDomains:JSON.stringify(normalizedPrimary(domains,input.primaryDomains)),
+        power:input.power,influence:input.influence,domains:JSON.stringify(domains),primaryDomains:JSON.stringify(normalizedPrimary(domains,input.primaryDomains)),
         graphX:input.graphX,graphY:input.graphY,visibility:input.visibility,pantheonId:input.pantheonId,
         worlds:{create:worlds.map(worldId=>({worldId}))},
       },include:deityInclude,
@@ -268,7 +268,8 @@ export function registerMythos(app:Express,db:PrismaClient){
       return tx.mythosDeity.update({
         where:{id},data:{
           name:input.name,epithet:input.epithet,summary:input.summary,description:input.description,
-          symbol:input.symbol,color:input.color,rank:input.rank,domains:JSON.stringify(domains),
+          symbol:input.symbol,color:input.color,rank:input.rank,power:input.power,
+          influence:input.influence,domains:JSON.stringify(domains),
           primaryDomains:JSON.stringify(normalizedPrimary(domains,input.primaryDomains)),
           graphX:input.graphX,graphY:input.graphY,visibility:input.visibility,pantheonId:input.pantheonId,
           worlds:{create:worlds.map(worldId=>({worldId}))},
