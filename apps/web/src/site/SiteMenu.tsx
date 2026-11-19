@@ -78,7 +78,7 @@ export function SiteMenu(){
           </span>
         </ButtonBase>
       </Box>
-      <Typography className="site-menu-footer">Atlas & Chronicle</Typography>
+      <Typography className="site-menu-footer">Atlas · Chronicle · Mythos</Typography>
     </Box>
 
   </>;
