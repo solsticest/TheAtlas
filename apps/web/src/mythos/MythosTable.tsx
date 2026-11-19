@@ -3,7 +3,7 @@ import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import type { MythosDeityRecord } from '@atlas/shared';
 
 type TableMode='list'|'matrix';
-type SortKey='name'|'rank'|'pantheon';
+type SortKey='name'|'rank'|'pantheon'|'influence';
 
 export function MythosTable({deities,onSelect}:{deities:MythosDeityRecord[];onSelect:(d:MythosDeityRecord)=>void}){
   const [mode,setMode]=useState<TableMode>('list');
@@ -13,6 +13,7 @@ export function MythosTable({deities,onSelect}:{deities:MythosDeityRecord[];onSe
   const rows=useMemo(()=>[...deities].sort((a,b)=>{
     if(sort==='rank')return a.rank.localeCompare(b.rank,'ru')||a.name.localeCompare(b.name,'ru');
     if(sort==='pantheon')return (a.pantheon?.name??'').localeCompare(b.pantheon?.name??'','ru')||a.name.localeCompare(b.name,'ru');
+    if(sort==='influence')return b.influence-a.influence||a.name.localeCompare(b.name,'ru');
     return a.name.localeCompare(b.name,'ru');
   }),[deities,sort]);
 
@@ -27,16 +28,17 @@ export function MythosTable({deities,onSelect}:{deities:MythosDeityRecord[];onSe
         <Chip size="small" clickable label="Имя" variant={sort==='name'?'filled':'outlined'} onClick={()=>setSort('name')}/>
         <Chip size="small" clickable label="Ранг" variant={sort==='rank'?'filled':'outlined'} onClick={()=>setSort('rank')}/>
         <Chip size="small" clickable label="Пантеон" variant={sort==='pantheon'?'filled':'outlined'} onClick={()=>setSort('pantheon')}/>
+        <Chip size="small" clickable label="Влияние" variant={sort==='influence'?'filled':'outlined'} onClick={()=>setSort('influence')}/>
       </Stack>}
     </Stack>
 
     {mode==='list'?<Box className="mythos-table-scroll">
       <table className="mythos-data-table">
-        <thead><tr><th>Божество</th><th>Ранг</th><th>Пантеон</th><th>Основные домены</th><th>Все домены</th><th>Миры</th></tr></thead>
+        <thead><tr><th>Божество</th><th>Природа</th><th>Сила</th><th>Влияние</th><th>Пантеон</th><th>Основные домены</th><th>Все домены</th><th>Миры</th></tr></thead>
         <tbody>{rows.map(d=><tr key={d.id} onClick={()=>onSelect(d)}>
           <td><span className="mythos-table-symbol" style={{color:d.color}}>{d.symbol||'✧'}</span><strong>{d.name}</strong>
             {d.epithet&&<small>{d.epithet}</small>}</td>
-          <td>{d.rank}</td><td>{d.pantheon?.name??'—'}</td>
+          <td>{d.rank}</td><td>{d.power||'—'}</td><td>{d.influence}</td><td>{d.pantheon?.name??'—'}</td>
           <td>{d.primaryDomains.length?d.primaryDomains.join(', '):'—'}</td>
           <td>{d.domains.length?d.domains.join(', '):'—'}</td>
           <td>{d.worlds.length?d.worlds.map(w=>w.name).join(', '):'Мультивселенная'}</td>
