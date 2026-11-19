@@ -269,6 +269,8 @@ export const mythosDeityInputSchema=z.object({
   symbol:z.string().trim().max(12).default(''),
   color:z.string().regex(/^#[0-9a-f]{6}$/i).default('#d6b77a'),
   rank:z.string().trim().min(1).max(80).default('Божество'),
+  power:z.string().trim().max(120).default(''),
+  influence:z.number().int().min(0).max(100).default(50),
   domains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
   primaryDomains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
   graphX:z.number().finite().min(0).max(100).default(50),
