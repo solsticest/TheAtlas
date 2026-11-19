@@ -261,6 +261,11 @@ export const mythosPantheonSchema=mythosPantheonInputSchema.extend({id});
 export type MythosPantheonInput=z.infer<typeof mythosPantheonInputSchema>;
 export type MythosPantheonRecord=z.infer<typeof mythosPantheonSchema>;
 
+export const MYTHOS_GRAPH_COORD_MIN=-1000;
+export const MYTHOS_GRAPH_COORD_MAX=1000;
+const mythosGraphCoordinate=z.number().finite()
+  .min(MYTHOS_GRAPH_COORD_MIN).max(MYTHOS_GRAPH_COORD_MAX);
+
 export const mythosDeityInputSchema=z.object({
   name:label,
   epithet:z.string().max(150).default(''),
@@ -273,8 +278,8 @@ export const mythosDeityInputSchema=z.object({
   influence:z.number().int().min(0).max(100).default(50),
   domains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
   primaryDomains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
-  graphX:z.number().finite().min(0).max(100).default(50),
-  graphY:z.number().finite().min(0).max(100).default(50),
+  graphX:mythosGraphCoordinate.default(50),
+  graphY:mythosGraphCoordinate.default(50),
   visibility:mythosVisibilitySchema.default('gm'),
   pantheonId:id.nullable().default(null),
   worldIds:z.array(id).max(30).default([]),
@@ -288,8 +293,8 @@ export type MythosDeityInput=z.infer<typeof mythosDeityInputSchema>;
 export type MythosDeityRecord=z.infer<typeof mythosDeitySchema>;
 
 export const mythosDeityPositionInputSchema=z.object({
-  graphX:z.number().finite().min(0).max(100),
-  graphY:z.number().finite().min(0).max(100),
+  graphX:mythosGraphCoordinate,
+  graphY:mythosGraphCoordinate,
 }).strict();
 export const mythosDeityPositionSchema=mythosDeityPositionInputSchema.extend({id});
 export type MythosDeityPositionInput=z.infer<typeof mythosDeityPositionInputSchema>;
@@ -374,8 +379,8 @@ export const mythosCosmicNodeInputSchema=z.object({
   name:label,kind:z.string().trim().min(1).max(80).default('План'),
   description:shortText.default(''),symbol:z.string().trim().max(12).default(''),
   color:z.string().regex(/^#[0-9a-f]{6}$/i).default('#7f8da8'),
-  x:z.number().finite().min(0).max(100).default(50),
-  y:z.number().finite().min(0).max(100).default(50),
+  x:mythosGraphCoordinate.default(50),
+  y:mythosGraphCoordinate.default(50),
   size:z.number().finite().min(.5).max(3).default(1),
   worldId:id.nullable().default(null),
   visibility:mythosVisibilitySchema.default('gm'),
