@@ -230,20 +230,20 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
       {graphX:42.5,graphY:61.25},true,false)).status,403);
     assert.equal((await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
-      {graphX:101,graphY:50})).status,400);
+      {graphX:1001,graphY:50})).status,400);
     const movedDeity=await request('/api/admin/mythos/deities/'+secondDeity.data.id+'/position','PATCH',
-      {graphX:42.5,graphY:61.25});
+      {graphX:142.5,graphY:-61.25});
     assert.equal(movedDeity.status,200,JSON.stringify(movedDeity.data));
-    assert.equal(movedDeity.data.graphX,42.5);
-    assert.equal(movedDeity.data.graphY,61.25);
+    assert.equal(movedDeity.data.graphX,142.5);
+    assert.equal(movedDeity.data.graphY,-61.25);
     const storedMovedDeity=await db.mythosDeity.findUnique({where:{id:secondDeity.data.id}});
     assert.equal(storedMovedDeity.name,'Вторая сущность');
     assert.equal(storedMovedDeity.power,'Космическая сила');
     assert.equal(storedMovedDeity.influence,73);
     assert.equal(storedMovedDeity.pantheonId,mythosPantheon.data.id);
     assert.equal(storedMovedDeity.domains,JSON.stringify(['Эволюция','Время']));
-    assert.equal(storedMovedDeity.graphX,42.5);
-    assert.equal(storedMovedDeity.graphY,61.25);
+    assert.equal(storedMovedDeity.graphX,142.5);
+    assert.equal(storedMovedDeity.graphY,-61.25);
 
     const relation=await request('/api/admin/mythos/relations','POST',{
       sourceId:publicDeity.data.id,targetId:secondDeity.data.id,type:'создал',
@@ -321,13 +321,19 @@ test('One-admin security, draft isolation, safe CRUD, uploads and restorable bac
     assert.equal(planeB.data.size,1);
     const resizedPlane=await request('/api/admin/mythos/cosmology/nodes/'+planeA.data.id,'PATCH',{
       name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
-      color:'#7f8da8',x:25,y:50,size:2.2,worldId:'demo-world',visibility:'public'
+      color:'#7f8da8',x:160,y:-35,size:2.2,worldId:'demo-world',visibility:'public'
     });
     assert.equal(resizedPlane.status,200,JSON.stringify(resizedPlane.data));
     assert.equal(resizedPlane.data.size,2.2);
+    assert.equal(resizedPlane.data.x,160);
+    assert.equal(resizedPlane.data.y,-35);
     assert.equal((await request('/api/admin/mythos/cosmology/nodes/'+planeA.data.id,'PATCH',{
       name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
       color:'#7f8da8',x:25,y:50,size:4,worldId:'demo-world',visibility:'public'
+    })).status,400);
+    assert.equal((await request('/api/admin/mythos/cosmology/nodes/'+planeA.data.id,'PATCH',{
+      name:'Материальный план',kind:'План',description:'Обычный мир',symbol:'◈',
+      color:'#7f8da8',x:1001,y:0,size:1,worldId:'demo-world',visibility:'public'
     })).status,400);
     const cosmicLink=await request('/api/admin/mythos/cosmology/links','POST',{
       sourceId:planeA.data.id,targetId:planeB.data.id,type:'Переход',
