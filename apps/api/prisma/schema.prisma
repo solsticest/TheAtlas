@@ -389,6 +389,7 @@ model MythosCosmicNode {
   color       String       @default("#7f8da8")
   x           Float        @default(50)
   y           Float        @default(50)
+  size        Float        @default(1)
   worldId     String?
   visibility  String       @default("gm")
   world       World?       @relation(fields: [worldId], references: [id], onDelete: Restrict)
