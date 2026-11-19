@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Express, NextFunction, Request, Response } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import {
-  mythosPantheonInputSchema, mythosDeityInputSchema, mythosRelationInputSchema,
+  mythosPantheonInputSchema, mythosDeityInputSchema, mythosDeityPositionInputSchema, mythosRelationInputSchema,
   mythosMythInputSchema, mythosBeliefInputSchema, mythosSacredSiteInputSchema,
   mythosChronicleLinkInputSchema, mythosCosmicNodeInputSchema, mythosCosmicLinkInputSchema,
 } from '@atlas/shared';
@@ -278,6 +278,22 @@ export function registerMythos(app:Express,db:PrismaClient){
     });
     await markModified();res.json(deityDTO(row,true));
   }));
+  app.patch('/api/admin/mythos/deities/:id/position',admin,route(async(req,res)=>{
+    const parsed=mythosDeityPositionInputSchema.safeParse(req.body);
+    if(!parsed.success){fail(res,400,'BAD_INPUT','Проверьте положение божества');return;}
+    const id=paramId(req.params.id);
+    if(!await db.mythosDeity.findUnique({where:{id},select:{id:true}})){
+      fail(res,404,'NOT_FOUND','Божество не найдено');return;
+    }
+    await createBackup(db);
+    const row=await db.mythosDeity.update({
+      where:{id},data:{graphX:parsed.data.graphX,graphY:parsed.data.graphY},
+      select:{id:true,graphX:true,graphY:true},
+    });
+    await markModified();
+    res.json(row);
+  }));
+
   app.delete('/api/admin/mythos/deities/:id',admin,route(async(req,res)=>{
     const id=paramId(req.params.id);
     if(!await db.mythosDeity.findUnique({where:{id}})){fail(res,404,'NOT_FOUND','Божество не найдено');return;}
