@@ -3,6 +3,7 @@ import { Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle,
   FormControl, InputLabel, Menu, MenuItem, Select, Stack, TextField, Typography } from '@mui/material';
 import type { CSSProperties, MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type {
+  MYTHOS_GRAPH_COORD_MAX, MYTHOS_GRAPH_COORD_MIN,
   MythosCosmicLinkInput, MythosCosmicLinkRecord, MythosCosmicNodeInput,
   MythosCosmicNodeRecord, WorldRecord,
 } from '@atlas/shared';
@@ -111,7 +112,10 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
     if(!rect)return {x:50,y:50};
     const x=(clientX-rect.left-viewport.x)/viewport.scale/rect.width*100;
     const y=(clientY-rect.top-viewport.y)/viewport.scale/rect.height*100;
-    return {x:clamp(x,5,95),y:clamp(y,8,92)};
+    return {
+      x:clamp(x,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX),
+      y:clamp(y,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX),
+    };
   }
   function zoomAt(clientX:number,clientY:number,factor:number){
     const rect=board.current?.getBoundingClientRect();
@@ -147,8 +151,8 @@ export function MythosCosmology({nodes,links,worlds,admin,onCreateNode,onUpdateN
       const rect=event.currentTarget.getBoundingClientRect();
       const worldPixelX=(event.clientX-rect.left-viewport.x)/viewport.scale;
       const worldPixelY=(event.clientY-rect.top-viewport.y)/viewport.scale;
-      const x=clamp(worldPixelX/rect.width*100,5,95);
-      const y=clamp(worldPixelY/rect.height*100,8,92);
+      const x=clamp(worldPixelX/rect.width*100,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX);
+      const y=clamp(worldPixelY/rect.height*100,MYTHOS_GRAPH_COORD_MIN,MYTHOS_GRAPH_COORD_MAX);
       activeDrag.x=x;activeDrag.y=y;
       if(Math.hypot(event.clientX-activeDrag.startClientX,event.clientY-activeDrag.startClientY)>4)activeDrag.moved=true;
       setPositions(current=>({...current,[activeDrag.id]:{x,y}}));
