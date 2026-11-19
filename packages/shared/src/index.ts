@@ -247,3 +247,37 @@ export const chronicleEventSchema = z.object({
 });
 export type ChronicleEventInput = z.infer<typeof chronicleEventInputSchema>;
 export type ChronicleEventRecord = z.infer<typeof chronicleEventSchema>;
+
+
+// MYTHOS — divine entities and pantheons; plain-text descriptions are rendered safely.
+export const mythosVisibilitySchema=z.enum(['draft','gm','public']);
+export const mythosPantheonInputSchema=z.object({
+  name:label,
+  description:shortText.default(''),
+  worldId:id.nullable().default(null),
+  visibility:mythosVisibilitySchema.default('gm'),
+}).strict();
+export const mythosPantheonSchema=mythosPantheonInputSchema.extend({id});
+export type MythosPantheonInput=z.infer<typeof mythosPantheonInputSchema>;
+export type MythosPantheonRecord=z.infer<typeof mythosPantheonSchema>;
+
+export const mythosDeityInputSchema=z.object({
+  name:label,
+  epithet:z.string().max(150).default(''),
+  summary:shortText.default(''),
+  description:article.default(''),
+  symbol:z.string().trim().max(12).default(''),
+  color:z.string().regex(/^#[0-9a-f]{6}$/i).default('#d6b77a'),
+  rank:z.string().trim().min(1).max(80).default('Божество'),
+  domains:z.array(z.string().trim().min(1).max(80)).max(30).default([]),
+  visibility:mythosVisibilitySchema.default('gm'),
+  pantheonId:id.nullable().default(null),
+  worldIds:z.array(id).max(30).default([]),
+}).strict();
+export const mythosDeitySchema=mythosDeityInputSchema.omit({worldIds:true}).extend({
+  id,
+  worlds:z.array(chronicleWorldRefSchema),
+  pantheon:z.object({id,name:label}).nullable(),
+});
+export type MythosDeityInput=z.infer<typeof mythosDeityInputSchema>;
+export type MythosDeityRecord=z.infer<typeof mythosDeitySchema>;
