@@ -5,7 +5,7 @@ import { Alert, Box, Button, ButtonBase, Chip, CircularProgress, Dialog,
   DialogActions, DialogContent, DialogTitle, Drawer, FormControl, InputLabel,
   MenuItem, Select, Slider, Stack, TextField, Typography } from '@mui/material';
 import type {
-  MythosDeityInput, MythosDeityRecord, MythosPantheonInput, MythosPantheonRecord,
+  MythosDeityRecord, MythosPantheonInput, MythosPantheonRecord,
 } from '@atlas/shared';
 import {
   useWorldsQuery, useChronicleEventsQuery,
@@ -46,17 +46,6 @@ function apiError(error:unknown){
   const payload=error as {data?:{error?:{message?:string}};message?:string};
   return payload.data?.error?.message??payload.message??'Не удалось выполнить действие.';
 }
-function deityInput(record:MythosDeityRecord,patch:Partial<MythosDeityInput>={}):MythosDeityInput{
-  return {
-    name:record.name,epithet:record.epithet,summary:record.summary,description:record.description,
-    symbol:record.symbol,color:record.color,rank:record.rank,power:record.power,
-    influence:record.influence,domains:record.domains,
-    primaryDomains:record.primaryDomains,graphX:record.graphX,graphY:record.graphY,
-    visibility:record.visibility,pantheonId:record.pantheonId,
-    worldIds:record.worlds.map(world=>world.id),...patch,
-  };
-}
-
 export function MythosPage(){
   const dispatch=useDispatch<AppDispatch>();
   const worldsQuery=useWorldsQuery();
