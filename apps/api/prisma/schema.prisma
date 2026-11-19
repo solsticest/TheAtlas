@@ -259,6 +259,8 @@ model MythosDeity {
   symbol      String             @default("")
   color       String             @default("#d6b77a")
   rank        String             @default("deity")
+  power       String             @default("")
+  influence   Int                @default(50)
   domains     String             @default("[]")
   primaryDomains String          @default("[]")
   graphX      Float              @default(50)
