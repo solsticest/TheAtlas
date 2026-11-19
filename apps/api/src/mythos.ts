@@ -89,6 +89,16 @@ function historyDTO(row:HistoryRow){
     event:{id:row.event.id,title:row.event.title,startDay:row.event.startDay},
   };
 }
+function relationDTO(row:{
+  id:string;sourceId:string;targetId:string;type:string;category:string;label:string;
+  description:string;startDay:number|null;endDay:number|null;visibility:string;
+}){
+  return {
+    id:row.id,sourceId:row.sourceId,targetId:row.targetId,type:row.type,category:row.category,
+    label:row.label,description:row.description,startDay:row.startDay,endDay:row.endDay,
+    visibility:row.visibility,
+  };
+}
 const normalize=(value:string)=>value.trim().replace(/\s+/g,' ').toLocaleLowerCase('ru');
 function distinctDomains(values:string[]){
   const unique=new Map<string,string>();
@@ -143,11 +153,7 @@ export function registerMythos(app:Express,db:PrismaClient){
       where:isAdmin?{}:{visibility:'public',source:{visibility:'public'},target:{visibility:'public'}},
       orderBy:[{category:'asc'},{type:'asc'},{id:'asc'}],
     });
-    res.json(rows.map(row=>({
-      id:row.id,sourceId:row.sourceId,targetId:row.targetId,type:row.type,category:row.category,
-      label:row.label,description:row.description,startDay:row.startDay,endDay:row.endDay,
-      visibility:row.visibility,
-    })));
+    res.json(rows.map(relationDTO));
   }));
   app.get('/api/mythos/myths',route(async(req,res)=>{
     const isAdmin=await isAdminRequest(req,db);
@@ -307,7 +313,7 @@ export function registerMythos(app:Express,db:PrismaClient){
       fail(res,400,'DEITY_NOT_FOUND','Один из участников связи не найден');return;
     }
     const row=await db.mythosRelation.create({data:{id:randomUUID(),...parsed.data}});
-    await markModified();res.status(201).json(row);
+    await markModified();res.status(201).json(relationDTO(row));
   }));
   app.patch('/api/admin/mythos/relations/:id',admin,route(async(req,res)=>{
     const parsed=mythosRelationInputSchema.safeParse(req.body),id=paramId(req.params.id);
@@ -318,7 +324,7 @@ export function registerMythos(app:Express,db:PrismaClient){
     }
     await createBackup(db);
     const row=await db.mythosRelation.update({where:{id},data:parsed.data});
-    await markModified();res.json(row);
+    await markModified();res.json(relationDTO(row));
   }));
   app.delete('/api/admin/mythos/relations/:id',admin,route(async(req,res)=>{
     const id=paramId(req.params.id);
