@@ -5,7 +5,7 @@ services:
     branch: main
     plan: starter
     buildCommand: npm install && npm run build
-    startCommand: npm run db:setup && npm start
+    startCommand: if [ -f storage/render-storage.tgz ]; then tar -tzf storage/render-storage.tgz >/dev/null && tar -xzf storage/render-storage.tgz -C storage && rm storage/render-storage.tgz; fi && npm run db:setup && npm start
     healthCheckPath: /api/health
     autoDeployTrigger: checksPass
     envVars:
