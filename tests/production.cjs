@@ -18,7 +18,7 @@ test('Production Express serves Vite build and /admin while /api stays JSON',asy
       const handle=app.listen(0,'127.0.0.1',()=>resolve(handle));
     });
     const base='http://127.0.0.1:'+server.address().port;
-    for(const p of ['/','/admin','/chronicle']){
+    for(const p of ['/','/admin','/chronicle','/mythos','/bible']){
       const response=await fetch(base+p);
       assert.equal(response.status,200);
       assert.match(response.headers.get('content-type')??'',/text\/html/);
