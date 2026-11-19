@@ -31,7 +31,7 @@ test('Chronicle filters combine categories with AND and values inside a category
   const quiet=make({id:'quiet',title:'Quiet day',significance:'normal',
     tags:[{id:'life',name:'Быт',color:'#d6b77a',icon:null,description:''}]});
   const filters=f.emptyChronicleFilters();
-  filters.tags=['Война','Политика'];
+  filters.tags=['война','Политика'];
   filters.significances=['important','key'];
   assert.deepEqual(f.filterChronicleEvents([battle,politics,quiet],filters).map(x=>x.id),
     [battle.id,'politics']);
