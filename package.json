@@ -35,7 +35,8 @@
     "test:chronicle-calendar": "node --import tsx --test tests/chronicle-calendar.cjs",
     "test:chronicle-filters": "node --import tsx --test tests/chronicle-filters.cjs",
     "test:workspace-paths": "node --import tsx --test tests/workspace-paths.cjs",
-    "test:dialog-leaflet": "node --import tsx --test tests/dialog-leaflet.cjs"
+    "test:dialog-leaflet": "node --import tsx --test tests/dialog-leaflet.cjs",
+    "backup:prune": "node --import tsx scripts/backup-atlas.cjs --prune"
   },
   "devDependencies": {
     "concurrently": "^9.0.0",
