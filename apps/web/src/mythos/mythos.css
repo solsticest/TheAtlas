@@ -98,3 +98,27 @@
 .mythos-graph-node.is-link-source{z-index:8;box-shadow:0 0 0 3px #d6b77a,0 10px 32px #000a}
 .mythos-graph-node.is-link-target{cursor:crosshair}
 .mythos-graph-node.is-link-target:hover{box-shadow:0 0 0 2px #8eb8d8,0 10px 30px #000a}
+
+
+/* Mythos graph focus / larger workspace */
+.mythos-graph-content{max-width:none;width:100%;margin-top:16px}
+.mythos-graph-board{height:clamp(720px,78vh,980px);min-height:720px;overscroll-behavior:contain}
+.mythos-graph-node.is-pantheon-dim{opacity:.2;filter:saturate(.3) brightness(.72)}
+.mythos-graph-node.is-pantheon-focus{z-index:7;opacity:1;filter:none;box-shadow:
+  0 0 0 2px color-mix(in srgb,var(--node-color) 86%,#fff 14%),
+  0 0 26px color-mix(in srgb,var(--node-color) 42%,transparent),
+  0 12px 30px #000b}
+.mythos-edge-label.is-pantheon-dim{opacity:.2}
+.mythos-deity-card.is-pantheon-dim{opacity:.28;filter:saturate(.35)}
+.mythos-deity-card.is-pantheon-focus{opacity:1;box-shadow:0 0 0 1px #b99b65,0 12px 34px #0008}
+.mythos-data-table tr.is-pantheon-dim,.mythos-domain-matrix tr.is-pantheon-dim{opacity:.28}
+.mythos-data-table tr.is-pantheon-focus,.mythos-domain-matrix tr.is-pantheon-focus{background:rgba(214,183,122,.11)}
+.mythos-data-table tr.is-pantheon-focus td:first-child,.mythos-domain-matrix tr.is-pantheon-focus .is-sticky{
+  box-shadow:inset 3px 0 0 #d6b77a
+}
+@media(max-width:900px){
+  .mythos-graph-board{height:72vh;min-height:560px}
+}
+@media(max-width:600px){
+  .mythos-graph-board{height:68vh;min-height:500px}
+}
