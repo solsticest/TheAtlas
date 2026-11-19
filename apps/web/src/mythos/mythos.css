@@ -90,3 +90,11 @@
 .mythos-native-color::-webkit-color-swatch-wrapper{padding:2px}
 .mythos-native-color::-webkit-color-swatch{border:0;border-radius:4px}
 .mythos-native-color::-moz-color-swatch{border:0;border-radius:4px}
+
+.mythos-graph-board{cursor:grab;touch-action:none;user-select:none}
+.mythos-graph-board.is-panning{cursor:grabbing}
+.mythos-graph-world{position:absolute;inset:0;transform-origin:0 0;will-change:transform}
+.mythos-link-mode{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 13px;border:1px solid #8d7345;border-radius:9px;background:#2c261b;color:#ead8af}
+.mythos-graph-node.is-link-source{z-index:8;box-shadow:0 0 0 3px #d6b77a,0 10px 32px #000a}
+.mythos-graph-node.is-link-target{cursor:crosshair}
+.mythos-graph-node.is-link-target:hover{box-shadow:0 0 0 2px #8eb8d8,0 10px 30px #000a}
