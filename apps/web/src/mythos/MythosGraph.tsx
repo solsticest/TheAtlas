@@ -100,7 +100,11 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
   onDeleteRelation:(id:string)=>Promise<void>;
 }){
   const board=useRef<HTMLDivElement|null>(null);
-  const drag=useRef<{id:string;pointer:number}|null>(null);
+  const drag=useRef<{
+    id:string;pointer:number;element:HTMLButtonElement;
+    startClientX:number;startClientY:number;x:number;y:number;moved:boolean;
+  }|null>(null);
+  const suppressClick=useRef<{id:string;until:number}|null>(null);
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
   const [layer,setLayer]=useState<GraphLayer>('relations');
   const [layout,setLayout]=useState<LayoutMode>('free');
@@ -108,6 +112,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
   const [editingRelation,setEditingRelation]=useState<string|null>(null);
   const [busy,setBusy]=useState(false);
   const [relationError,setRelationError]=useState('');
+  const [dragError,setDragError]=useState('');
 
   useEffect(()=>{
     setPositions(Object.fromEntries(deities.map(item=>[item.id,{x:item.graphX,y:item.graphY}])));
@@ -135,18 +140,41 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
 
   const pos=(id:string)=>layoutPositions?.get(id)??positions[id]??{x:50,y:50};
   function pointerMove(event:ReactPointerEvent<HTMLDivElement>){
-    if(!drag.current||drag.current.pointer!==event.pointerId||layout!=='free')return;
+    const active=drag.current;
+    if(!active||active.pointer!==event.pointerId||layout!=='free')return;
     const rect=event.currentTarget.getBoundingClientRect();
     const x=Math.max(4,Math.min(96,(event.clientX-rect.left)/rect.width*100));
     const y=Math.max(7,Math.min(93,(event.clientY-rect.top)/rect.height*100));
-    setPositions(current=>({...current,[drag.current!.id]:{x,y}}));
+    active.x=x;active.y=y;
+    if(Math.hypot(event.clientX-active.startClientX,event.clientY-active.startClientY)>4)active.moved=true;
+    setPositions(current=>({...current,[active.id]:{x,y}}));
   }
   async function pointerUp(event:ReactPointerEvent<HTMLDivElement>){
-    if(!drag.current||drag.current.pointer!==event.pointerId)return;
-    const {id}=drag.current;drag.current=null;
-    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
-    const deity=deities.find(item=>item.id===id),p=positions[id];
-    if(deity&&p)await onSavePosition(deity,p.x,p.y);
+    const active=drag.current;
+    if(!active||active.pointer!==event.pointerId)return;
+    drag.current=null;
+    if(active.element.hasPointerCapture(event.pointerId))active.element.releasePointerCapture(event.pointerId);
+    if(!active.moved)return;
+    suppressClick.current={id:active.id,until:performance.now()+350};
+    const deity=deities.find(item=>item.id===active.id);
+    if(!deity)return;
+    setDragError('');
+    try{
+      await onSavePosition(deity,active.x,active.y);
+    }catch(error){
+      setPositions(current=>({...current,[deity.id]:{x:deity.graphX,y:deity.graphY}}));
+      setDragError(error instanceof Error?error.message:'Не удалось сохранить положение узла.');
+    }
+  }
+  function pointerCancel(event:ReactPointerEvent<HTMLDivElement>){
+    const active=drag.current;
+    if(!active||active.pointer!==event.pointerId)return;
+    drag.current=null;
+    if(active.element.hasPointerCapture(event.pointerId))active.element.releasePointerCapture(event.pointerId);
+    setPositions(current=>({...current,[active.id]:{
+      x:deities.find(item=>item.id===active.id)?.graphX??active.x,
+      y:deities.find(item=>item.id===active.id)?.graphY??active.y,
+    }}));
   }
   function openCreate(){
     if(deities.length<2)return;
@@ -197,7 +225,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
       </Stack>
     </Box>
     <Box ref={board} className="mythos-graph-board"
-      onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}>
+      onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerCancel}>
       <svg className="mythos-graph-edges" viewBox="0 0 100 100" preserveAspectRatio="none">
         <defs>
           <marker id="mythos-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5"
@@ -230,9 +258,19 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
           onPointerDown={event=>{
             if(!admin||layout!=='free'||event.button!==0)return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            drag.current={id:deity.id,pointer:event.pointerId};event.stopPropagation();
+            const p=pos(deity.id);
+            drag.current={
+              id:deity.id,pointer:event.pointerId,element:event.currentTarget,
+              startClientX:event.clientX,startClientY:event.clientY,x:p.x,y:p.y,moved:false,
+            };
+            event.stopPropagation();
           }}
-          onClick={()=>{if(!drag.current)onSelectDeity(deity);}}>
+          onClick={()=>{
+            const blocked=suppressClick.current;
+            if(blocked?.id===deity.id&&performance.now()<blocked.until){suppressClick.current=null;return;}
+            suppressClick.current=null;
+            onSelectDeity(deity);
+          }}>
           <span className="mythos-graph-node-symbol">{deity.symbol||'✧'}</span>
           <span className="mythos-graph-node-name">{deity.name}</span>
           <small>{deity.primaryDomains.slice(0,2).join(' · ')||deity.rank}</small>
@@ -243,6 +281,7 @@ export function MythosGraph({deities,relations,pantheons,admin,historicalDay,onS
         <Typography color="text.secondary">Создай хотя бы одно божество.</Typography>
       </Box>}
     </Box>
+    {dragError&&<Typography variant="caption" color="error.main">{dragError}</Typography>}
     <Typography variant="caption" color="text.secondary">
       {layout==='free'
         ?admin?'Перетаскивай божеств мышью — позиция сохраняется автоматически.':'Свободная карта связей.'
