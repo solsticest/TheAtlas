@@ -45,7 +45,8 @@ function apiError(error:unknown){
 function deityInput(record:MythosDeityRecord,patch:Partial<MythosDeityInput>={}):MythosDeityInput{
   return {
     name:record.name,epithet:record.epithet,summary:record.summary,description:record.description,
-    symbol:record.symbol,color:record.color,rank:record.rank,domains:record.domains,
+    symbol:record.symbol,color:record.color,rank:record.rank,power:record.power,
+    influence:record.influence,domains:record.domains,
     primaryDomains:record.primaryDomains,graphX:record.graphX,graphY:record.graphY,
     visibility:record.visibility,pantheonId:record.pantheonId,
     worldIds:record.worlds.map(world=>world.id),...patch,
@@ -140,7 +141,7 @@ export function MythosPage(){
     if(domainFilter!=='*'&&!deity.domains.some(domain=>normalize(domain)===normalize(domainFilter)))return false;
     const q=normalize(query);
     return !q||normalize([
-      deity.name,deity.epithet,deity.summary,deity.description,deity.rank,
+      deity.name,deity.epithet,deity.summary,deity.description,deity.rank,deity.power,
       deity.pantheon?.name??'',...deity.domains,...deity.worlds.map(world=>world.name),
     ].join(' ')).includes(q);
   }),[deities,worldFilter,pantheonFilter,domainFilter,query]);
@@ -481,6 +482,7 @@ function DeityDetail({deity,relations,deities,myths,beliefs,sites,history,admin,
     <Typography color="text.secondary">{deity.epithet||deity.rank}</Typography>
     <Stack direction="row" flexWrap="wrap" gap={.7} sx={{mt:2}}>
       <Chip size="small" label={deity.rank}/>
+      <Chip size="small" variant="outlined" label={(deity.power||'Сила не описана')+' · '+deity.influence+'/100'}/>
       {deity.domains.map(domain=><Chip key={domain} size="small"
         variant={deity.primaryDomains.some(p=>normalize(p)===normalize(domain))?'filled':'outlined'}
         label={(deity.primaryDomains.some(p=>normalize(p)===normalize(domain))?'● ':'')+domain}/>)}
